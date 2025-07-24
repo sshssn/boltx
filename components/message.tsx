@@ -5,7 +5,7 @@ import { memo, useState } from 'react';
 import type { Vote } from '@/lib/db/schema';
 import { DocumentToolCall, DocumentToolResult } from './document';
 import { PencilEditIcon, SparklesIcon } from './icons';
-import { Markdown } from './markdown';
+import { Markdown, MarkdownTypewriter } from './markdown';
 import { MessageActions } from './message-actions';
 import { PreviewAttachment } from './preview-attachment';
 import { Weather } from './weather';
@@ -19,6 +19,7 @@ import { MessageReasoning } from './message-reasoning';
 import type { UseChatHelpers } from '@ai-sdk/react';
 import type { ChatMessage } from '@/lib/types';
 import { useDataStream } from './data-stream-provider';
+import '@fontsource/jetbrains-mono';
 
 // Type narrowing is handled by TypeScript's control flow analysis
 // The AI SDK provides proper discriminated unions for tool calls
@@ -32,6 +33,8 @@ const PurePreviewMessage = ({
   regenerate,
   isReadonly,
   requiresScrollPadding,
+  isStreaming,
+  style,
 }: {
   chatId: string;
   message: ChatMessage;
@@ -41,6 +44,8 @@ const PurePreviewMessage = ({
   regenerate: UseChatHelpers<ChatMessage>['regenerate'];
   isReadonly: boolean;
   requiresScrollPadding: boolean;
+  isStreaming?: boolean;
+  style?: React.CSSProperties;
 }) => {
   const [mode, setMode] = useState<'view' | 'edit'>('view');
 
@@ -54,10 +59,11 @@ const PurePreviewMessage = ({
     <AnimatePresence>
       <motion.div
         data-testid={`message-${message.role}`}
-        className="w-full mx-auto max-w-3xl px-4 group/message"
+        className="w-full mx-auto max-w-3xl px-4 group/message mb-6 mt-6"
         initial={{ y: 5, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         data-role={message.role}
+        style={style}
       >
         <div
           className={cn(
@@ -68,7 +74,7 @@ const PurePreviewMessage = ({
             },
           )}
         >
-          {message.role === 'assistant' && (
+          {message.role === 'assistant' && false && (
             <div className="size-8 flex items-center rounded-full justify-center ring-1 shrink-0 ring-border bg-background">
               <div className="translate-y-px">
                 <SparklesIcon size={14} />
@@ -123,7 +129,7 @@ const PurePreviewMessage = ({
                             <Button
                               data-testid="message-edit-button"
                               variant="ghost"
-                              className="px-2 h-fit rounded-full text-muted-foreground opacity-0 group-hover/message:opacity-100"
+                              className="px-2 h-fit rounded-full text-indigo-500 hover:bg-indigo-50 hover:text-indigo-700 focus-visible:ring-2 focus-visible:ring-indigo-500 transition opacity-0 group-hover/message:opacity-100"
                               onClick={() => {
                                 setMode('edit');
                               }}
@@ -137,12 +143,18 @@ const PurePreviewMessage = ({
 
                       <div
                         data-testid="message-content"
-                        className={cn('flex flex-col gap-4', {
-                          'bg-primary text-primary-foreground px-3 py-2 rounded-xl':
+                        className={cn('flex flex-col gap-4 w-full', {
+                          // User bubble: frosted glass look
+                          'backdrop-blur-md bg-white/10 dark:bg-muted/30 text-[#FAFAFA] px-3 py-2 rounded-xl shadow-lg':
                             message.role === 'user',
                         })}
+                        // Remove fontFamily override for assistant
                       >
-                        <Markdown>{sanitizeText(part.text)}</Markdown>
+                        {message.role === 'assistant' ? (
+                          <Markdown>{sanitizeText(part.text)}</Markdown>
+                        ) : (
+                          <Markdown>{sanitizeText(part.text)}</Markdown>
+                        )}
                       </div>
                     </div>
                   );

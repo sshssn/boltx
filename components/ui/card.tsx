@@ -76,6 +76,11 @@ const CardFooter = React.forwardRef<
 ));
 CardFooter.displayName = 'CardFooter';
 
+// Utility class for highlighting important cards
+// Usage: <Card className="card-highlight">...</Card>
+// Add to globals.css:
+// .card-highlight { border: 2px solid #fbbf24; box-shadow: 0 0 0 2px #fbbf24; }
+
 export {
   Card,
   CardHeader,

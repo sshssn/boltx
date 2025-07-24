@@ -26,7 +26,8 @@ export function MessageEditor({
   setMode,
   setMessages,
   regenerate,
-}: MessageEditorProps) {
+  limitReached = false,
+}: MessageEditorProps & { limitReached?: boolean }) {
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
   const [draftContent, setDraftContent] = useState<string>(
@@ -57,27 +58,30 @@ export function MessageEditor({
       <Textarea
         data-testid="message-editor"
         ref={textareaRef}
-        className="bg-transparent outline-none overflow-hidden resize-none !text-base rounded-xl w-full"
+        className="bg-white/10 dark:bg-muted/30 backdrop-blur-md outline-none overflow-hidden resize-none !text-base rounded-xl w-full text-[#FAFAFA] shadow-lg border border-indigo-500/40"
         value={draftContent}
         onChange={handleInput}
+        disabled={limitReached}
       />
 
       <div className="flex flex-row gap-2 justify-end">
         <Button
-          variant="outline"
+          variant="ghost"
           className="h-fit py-2 px-3"
           onClick={() => {
             setMode('view');
           }}
+          disabled={limitReached}
         >
           Cancel
         </Button>
         <Button
           data-testid="message-editor-send-button"
           variant="default"
-          className="h-fit py-2 px-3"
-          disabled={isSubmitting}
+          className="h-fit py-2 px-3 bg-indigo-600 text-white hover:bg-indigo-700"
+          disabled={isSubmitting || limitReached}
           onClick={async () => {
+            if (limitReached) return;
             setIsSubmitting(true);
 
             await deleteTrailingMessages({

@@ -2,6 +2,19 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 import { guestRegex, isDevelopmentEnvironment } from './lib/constants';
 
+// Simple in-memory rate limiter (IP-based, 60 req/min)
+const rateLimitMap = new Map();
+const RATE_LIMIT = 60;
+const WINDOW_MS = 60 * 1000;
+
+function getClientIp(request: NextRequest) {
+  return (
+    request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+    request.headers.get('x-real-ip') ||
+    'unknown'
+  );
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
@@ -15,6 +28,26 @@ export async function middleware(request: NextRequest) {
 
   if (pathname.startsWith('/api/auth')) {
     return NextResponse.next();
+  }
+
+  if (pathname === '/profile') {
+    return NextResponse.redirect(new URL('/account', request.url));
+  }
+
+  // Rate limit only /api routes
+  if (pathname.startsWith('/api/')) {
+    const ip = getClientIp(request);
+    const now = Date.now();
+    let entry = rateLimitMap.get(ip);
+    if (!entry || now - entry.start > WINDOW_MS) {
+      entry = { count: 1, start: now };
+    } else {
+      entry.count++;
+    }
+    rateLimitMap.set(ip, entry);
+    if (entry.count > RATE_LIMIT) {
+      return new Response('Too Many Requests', { status: 429 });
+    }
   }
 
   const token = await getToken({
@@ -33,7 +66,7 @@ export async function middleware(request: NextRequest) {
 
   const isGuest = guestRegex.test(token?.email ?? '');
 
-  if (token && !isGuest && ['/login', '/register'].includes(pathname)) {
+  if (token && !isGuest && ['/auth', '/register'].includes(pathname)) {
     return NextResponse.redirect(new URL('/', request.url));
   }
 
@@ -45,7 +78,7 @@ export const config = {
     '/',
     '/chat/:id',
     '/api/:path*',
-    '/login',
+    '/auth',
     '/register',
 
     /*

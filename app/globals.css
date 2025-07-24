@@ -2,10 +2,31 @@
 @tailwind components;
 @tailwind utilities;
 
+@font-face {
+  font-family: 'Lato';
+  src: url('/fonts/Lato-Regular.woff2') format('woff2'),
+       url('/fonts/Lato-Regular.woff') format('woff');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: url('/fonts/JetBrainsMono-Regular.woff2') format('woff2'),
+       url('/fonts/JetBrainsMono-Regular.woff') format('woff');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+.font-jetbrains, code, pre, .cm-editor, .cm-gutters {
+  font-family: 'JetBrains Mono', monospace !important;
+}
+
 :root {
     --foreground-rgb: 0, 0, 0;
     --background-start-rgb: 214, 219, 220;
     --background-end-rgb: 255, 255, 255;
+    --white-bright: #FAFAFA;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -91,6 +112,7 @@
         --sidebar-accent-foreground: 240 4.8% 95.9%;
         --sidebar-border: 240 3.7% 15.9%;
         --sidebar-ring: 217.2 91.2% 59.8%;
+        --white-bright: #FAFAFA;
     }
 }
 
@@ -101,7 +123,23 @@
 
     body {
         @apply bg-background text-foreground;
+        overflow: hidden;
     }
+}
+
+html {
+    font-size: 16px;
+}
+
+body {
+    font-size: 1.08rem;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background-color: #0c0c0c;
+  font-family: 'Lato', Arial, sans-serif;
 }
 
 .skeleton {
@@ -161,4 +199,25 @@
 
 .suggestion-highlight {
     @apply bg-blue-200 hover:bg-blue-300 dark:hover:bg-blue-400/50 dark:text-blue-50 dark:bg-blue-500/40;
+}
+
+.card-highlight { border: 2px solid #fbbf24 !important; box-shadow: 0 0 0 2px #fbbf24 !important; }
+
+/* Force remove any border or shadow from sticky headers at the top */
+header, .sticky, .top-0 {
+  border: none !important;
+  border-top: none !important;
+  box-shadow: none !important;
+}
+
+.dashboard-bg {
+  background: linear-gradient(135deg, #18181b 0%, #23243a 100%);
+}
+
+.text-bright {
+    color: var(--white-bright) !important;
+}
+
+.dark .text-bright {
+    color: var(--white-bright) !important;
 }

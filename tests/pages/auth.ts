@@ -5,7 +5,7 @@ export class AuthPage {
   constructor(private page: Page) {}
 
   async gotoLogin() {
-    await this.page.goto('/login');
+    await this.page.goto('/auth');
     await expect(this.page.getByRole('heading')).toContainText('Sign In');
   }
 

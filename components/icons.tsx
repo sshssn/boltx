@@ -1172,3 +1172,25 @@ export const WarningIcon = ({ size = 16 }: { size?: number }) => {
     </svg>
   );
 };
+
+export const SearchIcon = ({ size = 16 }: { size?: number }) => (
+  <svg
+    height={size}
+    width={size}
+    viewBox="0 0 16 16"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    style={{ color: 'currentcolor' }}
+  >
+    <circle cx="7" cy="7" r="5" stroke="currentColor" strokeWidth="2" />
+    <line
+      x1="11.5"
+      y1="11.5"
+      x2="15"
+      y2="15"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+    />
+  </svg>
+);

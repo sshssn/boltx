@@ -69,10 +69,10 @@ test.describe
       expect(chain).toEqual(['http://localhost:3000/']);
     });
 
-    test('Allow navigating to /login as guest user', async ({ page }) => {
-      await page.goto('/login');
-      await page.waitForURL('/login');
-      await expect(page).toHaveURL('/login');
+    test('Allow navigating to /auth as guest user', async ({ page }) => {
+      await page.goto('/auth');
+      await page.waitForURL('/auth');
+      await expect(page).toHaveURL('/auth');
     });
 
     test('Allow navigating to /register as guest user', async ({ page }) => {
@@ -166,6 +166,14 @@ test.describe
       await expect(authMenuItem).toContainText('Sign out');
     });
 
+    test('Do not navigate to /auth for non-guest users', async ({ page }) => {
+      await authPage.login(testUser.email, testUser.password);
+      await page.waitForURL('/');
+
+      await page.goto('/auth');
+      await expect(page).toHaveURL('/');
+    });
+
     test('Do not navigate to /register for non-guest users', async ({
       page,
     }) => {
@@ -173,14 +181,6 @@ test.describe
       await page.waitForURL('/');
 
       await page.goto('/register');
-      await expect(page).toHaveURL('/');
-    });
-
-    test('Do not navigate to /login for non-guest users', async ({ page }) => {
-      await authPage.login(testUser.email, testUser.password);
-      await page.waitForURL('/');
-
-      await page.goto('/login');
       await expect(page).toHaveURL('/');
     });
   });

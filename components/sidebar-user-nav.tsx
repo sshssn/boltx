@@ -1,10 +1,12 @@
 'use client';
 
-import { ChevronUp } from 'lucide-react';
+import { ChevronUp, LogIn, Settings, LogOut, User } from 'lucide-react';
 import Image from 'next/image';
-import type { User } from 'next-auth';
+import type { User as UserType } from 'next-auth';
 import { signOut, useSession } from 'next-auth/react';
 import { useTheme } from 'next-themes';
+import { motion } from 'framer-motion';
+import { useState } from 'react';
 
 import {
   DropdownMenu,
@@ -17,94 +19,191 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  useSidebar,
 } from '@/components/ui/sidebar';
 import { useRouter } from 'next/navigation';
 import { toast } from './toast';
 import { LoaderIcon } from './icons';
 import { guestRegex } from '@/lib/constants';
 
-export function SidebarUserNav({ user }: { user: User }) {
+export function SidebarUserNav({ user }: { user: UserType }) {
   const router = useRouter();
   const { data, status } = useSession();
-  const { setTheme, resolvedTheme } = useTheme();
+  const { theme, setTheme } = useTheme();
+  const { isMobile, setOpenMobile } = useSidebar();
+  const [isSigningOut, setIsSigningOut] = useState(false);
 
   const isGuest = guestRegex.test(data?.user?.email ?? '');
+  const displayName = user?.email?.split('@')[0] || 'User';
+  const fullEmail = user?.email || 'guest@example.com';
+
+  const handleSignOut = async () => {
+    setIsSigningOut(true);
+    try {
+      await signOut({ redirect: false });
+      router.push('/');
+      toast({ type: 'success', description: 'Signed out successfully' });
+    } catch (error) {
+      toast({ type: 'error', description: 'Failed to sign out' });
+    } finally {
+      setIsSigningOut(false);
+    }
+  };
+
+  const handleAccountClick = () => {
+    router.push('/account');
+    if (isMobile) {
+      setOpenMobile(false);
+    }
+  };
+
+  const toggleTheme = () => {
+    setTheme(theme === 'dark' ? 'light' : 'dark');
+    toast({
+      type: 'success',
+      description: `Switched to ${theme === 'dark' ? 'light' : 'dark'} theme`,
+    });
+  };
+
+  if (status === 'loading') {
+    return (
+      <SidebarMenu>
+        <SidebarMenuItem>
+          <div className="flex items-center gap-3 px-3 py-2 rounded-lg bg-muted/50 animate-pulse">
+            <div className="w-8 h-8 rounded-full bg-muted-foreground/20" />
+            <div className="flex-1 h-4 bg-muted-foreground/20 rounded" />
+          </div>
+        </SidebarMenuItem>
+      </SidebarMenu>
+    );
+  }
+
+  if (!user) {
+    return (
+      <SidebarMenu>
+        <SidebarMenuItem>
+          <SidebarMenuButton
+            onClick={() => router.push('/login')}
+            className="w-full justify-center bg-primary text-primary-foreground hover:bg-primary/90"
+          >
+            <LogIn size={16} />
+            Sign In
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+      </SidebarMenu>
+    );
+  }
 
   return (
     <SidebarMenu>
       <SidebarMenuItem>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            {status === 'loading' ? (
-              <SidebarMenuButton className="data-[state=open]:bg-sidebar-accent bg-background data-[state=open]:text-sidebar-accent-foreground h-10 justify-between">
-                <div className="flex flex-row gap-2">
-                  <div className="size-6 bg-zinc-500/30 rounded-full animate-pulse" />
-                  <span className="bg-zinc-500/30 text-transparent rounded-md animate-pulse">
-                    Loading auth status
-                  </span>
-                </div>
-                <div className="animate-spin text-zinc-500">
-                  <LoaderIcon />
-                </div>
-              </SidebarMenuButton>
-            ) : (
-              <SidebarMenuButton
-                data-testid="user-nav-button"
-                className="data-[state=open]:bg-sidebar-accent bg-background data-[state=open]:text-sidebar-accent-foreground h-10"
-              >
-                <Image
-                  src={`https://avatar.vercel.sh/${user.email}`}
-                  alt={user.email ?? 'User Avatar'}
-                  width={24}
-                  height={24}
-                  className="rounded-full"
-                />
-                <span data-testid="user-email" className="truncate">
-                  {isGuest ? 'Guest' : user?.email}
-                </span>
-                <ChevronUp className="ml-auto" />
-              </SidebarMenuButton>
-            )}
-          </DropdownMenuTrigger>
-          <DropdownMenuContent
-            data-testid="user-nav-menu"
-            side="top"
-            className="w-[--radix-popper-anchor-width]"
-          >
-            <DropdownMenuItem
-              data-testid="user-nav-item-theme"
-              className="cursor-pointer"
-              onSelect={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
+            <motion.button
+              type="button"
+              className="flex items-center gap-3 px-3 py-2 rounded-lg bg-background/80 hover:bg-accent/80 border border-border/60 hover:border-border transition-all duration-200 w-full focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 group"
+              data-testid="user-nav-button"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
             >
-              {`Toggle ${resolvedTheme === 'light' ? 'dark' : 'light'} mode`}
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem asChild data-testid="user-nav-item-auth">
-              <button
-                type="button"
-                className="w-full cursor-pointer"
-                onClick={() => {
-                  if (status === 'loading') {
-                    toast({
-                      type: 'error',
-                      description:
-                        'Checking authentication status, please try again!',
-                    });
+              {/* Avatar */}
+              <div className="relative">
+                <Image
+                  src={`https://avatar.vercel.sh/${fullEmail}?size=32`}
+                  alt={`${displayName}'s avatar`}
+                  width={32}
+                  height={32}
+                  className="rounded-full border-2 border-border/50 group-hover:border-border transition-colors"
+                  priority
+                />
+                {!isGuest && (
+                  <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-background rounded-full" />
+                )}
+              </div>
 
-                    return;
-                  }
+              {/* User info */}
+              <div className="flex-1 text-left min-w-0">
+                <div className="font-medium text-sm text-foreground truncate">
+                  {isGuest ? 'Guest User' : displayName}
+                </div>
+                <div className="text-xs text-muted-foreground truncate">
+                  {isGuest ? 'Limited access' : fullEmail}
+                </div>
+              </div>
 
-                  if (isGuest) {
-                    router.push('/login');
-                  } else {
-                    signOut({
-                      redirectTo: '/',
-                    });
-                  }
-                }}
+              {/* Chevron */}
+              <motion.div
+                className="text-muted-foreground group-hover:text-foreground transition-colors"
+                whileHover={{ y: -1 }}
               >
-                {isGuest ? 'Login to your account' : 'Sign out'}
-              </button>
+                <ChevronUp size={16} />
+              </motion.div>
+            </motion.button>
+          </DropdownMenuTrigger>
+
+          <DropdownMenuContent
+            align="end"
+            side={isMobile ? 'top' : 'right'}
+            className="w-56 p-2"
+            sideOffset={8}
+          >
+            {/* User info header */}
+            <div className="px-2 py-2 mb-1">
+              <div className="font-medium text-sm truncate">
+                {isGuest ? 'Guest User' : displayName}
+              </div>
+              <div className="text-xs text-muted-foreground truncate">
+                {fullEmail}
+              </div>
+            </div>
+
+            <DropdownMenuSeparator />
+
+            {/* Account settings */}
+            {!isGuest && (
+              <DropdownMenuItem
+                onClick={handleAccountClick}
+                className="cursor-pointer"
+              >
+                <User size={16} />
+                Account Settings
+              </DropdownMenuItem>
+            )}
+
+            {/* Theme toggle */}
+            <DropdownMenuItem onClick={toggleTheme} className="cursor-pointer">
+              <Settings size={16} />
+              Switch to {theme === 'dark' ? 'Light' : 'Dark'} Mode
+            </DropdownMenuItem>
+
+            <DropdownMenuSeparator />
+
+            {/* Sign out */}
+            <DropdownMenuItem
+              onClick={handleSignOut}
+              className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-950"
+              disabled={isSigningOut}
+            >
+              {isSigningOut ? (
+                <>
+                  <motion.div
+                    animate={{ rotate: 360 }}
+                    transition={{
+                      duration: 1,
+                      repeat: Infinity,
+                      ease: 'linear',
+                    }}
+                  >
+                    <LoaderIcon size={16} />
+                  </motion.div>
+                  Signing Out...
+                </>
+              ) : (
+                <>
+                  <LogOut size={16} />
+                  Sign Out
+                </>
+              )}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

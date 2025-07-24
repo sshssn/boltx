@@ -25,6 +25,7 @@ import {
 } from './icons';
 import { memo } from 'react';
 import { useChatVisibility } from '@/hooks/use-chat-visibility';
+import { getShortTitle } from './sidebar-history';
 
 const PureChatItem = ({
   chat,
@@ -46,7 +47,7 @@ const PureChatItem = ({
     <SidebarMenuItem>
       <SidebarMenuButton asChild isActive={isActive}>
         <Link href={`/chat/${chat.id}`} onClick={() => setOpenMobile(false)}>
-          <span>{chat.title}</span>
+          <span>{getShortTitle(chat.title)}</span>
         </Link>
       </SidebarMenuButton>
 

@@ -1,10 +1,10 @@
 import { Toaster } from 'sonner';
 import type { Metadata } from 'next';
-import { Geist, Geist_Mono } from 'next/font/google';
 import { ThemeProvider } from '@/components/theme-provider';
 
 import './globals.css';
 import { SessionProvider } from 'next-auth/react';
+import { DashboardOverlay } from '@/components/dashboard-overlay';
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://chat.vercel.ai'),
@@ -15,18 +15,6 @@ export const metadata: Metadata = {
 export const viewport = {
   maximumScale: 1, // Disable auto-zoom on mobile Safari
 };
-
-const geist = Geist({
-  subsets: ['latin'],
-  display: 'swap',
-  variable: '--font-geist',
-});
-
-const geistMono = Geist_Mono({
-  subsets: ['latin'],
-  display: 'swap',
-  variable: '--font-geist-mono',
-});
 
 const LIGHT_THEME_COLOR = 'hsl(0 0% 100%)';
 const DARK_THEME_COLOR = 'hsl(240deg 10% 3.92%)';
@@ -54,23 +42,16 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html
-      lang="en"
-      // `next-themes` injects an extra classname to the body element to avoid
-      // visual flicker before hydration. Hence the `suppressHydrationWarning`
-      // prop is necessary to avoid the React hydration mismatch warning.
-      // https://github.com/pacocoursey/next-themes?tab=readme-ov-file#with-app
-      suppressHydrationWarning
-      className={`${geist.variable} ${geistMono.variable}`}
-    >
+    <html lang="en" suppressHydrationWarning>
       <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
         <script
           dangerouslySetInnerHTML={{
             __html: THEME_COLOR_SCRIPT,
           }}
         />
       </head>
-      <body className="antialiased">
+      <body className="antialiased font-sans bg-[hsl(240,6%,12%)] text-foreground min-h-screen w-full">
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
@@ -78,7 +59,22 @@ export default async function RootLayout({
           disableTransitionOnChange
         >
           <Toaster position="top-center" />
-          <SessionProvider>{children}</SessionProvider>
+          <SessionProvider>
+            <DashboardOverlay>
+              {/* Dashboard content goes here */}
+              <div className="space-y-4">
+                <div className="p-4 border rounded-lg">
+                  Profile/Settings (TODO)
+                </div>
+                <div className="p-4 border rounded-lg">
+                  Subscription/Billing (TODO)
+                </div>
+                <div className="p-4 border rounded-lg">Integrations (TODO)</div>
+                <div className="p-4 border rounded-lg">Support/Help (TODO)</div>
+              </div>
+            </DashboardOverlay>
+            <main className="w-full min-h-screen flex flex-col">{children}</main>
+          </SessionProvider>
         </ThemeProvider>
       </body>
     </html>

@@ -27,6 +27,8 @@ import {
   type DBMessage,
   type Chat,
   stream,
+  memory,
+  type Memory,
 } from './schema';
 import type { ArtifactKind } from '@/components/artifact';
 import { generateUUID } from '../utils';
@@ -64,7 +66,7 @@ export async function createUser(email: string, password: string) {
 }
 
 export async function createGuestUser() {
-  const email = `guest-${Date.now()}`;
+  const email = `guest-${Date.now()}-${Math.floor(Math.random() * 1000000)}`;
   const password = generateHashedPassword(generateUUID());
 
   try {
@@ -73,6 +75,7 @@ export async function createGuestUser() {
       email: user.email,
     });
   } catch (error) {
+    console.error('[GUEST USER CREATION ERROR]', error); // Log the actual error
     throw new ChatSDKError(
       'bad_request:database',
       'Failed to create guest user',
@@ -533,6 +536,96 @@ export async function getStreamIdsByChatId({ chatId }: { chatId: string }) {
     throw new ChatSDKError(
       'bad_request:database',
       'Failed to get stream ids by chat id',
+    );
+  }
+}
+
+export async function getMemoryByUserId({
+  userId,
+  limit = 20,
+}: { userId: string; limit?: number }) {
+  try {
+    return await db
+      .select()
+      .from(memory)
+      .where(eq(memory.userId, userId))
+      .orderBy(desc(memory.createdAt))
+      .limit(limit);
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get memory by user id',
+    );
+  }
+}
+
+export async function getMemoryCountByUserId({ userId }: { userId: string }) {
+  try {
+    const result = await db
+      .select({ count: count() })
+      .from(memory)
+      .where(eq(memory.userId, userId));
+    return result[0]?.count || 0;
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get memory count by user id',
+    );
+  }
+}
+
+export async function addMemory({
+  userId,
+  content,
+}: { userId: string; content: string }) {
+  try {
+    return await db.insert(memory).values({
+      userId,
+      content,
+      createdAt: new Date(),
+    });
+  } catch (error) {
+    throw new ChatSDKError('bad_request:database', 'Failed to add memory');
+  }
+}
+
+export async function deleteMemoryById({
+  id,
+  userId,
+}: { id: string; userId: string }) {
+  try {
+    return await db
+      .delete(memory)
+      .where(and(eq(memory.id, id), eq(memory.userId, userId)));
+  } catch (error) {
+    throw new ChatSDKError('bad_request:database', 'Failed to delete memory');
+  }
+}
+
+export async function getUserById(id: string): Promise<User | null> {
+  try {
+    const [userRecord] = await db.select().from(user).where(eq(user.id, id));
+    return userRecord || null;
+  } catch (error) {
+    throw new ChatSDKError('bad_request:database', 'Failed to get user by id');
+  }
+}
+
+export async function getDocumentsByUserId({
+  userId,
+  limit = 50,
+}: { userId: string; limit?: number }) {
+  try {
+    return await db
+      .select()
+      .from(document)
+      .where(eq(document.userId, userId))
+      .orderBy(desc(document.createdAt))
+      .limit(limit);
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get documents by user id',
     );
   }
 }

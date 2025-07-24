@@ -18,8 +18,8 @@ import { useLocalStorage, useWindowSize } from 'usehooks-ts';
 
 import { ArrowUpIcon, PaperclipIcon, StopIcon } from './icons';
 import { PreviewAttachment } from './preview-attachment';
-import { Button } from './ui/button';
-import { Textarea } from './ui/textarea';
+import { Button as ShadcnButton } from '@/components/ui/button';
+import { Textarea as ShadcnTextarea } from '@/components/ui/textarea';
 import { SuggestedActions } from './suggested-actions';
 import equal from 'fast-deep-equal';
 import type { UseChatHelpers } from '@ai-sdk/react';
@@ -28,6 +28,18 @@ import { ArrowDown } from 'lucide-react';
 import { useScrollToBottom } from '@/hooks/use-scroll-to-bottom';
 import type { VisibilityType } from './visibility-selector';
 import type { Attachment, ChatMessage } from '@/lib/types';
+import Link from 'next/link';
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogAction,
+} from '@/components/ui/alert-dialog';
+import { X } from 'lucide-react';
+import { Input as ShadcnInput } from '@/components/ui/input';
+import { useSidebar } from './ui/sidebar';
 
 function PureMultimodalInput({
   chatId,
@@ -42,6 +54,8 @@ function PureMultimodalInput({
   sendMessage,
   className,
   selectedVisibilityType,
+  disabled = false,
+  limitReached = false,
 }: {
   chatId: string;
   input: string;
@@ -55,9 +69,12 @@ function PureMultimodalInput({
   sendMessage: UseChatHelpers<ChatMessage>['sendMessage'];
   className?: string;
   selectedVisibilityType: VisibilityType;
+  disabled?: boolean;
+  limitReached?: boolean;
 }) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { width } = useWindowSize();
+  const { open: sidebarOpen, isMobile } = useSidebar();
 
   useEffect(() => {
     if (textareaRef.current) {
@@ -200,6 +217,27 @@ function PureMultimodalInput({
   );
 
   const { isAtBottom, scrollToBottom } = useScrollToBottom();
+  const [hasInteracted, setHasInteracted] = useState(false);
+  const [showScrollButton, setShowScrollButton] = useState(false);
+  const fadeTimeout = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    setHasInteracted(true);
+  }, []);
+
+  // Fade out the button after a delay when at bottom
+  useEffect(() => {
+    if (isAtBottom) {
+      if (fadeTimeout.current) clearTimeout(fadeTimeout.current);
+      fadeTimeout.current = setTimeout(() => setShowScrollButton(false), 1200);
+    } else {
+      if (fadeTimeout.current) clearTimeout(fadeTimeout.current);
+      setShowScrollButton(true);
+    }
+    return () => {
+      if (fadeTimeout.current) clearTimeout(fadeTimeout.current);
+    };
+  }, [isAtBottom]);
 
   useEffect(() => {
     if (status === 'submitted') {
@@ -207,42 +245,59 @@ function PureMultimodalInput({
     }
   }, [status, scrollToBottom]);
 
-  return (
-    <div className="relative w-full flex flex-col gap-4">
-      <AnimatePresence>
-        {!isAtBottom && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 10 }}
-            transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-            className="absolute left-1/2 bottom-28 -translate-x-1/2 z-50"
-          >
-            <Button
-              data-testid="scroll-to-bottom-button"
-              className="rounded-full"
-              size="icon"
-              variant="outline"
-              onClick={(event) => {
-                event.preventDefault();
-                scrollToBottom();
-              }}
-            >
-              <ArrowDown />
-            </Button>
-          </motion.div>
-        )}
-      </AnimatePresence>
+  const [open, setOpen] = useState(limitReached);
+  useEffect(() => {
+    setOpen(limitReached);
+  }, [limitReached]);
 
-      {messages.length === 0 &&
-        attachments.length === 0 &&
-        uploadQueue.length === 0 && (
-          <SuggestedActions
-            sendMessage={sendMessage}
-            chatId={chatId}
-            selectedVisibilityType={selectedVisibilityType}
-          />
-        )}
+  return (
+    <div
+      className={cx(
+        'relative w-full flex flex-col gap-4',
+        limitReached && 'opacity-60',
+      )}
+    >
+      {/* Remove the scroll to bottom button */}
+      {/* <div className="w-full flex justify-center items-center mb-2"> ... </div> */}
+
+      {/* Removed duplicate SuggestedActions rendering. Only Chat should render it. */}
+
+      {/* Limit reached modal will be implemented with shadcn/ui AlertDialog below */}
+
+      <AlertDialog open={open} onOpenChange={setOpen}>
+        <AlertDialogContent>
+          <button
+            className="absolute top-3 right-3 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 transition"
+            onClick={() => setOpen(false)}
+            aria-label="Dismiss"
+            type="button"
+          >
+            <X className="w-5 h-5" />
+          </button>
+          <AlertDialogHeader>
+            <div className="text-5xl mb-2 text-center">💬</div>
+            <AlertDialogTitle className="text-center text-2xl">
+              You&apos;re out of messages!
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-center">
+              You&apos;ve hit your daily limit of 10 messages as a guest.
+              <br />
+              <span className="block mt-2 mb-2">
+                Sign up for a free account to keep the conversation going and
+                unlock more features!
+              </span>
+              <span className="text-xs text-zinc-400">
+                No spam, no credit card required 🚀
+              </span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <a href="/auth" className="w-full block">
+            <AlertDialogAction asChild>
+              <span className="w-full block text-center">Sign Up Free</span>
+            </AlertDialogAction>
+          </a>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <input
         type="file"
@@ -276,49 +331,134 @@ function PureMultimodalInput({
         </div>
       )}
 
-      <Textarea
-        data-testid="multimodal-input"
-        ref={textareaRef}
-        placeholder="Send a message..."
-        value={input}
-        onChange={handleInput}
+      <div
         className={cx(
-          'min-h-[24px] max-h-[calc(75dvh)] overflow-hidden resize-none rounded-2xl !text-base bg-muted pb-10 dark:border-zinc-700',
-          className,
+          isMobile
+            ? 'sticky bottom-0 z-30 flex justify-center items-end pointer-events-none px-2 pb-4 md:px-0'
+            : 'fixed bottom-0 right-0 z-30 flex justify-center items-end pointer-events-none px-2 pb-4 md:px-0 transition-all duration-300',
         )}
-        rows={2}
-        autoFocus
-        onKeyDown={(event) => {
-          if (
-            event.key === 'Enter' &&
-            !event.shiftKey &&
-            !event.nativeEvent.isComposing
-          ) {
-            event.preventDefault();
-
-            if (status !== 'ready') {
-              toast.error('Please wait for the model to finish its response!');
-            } else {
-              submitForm();
-            }
-          }
-        }}
-      />
-
-      <div className="absolute bottom-0 p-2 w-fit flex flex-row justify-start">
-        <AttachmentsButton fileInputRef={fileInputRef} status={status} />
-      </div>
-
-      <div className="absolute bottom-0 right-0 p-2 w-fit flex flex-row justify-end">
-        {status === 'submitted' ? (
-          <StopButton stop={stop} setMessages={setMessages} />
-        ) : (
-          <SendButton
-            input={input}
-            submitForm={submitForm}
-            uploadQueue={uploadQueue}
-          />
-        )}
+        style={
+          isMobile
+            ? { width: '100%' }
+            : sidebarOpen
+              ? { left: '16rem', width: 'auto' }
+              : { left: 0, width: '100%' }
+        }
+      >
+        <div
+          className={cx(
+            'w-full md:max-w-3xl pointer-events-auto',
+            'flex flex-col items-center',
+          )}
+        >
+          <div
+            className={cx(
+              'relative flex items-end w-full',
+              'rounded-2xl bg-white/30 dark:bg-zinc-800/60',
+              'backdrop-blur-2xl border border-white/30 dark:border-zinc-700',
+              'shadow-2xl',
+              'transition-all duration-200',
+              disabled && 'opacity-60',
+              'focus-within:ring-2 focus-within:ring-indigo-400',
+            )}
+            style={{ boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.15)' }}
+          >
+            <ShadcnTextarea
+              data-testid="multimodal-input"
+              ref={textareaRef}
+              placeholder="Type your message here..."
+              value={input}
+              onChange={handleInput}
+              className={cx(
+                'flex-1 min-h-[48px] max-h-[180px] resize-none rounded-2xl !text-base bg-transparent text-zinc-900 dark:text-zinc-100 p-4 pr-12',
+                'transition-all duration-200',
+                'focus:outline-none focus:ring-0',
+                disabled && 'cursor-not-allowed select-none',
+              )}
+              rows={2}
+              autoFocus
+              onKeyDown={(event) => {
+                if (
+                  event.key === 'Enter' &&
+                  !event.shiftKey &&
+                  !event.nativeEvent.isComposing
+                ) {
+                  event.preventDefault();
+                  if (status !== 'ready' || disabled) {
+                    toast.error(
+                      'Please wait for the model to finish its response!',
+                    );
+                  } else {
+                    submitForm();
+                  }
+                }
+              }}
+              disabled={disabled}
+              style={{
+                background: 'transparent',
+                boxShadow: 'none',
+                border: 'none',
+              }}
+            />
+            <div className="absolute bottom-3 right-3 flex flex-row gap-2 items-center">
+              <ShadcnButton
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={submitForm}
+                className={cx(
+                  'rounded-full bg-white/40 dark:bg-zinc-700/60 shadow-md',
+                  'hover:bg-indigo-500 hover:text-white',
+                  'transition',
+                  'text-indigo-600 dark:text-indigo-300',
+                  'border border-white/30 dark:border-zinc-700',
+                  'w-10 h-10 flex items-center justify-center',
+                )}
+                aria-label="Send message"
+                disabled={disabled || (!input && attachments.length === 0)}
+              >
+                <ArrowUpIcon size={20} />
+              </ShadcnButton>
+              <ShadcnButton
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={(e) => {
+                  e.preventDefault();
+                  fileInputRef.current?.click();
+                }}
+                className={cx(
+                  'rounded-full bg-white/40 dark:bg-zinc-700/60 shadow-md',
+                  'hover:bg-indigo-500 hover:text-white',
+                  'transition',
+                  'text-indigo-600 dark:text-indigo-300',
+                  'border border-white/30 dark:border-zinc-700',
+                  'w-10 h-10 flex items-center justify-center',
+                )}
+                aria-label="Attach file"
+                disabled={disabled}
+              >
+                <PaperclipIcon size={20} />
+              </ShadcnButton>
+            </div>
+            <input
+              type="file"
+              className="hidden"
+              ref={fileInputRef}
+              multiple
+              onChange={handleFileChange}
+              tabIndex={-1}
+            />
+            <div className="absolute bottom-3 left-4 flex flex-row gap-2 items-center">
+              <span className="text-xs text-zinc-400 dark:text-zinc-500 select-none">
+                Shift+Enter for new line
+              </span>
+            </div>
+            <div className="absolute bottom-3 right-20 text-xs text-zinc-400 dark:text-zinc-500 select-none">
+              {/* removed word count */}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -340,14 +480,21 @@ export const MultimodalInput = memo(
 function PureAttachmentsButton({
   fileInputRef,
   status,
+  large,
+  color,
 }: {
   fileInputRef: React.MutableRefObject<HTMLInputElement | null>;
   status: UseChatHelpers<ChatMessage>['status'];
+  large?: boolean;
+  color?: string;
 }) {
   return (
-    <Button
+    <ShadcnButton
       data-testid="attachments-button"
-      className="rounded-md rounded-bl-lg p-[7px] h-fit dark:border-zinc-700 hover:dark:bg-zinc-900 hover:bg-zinc-200"
+      className={cx(
+        'rounded-md rounded-bl-lg p-2 h-fit bg-indigo-600 text-white hover:bg-indigo-700 shadow-md',
+        large && 'p-2',
+      )}
       onClick={(event) => {
         event.preventDefault();
         fileInputRef.current?.click();
@@ -356,7 +503,7 @@ function PureAttachmentsButton({
       variant="ghost"
     >
       <PaperclipIcon size={14} />
-    </Button>
+    </ShadcnButton>
   );
 }
 
@@ -365,14 +512,21 @@ const AttachmentsButton = memo(PureAttachmentsButton);
 function PureStopButton({
   stop,
   setMessages,
+  large,
+  color,
 }: {
   stop: () => void;
   setMessages: UseChatHelpers<ChatMessage>['setMessages'];
+  large?: boolean;
+  color?: string;
 }) {
   return (
-    <Button
+    <ShadcnButton
       data-testid="stop-button"
-      className="rounded-full p-1.5 h-fit border dark:border-zinc-600"
+      className={cx(
+        'rounded-full p-2 h-fit bg-indigo-600 text-white hover:bg-indigo-700 shadow-md',
+        large && 'p-2',
+      )}
       onClick={(event) => {
         event.preventDefault();
         stop();
@@ -380,7 +534,7 @@ function PureStopButton({
       }}
     >
       <StopIcon size={14} />
-    </Button>
+    </ShadcnButton>
   );
 }
 
@@ -390,15 +544,22 @@ function PureSendButton({
   submitForm,
   input,
   uploadQueue,
+  large,
+  color,
 }: {
   submitForm: () => void;
   input: string;
   uploadQueue: Array<string>;
+  large?: boolean;
+  color?: string;
 }) {
   return (
-    <Button
+    <ShadcnButton
       data-testid="send-button"
-      className="rounded-full p-1.5 h-fit border dark:border-zinc-600"
+      className={cx(
+        'rounded-full p-2 h-fit bg-indigo-600 text-white hover:bg-indigo-700 shadow-md',
+        large && 'p-2',
+      )}
       onClick={(event) => {
         event.preventDefault();
         submitForm();
@@ -406,7 +567,7 @@ function PureSendButton({
       disabled={input.length === 0 || uploadQueue.length > 0}
     >
       <ArrowUpIcon size={14} />
-    </Button>
+    </ShadcnButton>
   );
 }
 

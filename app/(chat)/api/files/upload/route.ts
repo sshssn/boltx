@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
 import { auth } from '@/app/(auth)/auth';
+import { getDocumentsByUserId } from '@/lib/db/queries';
 
 // Use Blob instead of File since File is not available in Node.js environment
 const FileSchema = z.object({
@@ -62,6 +63,25 @@ export async function POST(request: Request) {
   } catch (error) {
     return NextResponse.json(
       { error: 'Failed to process request' },
+      { status: 500 },
+    );
+  }
+}
+
+export async function GET(request: Request) {
+  const session = await auth();
+  if (!session?.user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  try {
+    const documents = await getDocumentsByUserId({
+      userId: session.user.id,
+      limit: 50,
+    });
+    return NextResponse.json({ documents });
+  } catch (error) {
+    return NextResponse.json(
+      { error: 'Failed to fetch attachments' },
       { status: 500 },
     );
   }
