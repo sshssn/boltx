@@ -231,7 +231,7 @@ export function AppSidebar({
             className="h-7 w-7 sm:h-8 sm:w-8"
             onClick={() => router.push('/')}
           >
-            <PlusIcon className="h-4 w-4" />
+            <PlusIcon size={16} />
           </Button>
           <Button
             variant="ghost"
