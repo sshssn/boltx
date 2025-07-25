@@ -8,8 +8,6 @@ import {
   Key,
   Paperclip,
   MessageCircle,
-  ArrowLeft,
-  LogOut,
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -20,9 +18,8 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
 import {
   AlertDialog,
   AlertDialogTrigger,
@@ -34,7 +31,6 @@ import {
   AlertDialogAction,
   AlertDialogCancel,
 } from '@/components/ui/alert-dialog';
-import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Progress } from '@/components/ui/progress';
 import { Input } from '@/components/ui/input';
@@ -227,9 +223,9 @@ export default function ClientAccountDashboard({ session }: { session: any }) {
       </div>
       <div className="mx-auto max-w-7xl px-4 py-0 md:px-8 flex flex-col md:flex-row gap-8 w-full">
         {/* Sidebar */}
-        <aside className="w-full md:w-80 flex-shrink-0 flex flex-col gap-6">
+        <aside className="w-full md:w-80 shrink-0 flex flex-col gap-6">
           <Card className="bg-zinc-900/80 border border-white/10 shadow-xl flex flex-col items-center gap-2 p-8">
-            <Avatar className="h-24 w-24 mb-2">
+            <Avatar className="size-24 mb-2">
               <AvatarFallback>
                 <User size={32} />
               </AvatarFallback>
@@ -337,7 +333,7 @@ export default function ClientAccountDashboard({ session }: { session: any }) {
                     </CardHeader>
                     <CardContent>
                       <div className="flex items-center gap-4">
-                        <Avatar className="h-16 w-16">
+                        <Avatar className="size-16">
                           <AvatarFallback>
                             <User size={24} />
                           </AvatarFallback>

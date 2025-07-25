@@ -28,7 +28,6 @@ import {
   type Chat,
   stream,
   memory,
-  type Memory,
 } from './schema';
 import type { ArtifactKind } from '@/components/artifact';
 import { generateUUID } from '../utils';

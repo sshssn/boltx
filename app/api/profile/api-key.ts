@@ -1,9 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { type NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/app/(auth)/auth';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
-import { user } from '@/lib/db/schema';
-import { eq } from 'drizzle-orm';
 
 if (!process.env.POSTGRES_URL) throw new Error('POSTGRES_URL is not set');
 const client = postgres(process.env.POSTGRES_URL);

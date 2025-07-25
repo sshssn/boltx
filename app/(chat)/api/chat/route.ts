@@ -5,15 +5,12 @@ import {
   saveChat,
   getChatById,
   getMemoryByUserId,
-  getMemoryCountByUserId,
   addMemory,
-  deleteMemoryById,
   getMessageCountByUserId,
   getChatsByUserId,
 } from '@/lib/db/queries';
 import { generateUUID } from '@/lib/utils';
 import type { DBMessage } from '@/lib/db/schema';
-import { createUIMessageStream, JsonToSseTransformStream } from 'ai';
 import { entitlementsByUserType } from '@/lib/ai/entitlements';
 
 export async function POST(request: Request) {

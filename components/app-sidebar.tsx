@@ -6,31 +6,23 @@ import {
   SidebarContent,
   SidebarFooter,
   useSidebar,
-  SidebarProvider,
 } from '@/components/ui/sidebar';
 import { SidebarToggle } from '@/components/sidebar-toggle';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { SidebarHistory } from '@/components/sidebar-history';
-import { BoxIcon, PlusIcon, SearchIcon } from '@/components/icons';
+import { PlusIcon, SearchIcon } from '@/components/icons';
 import { useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import Image from 'next/image';
 import { useState } from 'react';
 // @ts-expect-error: no types for blueimp-md5
 import md5 from 'blueimp-md5';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
 import { LogIn } from 'lucide-react';
 import { SidebarUserNav } from './sidebar-user-nav';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Sun, Moon } from 'lucide-react';
 import { useRef } from 'react';
-import { Logo } from './logo';
 
 function getGravatarUrl(email: string) {
   if (!email) return undefined;
@@ -106,9 +98,9 @@ export function AppSidebar({
   return (
     <Sidebar
       {...props}
-      className="flex flex-col h-dvh min-h-0 w-[18rem] max-w-full bg-auth-gradient border-r border-border z-20 font-lato"
+      className="flex flex-col h-dvh min-h-0 w-72 max-w-full bg-auth-gradient border-r border-border z-20 font-lato"
     >
-      <SidebarHeader className="flex flex-col items-center justify-center flex-shrink-0 py-6 gap-3">
+      <SidebarHeader className="flex flex-col items-center justify-center shrink-0 py-6 gap-3">
         <div
           className="w-28 h-14 rounded-2xl bg-white/30 dark:bg-zinc-900/60 border border-white/30 shadow-xl backdrop-blur-2xl flex items-center justify-center transition-all duration-100"
           style={{ backdropFilter: 'blur(18px)' }}
@@ -141,7 +133,7 @@ export function AppSidebar({
         />
         <SidebarHistory user={user} search={search} />
       </SidebarContent>
-      <SidebarFooter className="flex flex-col items-center border-t flex-shrink-0 gap-2 py-4">
+      <SidebarFooter className="flex flex-col items-center border-t shrink-0 gap-2 py-4">
         {isLoggedIn ? (
           <SidebarUserNav user={user} />
         ) : (

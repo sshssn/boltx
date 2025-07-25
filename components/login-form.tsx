@@ -304,7 +304,7 @@ export function LoginForm({
               alt="App Logo"
               width={208}
               height={208}
-              className="w-52 h-52 object-contain drop-shadow-xl"
+              className="size-52 object-contain drop-shadow-xl"
             />
           </div>
         </CardContent>

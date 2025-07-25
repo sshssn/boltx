@@ -1,12 +1,8 @@
 import Link from 'next/link';
-import React, { memo, useEffect, useRef, useState } from 'react';
+import React, { memo, useEffect, useState } from 'react';
 import ReactMarkdown, { type Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { motion, AnimatePresence } from 'framer-motion';
 import '@fontsource/jetbrains-mono';
-
-// Optional: Your own code block component if needed
-import { CodeBlock } from './code-block';
 
 // CopyButton component
 function CopyButton({
@@ -302,7 +298,7 @@ export function MarkdownTypewriter({
     }, speed);
 
     return () => clearInterval(interval);
-  }, [fullText]);
+  }, [fullText, speed]);
 
   return (
     <div className="font-['JetBrains_Mono'] text-base leading-relaxed">

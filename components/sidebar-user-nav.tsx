@@ -70,7 +70,7 @@ export function SidebarUserNav({ user }: { user: UserType }) {
       <SidebarMenu>
         <SidebarMenuItem>
           <div className="flex items-center gap-3 px-3 py-2 rounded-lg bg-muted/50 animate-pulse">
-            <div className="w-8 h-8 rounded-full bg-muted-foreground/20" />
+            <div className="size-8 rounded-full bg-muted-foreground/20" />
             <div className="flex-1 h-4 bg-muted-foreground/20 rounded" />
           </div>
         </SidebarMenuItem>
@@ -148,7 +148,7 @@ export function SidebarUserNav({ user }: { user: UserType }) {
             sideOffset={8}
           >
             {/* User info header */}
-            <div className="px-2 py-2 mb-1">
+            <div className="p-2 mb-1">
               <div className="font-medium text-sm truncate">
                 {isGuest ? 'Guest User' : displayName}
               </div>
@@ -190,7 +190,7 @@ export function SidebarUserNav({ user }: { user: UserType }) {
                     animate={{ rotate: 360 }}
                     transition={{
                       duration: 1,
-                      repeat: Infinity,
+                      repeat: Number.POSITIVE_INFINITY,
                       ease: 'linear',
                     }}
                   >

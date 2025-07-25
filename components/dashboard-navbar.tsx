@@ -1,9 +1,8 @@
 'use client';
 import { usePathname } from 'next/navigation';
-import { SunIcon, MoonIcon, MessageCircleIcon } from 'lucide-react';
+import { MessageCircleIcon } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { NavUser } from '@/components/nav-user';
-import { Card } from '@/components/ui/card';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 
@@ -28,7 +27,7 @@ export function DashboardNavbar() {
       <div className="flex items-center gap-4">
         <Link href="/chat">
           <Button variant="secondary" className="rounded-lg px-3 py-2">
-            <MessageCircleIcon className="mr-2 h-5 w-5" />
+            <MessageCircleIcon className="mr-2 size-5" />
             Back to Chat
           </Button>
         </Link>

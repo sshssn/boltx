@@ -27,7 +27,7 @@ export function DashboardOverlay({ children }: { children: React.ReactNode }) {
             animate={{ x: 0 }}
             exit={{ x: 100 }}
             transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-            className="w-full max-w-xl h-full bg-background shadow-xl flex flex-col"
+            className="size-full bg-background shadow-xl flex flex-col"
           >
             <div className="flex items-center justify-between p-4 border-b">
               <h2 className="text-xl font-semibold">Dashboard</h2>

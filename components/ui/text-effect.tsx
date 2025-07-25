@@ -129,9 +129,9 @@ const AnimationComponent: React.FC<{
       </motion.span>
     ) : (
       <motion.span className="inline-block whitespace-pre">
-        {segment.split('').map((char, charIndex) => (
+        {segment.split('').map((char) => (
           <motion.span
-            key={`char-${charIndex}`}
+            key={char}
             aria-hidden="true"
             variants={variants}
             className="inline-block whitespace-pre"
@@ -275,7 +275,7 @@ export function TextEffect({
           {per !== 'line' ? <span className="sr-only">{children}</span> : null}
           {segments.map((segment, index) => (
             <AnimationComponent
-              key={`${segment}-${index}`}
+              key={segment}
               segment={segment}
               variants={computedVariants.item}
               per={per}

@@ -142,7 +142,7 @@ const LoadingSkeleton = () => (
             animate={{ opacity: [0.3, 0.6, 0.3] }}
             transition={{
               duration: 1.5,
-              repeat: Infinity,
+              repeat: Number.POSITIVE_INFINITY,
               delay: index * 0.1,
             }}
           >
@@ -377,7 +377,7 @@ export function SidebarHistory({
               <div className="flex items-center justify-center gap-2 text-xs text-sidebar-foreground/60 py-4">
                 <motion.div
                   animate={{ rotate: 360 }}
-                  transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                  transition={{ duration: 1, repeat: Number.POSITIVE_INFINITY, ease: 'linear' }}
                 >
                   <LoaderIcon size={14} />
                 </motion.div>

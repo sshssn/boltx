@@ -20,15 +20,11 @@ import { ArrowUpIcon, PaperclipIcon, StopIcon } from './icons';
 import { PreviewAttachment } from './preview-attachment';
 import { Button as ShadcnButton } from '@/components/ui/button';
 import { Textarea as ShadcnTextarea } from '@/components/ui/textarea';
-import { SuggestedActions } from './suggested-actions';
 import equal from 'fast-deep-equal';
 import type { UseChatHelpers } from '@ai-sdk/react';
-import { AnimatePresence, motion } from 'framer-motion';
-import { ArrowDown } from 'lucide-react';
 import { useScrollToBottom } from '@/hooks/use-scroll-to-bottom';
 import type { VisibilityType } from './visibility-selector';
 import type { Attachment, ChatMessage } from '@/lib/types';
-import Link from 'next/link';
 import {
   AlertDialog,
   AlertDialogContent,
@@ -38,7 +34,6 @@ import {
   AlertDialogAction,
 } from '@/components/ui/alert-dialog';
 import { X } from 'lucide-react';
-import { Input as ShadcnInput } from '@/components/ui/input';
 import { useSidebar } from './ui/sidebar';
 
 function PureMultimodalInput({
@@ -282,7 +277,7 @@ function PureMultimodalInput({
             <AlertDialogDescription className="text-center">
               You&apos;ve hit your daily limit of 10 messages as a guest.
               <br />
-              <span className="block mt-2 mb-2">
+              <span className="my-2">
                 Sign up for a free account to keep the conversation going and
                 unlock more features!
               </span>

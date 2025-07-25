@@ -1,29 +1,12 @@
 'use client';
-
-import { DefaultChatTransport } from 'ai';
 import { useChat } from '@ai-sdk/react';
-import { useEffect, useState, useCallback, useMemo } from 'react';
-import useSWR, { useSWRConfig } from 'swr';
-import { ChatHeader } from '@/components/chat-header';
+import { useState } from 'react';
 import type { Vote } from '@/lib/db/schema';
-import { fetcher, fetchWithErrorHandlers, generateUUID } from '@/lib/utils';
-import { Artifact } from './artifact';
 import { MultimodalInput } from './multimodal-input';
 import { Messages } from './messages';
 import type { VisibilityType } from './visibility-selector';
-import { useArtifactSelector } from '@/hooks/use-artifact';
-import { unstable_serialize } from 'swr/infinite';
-import { getChatHistoryPaginationKey } from './sidebar-history';
-import { toast } from './toast';
 import type { Session } from 'next-auth';
-import { useSearchParams } from 'next/navigation';
-import { useChatVisibility } from '@/hooks/use-chat-visibility';
-import { useAutoResume } from '@/hooks/use-auto-resume';
-import { ChatSDKError } from '@/lib/errors';
 import type { Attachment, ChatMessage } from '@/lib/types';
-import { useDataStream } from './data-stream-provider';
-import { MemoryPill } from './memory-pill';
-import { useSession } from 'next-auth/react';
 import { SuggestedActions } from './suggested-actions';
 
 interface ChatProps {
@@ -97,7 +80,7 @@ export function Chat({
           />
         )}
         {/* Input form - always visible */}
-        <div className="absolute left-0 right-0 bottom-0 z-10">
+        <div className="absolute inset-x-0 bottom-0 z-10">
           <form
             className="flex mx-auto px-4 gap-2 w-full md:max-w-3xl"
             style={{ border: 'none', boxShadow: 'none' }}

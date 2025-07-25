@@ -1,8 +1,6 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Button } from './ui/button';
-import { memo } from 'react';
 import type { UseChatHelpers } from '@ai-sdk/react';
 import type { VisibilityType } from './visibility-selector';
 import type { ChatMessage } from '@/lib/types';
@@ -247,7 +245,7 @@ export function SuggestedActions({
                     whileHover={{ x: 0, opacity: 0.7 }}
                   >
                     <svg
-                      className="w-4 h-4 text-zinc-400 dark:text-zinc-500"
+                      className="size-4 text-zinc-400 dark:text-zinc-500"
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
@@ -282,14 +280,14 @@ export function SuggestedActions({
           variants={itemVariants}
         >
           <div className="flex items-center space-x-4">
-            <div className="h-px bg-gradient-to-r from-transparent via-zinc-300/40 dark:via-zinc-600/40 to-transparent w-16"></div>
+            <div className="h-px bg-gradient-to-r from-transparent via-zinc-300/40 dark:via-zinc-600/40 to-transparent w-16" />
             <div
               className={cn(
                 'w-1.5 h-1.5 rounded-full transition-colors duration-300',
                 CATEGORY_COLORS[selectedCategory].accent,
               )}
-            ></div>
-            <div className="h-px bg-gradient-to-r from-transparent via-zinc-300/40 dark:via-zinc-600/40 to-transparent w-16"></div>
+            />
+            <div className="h-px bg-gradient-to-r from-transparent via-zinc-300/40 dark:via-zinc-600/40 to-transparent w-16" />
           </div>
         </motion.div>
       </motion.div>

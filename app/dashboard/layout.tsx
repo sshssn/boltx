@@ -23,7 +23,7 @@ export default function DashboardLayout({
   if (status === 'loading') {
     return (
       <div className="flex h-screen w-full items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        <Loader2 className="size-8 animate-spin text-muted-foreground" />
         <span className="ml-2 text-lg">Loading...</span>
       </div>
     );
