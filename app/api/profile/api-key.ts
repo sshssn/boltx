@@ -5,7 +5,8 @@ import postgres from 'postgres';
 import { user } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 
-const client = postgres(process.env.POSTGRES_URL!);
+if (!process.env.POSTGRES_URL) throw new Error('POSTGRES_URL is not set');
+const client = postgres(process.env.POSTGRES_URL);
 const db = drizzle(client);
 
 // WARNING: This is a placeholder. You should add an 'apiKey' field to the user table in schema and migrations for production use.

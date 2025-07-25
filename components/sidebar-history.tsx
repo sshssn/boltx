@@ -136,7 +136,7 @@ const LoadingSkeleton = () => (
       <div className="flex flex-col space-y-1">
         {[44, 32, 28, 64, 52].map((width, index) => (
           <motion.div
-            key={index}
+            key={width}
             className="rounded-md h-8 flex gap-2 px-2 items-center"
             initial={{ opacity: 0.3 }}
             animate={{ opacity: [0.3, 0.6, 0.3] }}
@@ -297,6 +297,7 @@ export function SidebarHistory({
             <button
               onClick={() => mutate()}
               className="mt-2 text-xs text-sidebar-foreground/60 hover:text-sidebar-foreground transition-colors"
+              type="button"
             >
               Try again
             </button>
@@ -405,6 +406,7 @@ export function SidebarHistory({
             <AlertDialogAction
               onClick={handleDelete}
               className="w-full sm:w-auto bg-red-600 hover:bg-red-700 focus:ring-red-600"
+              type="button"
             >
               Delete
             </AlertDialogAction>
