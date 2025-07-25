@@ -10,13 +10,15 @@ import { useDataStream } from './data-stream-provider';
 import { useSession } from 'next-auth/react';
 import { useEffect, useState, useRef, useLayoutEffect } from 'react';
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from '@/components/ui/dialog';
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { ChevronDown } from 'lucide-react';
 import React from 'react';
@@ -277,30 +279,34 @@ function PureMessages({
         </div>
       )}
       {/* Modal for sign up when limit is reached */}
-      <Dialog open={showSignupModal} onOpenChange={setShowSignupModal}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Message Limit Reached</DialogTitle>
-            <DialogDescription>
+      <AlertDialog open={showSignupModal} onOpenChange={setShowSignupModal}>
+        <AlertDialogContent className="max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Message Limit Reached</AlertDialogTitle>
+            <AlertDialogDescription>
               You&apos;ve reached your daily limit of {messagesLimit} messages
               as a guest. Sign up for a free account to continue chatting and
               unlock more features!
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button asChild variant="default" size="lg">
-              <a href="/auth">Sign Up Free</a>
-            </Button>
-            <Button
-              variant="ghost"
-              size="lg"
-              onClick={() => setShowSignupModal(false)}
-            >
-              Maybe Later
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction asChild>
+              <Button asChild variant="default" size="lg">
+                <a href="/auth">Sign Up Free</a>
+              </Button>
+            </AlertDialogAction>
+            <AlertDialogCancel asChild>
+              <Button
+                variant="ghost"
+                size="lg"
+                onClick={() => setShowSignupModal(false)}
+              >
+                Maybe Later
+              </Button>
+            </AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {messages.map((message, index) => (
         <PreviewMessage
