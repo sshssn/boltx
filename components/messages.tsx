@@ -8,7 +8,13 @@ import { useMessages } from '@/hooks/use-messages';
 import type { ChatMessage } from '@/lib/types';
 import { useDataStream } from './data-stream-provider';
 import { useSession } from 'next-auth/react';
-import { useEffect, useState, useRef, useLayoutEffect } from 'react';
+import {
+  useEffect,
+  useState,
+  useRef,
+  useLayoutEffect,
+  useCallback,
+} from 'react';
 import {
   AlertDialog,
   AlertDialogContent,
@@ -43,14 +49,14 @@ function ScrollToBottomButton({
 }: { chatContainerRef: React.RefObject<HTMLElement>; className?: string }) {
   const [showScrollButton, setShowScrollButton] = useState(false);
 
-  const checkScrollPosition = () => {
+  const checkScrollPosition = useCallback(() => {
     if (chatContainerRef.current) {
       const { scrollTop, scrollHeight, clientHeight } =
         chatContainerRef.current;
       const isAtBottom = scrollHeight - scrollTop - clientHeight < 50;
       setShowScrollButton(!isAtBottom);
     }
-  };
+  }, [chatContainerRef]);
 
   const scrollToBottom = () => {
     if (chatContainerRef.current) {
@@ -69,7 +75,7 @@ function ScrollToBottomButton({
       return () =>
         chatContainer.removeEventListener('scroll', checkScrollPosition);
     }
-  }, [chatContainerRef]);
+  }, [chatContainerRef, checkScrollPosition]);
 
   return (
     <div

@@ -46,7 +46,7 @@ function SidebarFloatingPillOld({
       <SidebarToggle aria-label="Open sidebar" />
       <button
         type="button"
-        className="rounded-md p-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition w-8 h-8 flex items-center justify-center"
+        className="rounded-md p-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition size-8 flex items-center justify-center"
         aria-label="Search"
         onClick={() => setShowFloatingSearch(true)}
       >
@@ -56,7 +56,7 @@ function SidebarFloatingPillOld({
       </button>
       <button
         type="button"
-        className="rounded-md p-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition w-8 h-8 flex items-center justify-center"
+        className="rounded-md p-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition size-8 flex items-center justify-center"
         aria-label="New Chat"
         onClick={() => router.push?.('/')}
       >
@@ -172,7 +172,7 @@ export function AppSidebar({
         </div>
         {/* Right pill: settings, theme toggle */}
         <div
-          className="fixed right-4 top-4 z-50 hidden lg:flex items-center gap-1 bg-background/95 backdrop-blur-sm border rounded-md shadow-lg px-1.5 py-1.5 h-12 min-w-[72px] max-h-12"
+          className="fixed right-4 top-4 z-50 hidden lg:flex items-center gap-1 bg-background/95 backdrop-blur-sm border rounded-md shadow-lg p-1.5 h-12 min-w-[72px] max-h-12"
           style={{ aspectRatio: '1/1' }}
         >
           <Button
@@ -248,7 +248,7 @@ export function AppSidebar({
             onClick={() => setShowFloatingSearch(false)}
           >
             <div
-              className="relative bg-white/60 dark:bg-zinc-900/80 border border-white/30 dark:border-zinc-700 rounded-3xl shadow-2xl p-6 py-6 flex flex-col items-center gap-4 backdrop-blur-2xl w-full max-w-md mx-auto animate-fade-in-up"
+              className="relative bg-white/60 dark:bg-zinc-900/80 border border-white/30 dark:border-zinc-700 rounded-3xl shadow-2xl p-6 flex flex-col items-center gap-4 backdrop-blur-2xl w-full max-w-md mx-auto animate-fade-in-up"
               style={{
                 boxShadow: '0 8px 40px 0 rgba(31,38,135,0.18)',
                 backdropFilter: 'blur(24px)',
@@ -312,7 +312,7 @@ export function AppSidebar({
           }
         `}
       >
-        <SidebarHeader className="flex flex-row items-center gap-4 px-4 py-4 sm:py-6 w-full">
+        <SidebarHeader className="flex flex-row items-center gap-4 p-4 sm:py-6 w-full">
           {/* Sidebar toggle (close/open) */}
           {!isMobile && (
             <SidebarToggle className="!shadow-none !border-none !bg-transparent hover:!bg-zinc-200/40 dark:hover:!bg-zinc-800/40 transition-all duration-100" />
@@ -422,7 +422,7 @@ export function AppSidebar({
           <SidebarHistory user={user} search={search} />
         </SidebarContent>
 
-        <SidebarFooter className="flex flex-col items-center border-t shrink-0 gap-2 py-3 sm:py-4 px-3 sm:px-4">
+        <SidebarFooter className="flex flex-col items-center border-t shrink-0 gap-2 p-3 sm:p-4">
           {status === 'loading' ? (
             <Button
               className="w-full flex flex-row items-center justify-center gap-2 text-sm sm:text-base font-semibold rounded-lg bg-muted text-muted-foreground transition-colors py-2.5 sm:py-2 shadow-md max-w-[160px] sm:max-w-[180px] mx-auto font-lato cursor-wait"
