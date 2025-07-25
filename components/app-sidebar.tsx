@@ -11,20 +11,15 @@ import { SidebarToggle } from '@/components/sidebar-toggle';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { SidebarHistory } from '@/components/sidebar-history';
-import { PlusIcon, SearchIcon, MenuIcon } from '@/components/icons';
-import { Sun, Moon, Cog, Palette } from 'lucide-react';
+import { PlusIcon, SearchIcon, MenuIcon, LoaderIcon } from '@/components/icons';
+import { Sun, Moon, Cog, Palette, X, User, LogIn } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import Image from 'next/image';
 import { useState, useEffect, useRef } from 'react';
 // @ts-expect-error: no types for blueimp-md5
 import md5 from 'blueimp-md5';
-import { LogIn } from 'lucide-react';
-import { SidebarUserNav } from './sidebar-user-nav';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { X } from 'lucide-react';
-import { User } from 'lucide-react';
-import { LoaderIcon } from './icons';
 
 function getGravatarUrl(email: string) {
   if (!email) return undefined;
@@ -217,10 +212,10 @@ export function AppSidebar({
             variant="ghost"
             size="icon"
             aria-label="Search"
-            className="h-7 w-7 sm:h-8 sm:w-8"
+            className="size-7 sm:size-8"
             onClick={() => setShowFloatingSearch(true)}
           >
-            <span className="h-4 w-4 text-zinc-500">
+            <span className="size-4 text-zinc-500">
               <SearchIcon size={16} />
             </span>
           </Button>
@@ -228,7 +223,7 @@ export function AppSidebar({
             variant="ghost"
             size="icon"
             aria-label="New Chat"
-            className="h-7 w-7 sm:h-8 sm:w-8"
+            className="size-7 sm:size-8"
             onClick={() => router.push('/')}
           >
             <PlusIcon size={16} />
@@ -237,7 +232,7 @@ export function AppSidebar({
             variant="ghost"
             size="icon"
             aria-label="Toggle theme"
-            className="h-7 w-7 sm:h-8 sm:w-8"
+            className="size-7 sm:size-8"
             onClick={() =>
               setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')
             }
@@ -253,7 +248,7 @@ export function AppSidebar({
             onClick={() => setShowFloatingSearch(false)}
           >
             <div
-              className="relative bg-white/60 dark:bg-zinc-900/80 border border-white/30 dark:border-zinc-700 rounded-3xl shadow-2xl px-6 py-6 flex flex-col items-center gap-4 backdrop-blur-2xl w-full max-w-md mx-auto animate-fade-in-up"
+              className="relative bg-white/60 dark:bg-zinc-900/80 border border-white/30 dark:border-zinc-700 rounded-3xl shadow-2xl p-6 py-6 flex flex-col items-center gap-4 backdrop-blur-2xl w-full max-w-md mx-auto animate-fade-in-up"
               style={{
                 boxShadow: '0 8px 40px 0 rgba(31,38,135,0.18)',
                 backdropFilter: 'blur(24px)',
@@ -267,7 +262,7 @@ export function AppSidebar({
                 onClick={() => setShowFloatingSearch(false)}
                 aria-label="Dismiss"
               >
-                <X className="h-5 w-5" />
+                <X className="size-5" />
               </button>
               {/* Search bar */}
               <div className="w-full flex items-center gap-2 rounded-xl border border-white/40 dark:border-zinc-700 bg-white/40 dark:bg-zinc-900/60 backdrop-blur-md shadow px-3 py-2">
@@ -394,7 +389,7 @@ export function AppSidebar({
               onClick={() => setShowFloatingSearch(false)}
             >
               <div
-                className="mt-16 sm:mt-24 bg-[#4B5DFE]/30 dark:bg-zinc-900/80 border border-white/30 dark:border-zinc-700 rounded-2xl shadow-xl px-4 sm:px-6 py-3 sm:py-4 flex items-center gap-2 backdrop-blur-xl w-full max-w-md"
+                className="mt-16 sm:mt-24 bg-[#4B5DFE]/30 dark:bg-zinc-900/80 border border-white/30 dark:border-zinc-700 rounded-2xl shadow-xl p-3 sm:p-4 flex items-center gap-2 backdrop-blur-xl w-full max-w-md"
                 onClick={(e) => e.stopPropagation()}
               >
                 <div className="relative flex-1">
@@ -416,9 +411,9 @@ export function AppSidebar({
                   size="icon"
                   onClick={() => setShowFloatingSearch(false)}
                   aria-label="Close search"
-                  className="h-8 w-8"
+                  className="size-8"
                 >
-                  <X className="h-4 w-4" />
+                  <X className="size-4" />
                 </Button>
               </div>
             </div>
