@@ -85,8 +85,12 @@ export function SuggestedActions({
   selectedVisibilityType,
   setInput,
 }: SuggestedActionsProps) {
-  const [selectedCategory, setSelectedCategory] =
-    useState<keyof typeof PRE_PROMPTS>('Code');
+  // No pill highlighted by default, but show prompts for the first category
+  const categoryKeys = Object.keys(PRE_PROMPTS) as (keyof typeof PRE_PROMPTS)[];
+  const [selectedCategory, setSelectedCategory] = useState<
+    keyof typeof PRE_PROMPTS | undefined
+  >(undefined);
+
   const [hoveredPrompt, setHoveredPrompt] = useState<string | null>(null);
 
   const containerVariants = {
@@ -120,6 +124,11 @@ export function SuggestedActions({
     },
   };
 
+  // Determine which prompts to show: if no category selected, show first
+  const promptsToShow = selectedCategory
+    ? PRE_PROMPTS[selectedCategory]
+    : PRE_PROMPTS[categoryKeys[0]];
+
   return (
     <motion.div
       className="w-full max-w-4xl mx-auto space-y-8 px-2 sm:px-8"
@@ -136,17 +145,17 @@ export function SuggestedActions({
         className="flex flex-row flex-wrap gap-3 text-sm max-sm:justify-evenly"
         variants={itemVariants}
       >
-        {Object.keys(PRE_PROMPTS).map((cat, index) => (
+        {categoryKeys.map((cat, index) => (
           <motion.button
             key={cat}
             type="button"
             className={cn(
               'group relative overflow-hidden justify-center whitespace-nowrap text-sm transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 h-12 flex items-center gap-2 rounded-2xl px-6 py-3 font-medium backdrop-blur-xl max-sm:size-20 max-sm:flex-col sm:gap-3 sm:rounded-full border',
               selectedCategory === cat
-                ? `${CATEGORY_COLORS[cat as keyof typeof CATEGORY_COLORS].active} shadow-lg backdrop-blur-xl`
+                ? `${CATEGORY_COLORS[cat].active} shadow-lg backdrop-blur-xl`
                 : 'bg-white/40 dark:bg-zinc-900/40 text-zinc-600 dark:text-zinc-400 border-white/20 dark:border-zinc-700/40 hover:bg-white/60 dark:hover:bg-zinc-800/60 hover:border-white/40 dark:hover:border-zinc-600/40 backdrop-blur-xl',
             )}
-            onClick={() => setSelectedCategory(cat as keyof typeof PRE_PROMPTS)}
+            onClick={() => setSelectedCategory(cat)}
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             initial={{ opacity: 0, y: 20 }}
@@ -158,7 +167,7 @@ export function SuggestedActions({
               <motion.div
                 className={cn(
                   'absolute inset-0 -z-10 rounded-2xl sm:rounded-full',
-                  CATEGORY_COLORS[cat as keyof typeof CATEGORY_COLORS].accent,
+                  CATEGORY_COLORS[cat].accent,
                 )}
                 layoutId="categoryBackground"
                 transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
@@ -170,11 +179,11 @@ export function SuggestedActions({
               className={cn(
                 'transition-all duration-300',
                 selectedCategory === cat
-                  ? CATEGORY_COLORS[cat as keyof typeof CATEGORY_COLORS].icon
+                  ? CATEGORY_COLORS[cat].icon
                   : 'text-zinc-500 dark:text-zinc-500 group-hover:text-zinc-700 dark:group-hover:text-zinc-300',
               )}
             >
-              {CATEGORY_ICONS[cat as keyof typeof CATEGORY_ICONS]}
+              {CATEGORY_ICONS[cat]}
             </div>
 
             <span className="relative z-10 font-medium tracking-wide">
@@ -188,7 +197,7 @@ export function SuggestedActions({
       <motion.div className="space-y-3 pt-4" variants={itemVariants}>
         <motion.div
           className="grid gap-3"
-          key={selectedCategory}
+          key={selectedCategory ?? categoryKeys[0]}
           initial="hidden"
           animate="visible"
           variants={{
@@ -200,7 +209,7 @@ export function SuggestedActions({
             },
           }}
         >
-          {PRE_PROMPTS[selectedCategory].map((prompt, idx) => (
+          {promptsToShow.map((prompt, idx) => (
             <motion.div
               key={`${selectedCategory}-${prompt}`}
               variants={promptVariants}
@@ -211,7 +220,7 @@ export function SuggestedActions({
                 type="button"
                 className={cn(
                   'group w-full text-left px-6 py-4 rounded-2xl transition-all duration-300 text-base font-normal relative overflow-hidden backdrop-blur-xl',
-                  'bg-white/30 dark:bg-zinc-900/30',
+                  'bg-[#4B5DFE]/20 dark:bg-zinc-900/30',
                   'border border-white/20 dark:border-zinc-700/30',
                   'hover:bg-white/50 dark:hover:bg-zinc-800/50',
                   'hover:border-white/40 dark:hover:border-zinc-600/40',
@@ -264,7 +273,7 @@ export function SuggestedActions({
                 <motion.div
                   className={cn(
                     'absolute bottom-0 left-0 h-px',
-                    CATEGORY_COLORS[selectedCategory].accent,
+                    CATEGORY_COLORS[selectedCategory ?? categoryKeys[0]].accent,
                     'origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300',
                   )}
                   style={{ width: '100%' }}
@@ -284,7 +293,7 @@ export function SuggestedActions({
             <div
               className={cn(
                 'w-1.5 h-1.5 rounded-full transition-colors duration-300',
-                CATEGORY_COLORS[selectedCategory].accent,
+                CATEGORY_COLORS[selectedCategory ?? categoryKeys[0]].accent,
               )}
             />
             <div className="h-px bg-gradient-to-r from-transparent via-zinc-300/40 dark:via-zinc-600/40 to-transparent w-16" />

@@ -115,7 +115,7 @@ export function LoginForm({
       className={cn('flex flex-col gap-6 font-jetbrains', className)}
       {...props}
     >
-      <Card className="overflow-hidden p-0 max-w-4xl w-full mx-auto shadow-2xl border border-primary/30 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-xl">
+      <Card className="overflow-hidden p-0 max-w-4xl w-full mx-auto shadow-2xl border border-primary/30 bg-[#4B5DFE]/30 dark:bg-zinc-900/90 backdrop-blur-xl">
         <CardContent className="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] p-0 min-h-[420px] items-center">
           {/* Form Section */}
           <form
@@ -176,7 +176,7 @@ export function LoginForm({
                     type="email"
                     placeholder="m@example.com"
                     required
-                    className="rounded-lg border border-primary/20 bg-white/70 dark:bg-zinc-900/70"
+                    className="rounded-lg border border-primary/20 bg-[#4B5DFE]/20 dark:bg-zinc-900/70"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                   />
@@ -201,7 +201,7 @@ export function LoginForm({
                       id="password"
                       type="password"
                       required
-                      className="rounded-lg border border-primary/20 bg-white/70 dark:bg-zinc-900/70"
+                      className="rounded-lg border border-primary/20 bg-[#4B5DFE]/20 dark:bg-zinc-900/70"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                     />

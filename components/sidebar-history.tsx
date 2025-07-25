@@ -285,6 +285,28 @@ export function SidebarHistory({
     [filteredChats],
   );
 
+  let todayChats = groupedChats.today;
+  const newThreadLoading = todayChats.some((chat) => chat.title === 'Untitled');
+  if (newThreadLoading) {
+    todayChats = [
+      {
+        id: 'new-thread',
+        title: 'Untitled',
+        createdAt: new Date(),
+        userId: user?.id ?? '',
+        visibility: 'private',
+      },
+      ...todayChats.filter((chat) => !(chat.title === 'Untitled')),
+    ];
+  }
+  const sections = [
+    { key: 'today', label: 'Today', chats: todayChats },
+    { key: 'yesterday', label: 'Yesterday', chats: groupedChats.yesterday },
+    { key: 'lastWeek', label: 'Last 7 days', chats: groupedChats.lastWeek },
+    { key: 'lastMonth', label: 'Last 30 days', chats: groupedChats.lastMonth },
+    { key: 'older', label: 'Older', chats: groupedChats.older },
+  ];
+
   // Error state
   if (error) {
     return (
@@ -317,14 +339,6 @@ export function SidebarHistory({
     return <EmptyState isLoggedIn={!!user} />;
   }
 
-  const sections = [
-    { key: 'today', label: 'Today', chats: groupedChats.today },
-    { key: 'yesterday', label: 'Yesterday', chats: groupedChats.yesterday },
-    { key: 'lastWeek', label: 'Last 7 days', chats: groupedChats.lastWeek },
-    { key: 'lastMonth', label: 'Last 30 days', chats: groupedChats.lastMonth },
-    { key: 'older', label: 'Older', chats: groupedChats.older },
-  ];
-
   return (
     <>
       <SidebarGroup className="flex-1 overflow-hidden">
@@ -349,6 +363,7 @@ export function SidebarHistory({
                             isActive={chat.id === id}
                             onDelete={handleDeleteClick}
                             setOpenMobile={setOpenMobile}
+                            loading={chat.id === 'new-thread'}
                           />
                         ))}
                       </div>
@@ -377,7 +392,11 @@ export function SidebarHistory({
               <div className="flex items-center justify-center gap-2 text-xs text-sidebar-foreground/60 py-4">
                 <motion.div
                   animate={{ rotate: 360 }}
-                  transition={{ duration: 1, repeat: Number.POSITIVE_INFINITY, ease: 'linear' }}
+                  transition={{
+                    duration: 1,
+                    repeat: Number.POSITIVE_INFINITY,
+                    ease: 'linear',
+                  }}
                 >
                   <LoaderIcon size={14} />
                 </motion.div>

@@ -52,13 +52,14 @@ export default function ClientAccountDashboard({ session }: { session: any }) {
   const [memories, setMemories] = useState<any[]>([]);
   const [memoriesLoading, setMemoriesLoading] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [plan, setPlan] = useState('Free Plan');
   const [messagesUsed, setMessagesUsed] = useState<number>(0);
   const [messagesLimit, setMessagesLimit] = useState<number>(20);
   const [isGuest, setIsGuest] = useState(false);
   const [chats, setChats] = useState<any[]>([]);
   const [chatsLoading, setChatsLoading] = useState(false);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState<string | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState<string | undefined>(
+    undefined,
+  );
   const [attachments, setAttachments] = useState<any[]>([]);
   const [attachmentsLoading, setAttachmentsLoading] = useState(false);
   const [apiKey, setApiKey] = useState<string | null>(null);
@@ -90,6 +91,10 @@ export default function ClientAccountDashboard({ session }: { session: any }) {
   const [usernameError, setUsernameError] = useState('');
   const [usernameSuccess, setUsernameSuccess] = useState('');
   const [usernameLoading, setUsernameLoading] = useState(false);
+  const [lastUsernameChange, setLastUsernameChange] = useState<Date | null>(
+    null,
+  );
+  const [deleteConfirmInput, setDeleteConfirmInput] = useState('');
 
   useEffect(() => {
     const tab = searchParams.get('tab');
@@ -110,14 +115,11 @@ export default function ClientAccountDashboard({ session }: { session: any }) {
         setMessagesUsed(data.tokensUsed ?? 0);
         setMessagesLimit(data.messagesLimit ?? 20);
         // Set plan name based on limit
-        if (data.messagesLimit === 10) setPlan('Guest Plan');
-        else if (data.messagesLimit === 20) setPlan('Free Plan');
-        else if (data.messagesLimit === 500) setPlan('Pro Plan');
-        else setPlan('Custom Plan');
+        // Remove all setPlan and plan state logic
       } else {
         setMessagesUsed(0);
         setMessagesLimit(20);
-        setPlan('Free Plan');
+        // Remove all setPlan and plan state logic
       }
     }
     fetchUsage();
@@ -193,6 +195,43 @@ export default function ClientAccountDashboard({ session }: { session: any }) {
     }
   }, [activeTab, sessionData]);
 
+  useEffect(() => {
+    // Fetch last username change timestamp
+    fetch('/api/profile/username').then(async (r) => {
+      if (r.ok) {
+        const data = await r.json();
+        setLastUsernameChange(
+          data.lastChange ? new Date(data.lastChange) : null,
+        );
+      }
+    });
+  }, [sessionData]);
+
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        // Open search (implement as needed)
+        document
+          .querySelector('[aria-label="Search"]')
+          ?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      }
+      if (e.shiftKey && e.key.toLowerCase() === 'o') {
+        e.preventDefault();
+        router.push('/');
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'b') {
+        e.preventDefault();
+        // Toggle sidebar (implement as needed)
+        document
+          .querySelector('[aria-label="Toggle sidebar"]')
+          ?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [router]);
+
   const handleDeleteAccount = async () => {
     setDeleting(true);
     const res = await fetch('/api/profile/delete', { method: 'POST' });
@@ -205,6 +244,14 @@ export default function ClientAccountDashboard({ session }: { session: any }) {
   const displayName = sessionData?.user?.email || 'Account';
   const messagesRemaining = Math.max(messagesLimit - messagesUsed, 0);
   const usagePercent = Math.min((messagesUsed / messagesLimit) * 100, 100);
+  // Add derived plan variable after isGuest and messagesLimit are set
+  const plan = isGuest
+    ? 'Guest User'
+    : messagesLimit === 20
+      ? 'Free User'
+      : messagesLimit === 500
+        ? 'Pro User'
+        : 'Custom Plan';
 
   return (
     <div
@@ -386,6 +433,18 @@ export default function ClientAccountDashboard({ session }: { session: any }) {
                                   setUsernameLoading(false);
                                   return;
                                 }
+                                // Check cooldown
+                                if (
+                                  lastUsernameChange &&
+                                  Date.now() - lastUsernameChange.getTime() <
+                                    1000 * 60 * 60 * 24 * 30
+                                ) {
+                                  setUsernameError(
+                                    'You can only change your username once every 30 days.',
+                                  );
+                                  setUsernameLoading(false);
+                                  return;
+                                }
                                 // Check uniqueness and update
                                 const res = await fetch(
                                   '/api/profile/username',
@@ -401,6 +460,8 @@ export default function ClientAccountDashboard({ session }: { session: any }) {
                                   setUsernameSuccess('Username updated!');
                                   setEditingUsername(false);
                                   updateSession(); // Refresh session
+                                  // Update last change timestamp
+                                  setLastUsernameChange(new Date());
                                 } else {
                                   const data = await res.json();
                                   setUsernameError(
@@ -409,7 +470,12 @@ export default function ClientAccountDashboard({ session }: { session: any }) {
                                 }
                                 setUsernameLoading(false);
                               }}
-                              disabled={usernameLoading}
+                              disabled={
+                                usernameLoading ||
+                                (lastUsernameChange &&
+                                  Date.now() - lastUsernameChange.getTime() <
+                                    1000 * 60 * 60 * 24 * 30)
+                              }
                             >
                               Save
                             </Button>
@@ -489,16 +555,30 @@ export default function ClientAccountDashboard({ session }: { session: any }) {
                                   Delete this account?
                                 </AlertDialogTitle>
                                 <AlertDialogDescription>
-                                  This action cannot be undone. Are you sure you
-                                  want to delete your account?
+                                  This action cannot be undone. To confirm, type{' '}
+                                  <b>Delete my account</b> below and click
+                                  Delete.
                                 </AlertDialogDescription>
                               </AlertDialogHeader>
+                              <input
+                                type="text"
+                                className="w-full border rounded px-3 py-2 mt-4"
+                                placeholder="Type: Delete my account"
+                                value={deleteConfirmInput}
+                                onChange={(e) =>
+                                  setDeleteConfirmInput(e.target.value)
+                                }
+                              />
                               <AlertDialogFooter>
                                 <AlertDialogCancel>Cancel</AlertDialogCancel>
                                 <AlertDialogAction
                                   onClick={handleDeleteAccount}
+                                  disabled={
+                                    deleteConfirmInput !==
+                                      'Delete my account' || deleting
+                                  }
                                 >
-                                  Delete
+                                  {deleting ? 'Deleting...' : 'Delete'}
                                 </AlertDialogAction>
                               </AlertDialogFooter>
                             </AlertDialogContent>
@@ -511,7 +591,7 @@ export default function ClientAccountDashboard({ session }: { session: any }) {
               </TabsContent>
               <TabsContent value="memories" className="mt-0">
                 <div className="space-y-6">
-                  <Card className="backdrop-blur-xl bg-white/10 border border-white/20 shadow-2xl">
+                  <Card className="backdrop-blur-xl bg-[#4B5DFE]/20 border border-white/20 shadow-2xl">
                     <CardHeader>
                       <CardTitle>Memories</CardTitle>
                       <CardDescription>Your unique AI memories</CardDescription>
@@ -544,7 +624,7 @@ export default function ClientAccountDashboard({ session }: { session: any }) {
                               <AlertDialog
                                 open={deleteDialogOpen === m.id}
                                 onOpenChange={(open) =>
-                                  setDeleteDialogOpen(open ? m.id : null)
+                                  setDeleteDialogOpen(open ? m.id : undefined)
                                 }
                               >
                                 <AlertDialogTrigger asChild>
@@ -591,7 +671,7 @@ export default function ClientAccountDashboard({ session }: { session: any }) {
                                         setMemories((prev) =>
                                           prev.filter((x) => x.id !== m.id),
                                         );
-                                        setDeleteDialogOpen(null);
+                                        setDeleteDialogOpen(undefined);
                                       }}
                                     >
                                       Delete
@@ -609,7 +689,7 @@ export default function ClientAccountDashboard({ session }: { session: any }) {
               </TabsContent>
               <TabsContent value="history" className="mt-0">
                 <div className="space-y-6">
-                  <Card className="backdrop-blur-xl bg-white/10 dark:bg-zinc-900/60 border border-white/20 shadow-2xl">
+                  <Card className="backdrop-blur-xl bg-[#4B5DFE]/10 dark:bg-zinc-900/60 border border-white/20 shadow-2xl">
                     <CardHeader>
                       <CardTitle>Chat History</CardTitle>
                       <CardDescription>
@@ -779,63 +859,6 @@ export default function ClientAccountDashboard({ session }: { session: any }) {
                   </Card>
                 </div>
               </TabsContent>
-              <TabsContent value="attachments" className="mt-0">
-                <div className="space-y-6">
-                  <Card className="bg-zinc-900/80 border border-white/10 shadow-xl">
-                    <CardHeader>
-                      <CardTitle>File Attachments</CardTitle>
-                      <CardDescription>
-                        Your uploaded files and attachments
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      {attachmentsLoading ? (
-                        <div className="text-sm text-muted-foreground">
-                          Loading...
-                        </div>
-                      ) : attachments.length === 0 ? (
-                        <div className="text-sm text-muted-foreground">
-                          No attachments found for your account.
-                        </div>
-                      ) : (
-                        <div className="flex flex-col gap-4">
-                          {attachments.map((a) => (
-                            <div
-                              key={a.id}
-                              className="relative group rounded-2xl px-6 py-5 bg-white/30 dark:bg-zinc-900/60 border border-white/30 shadow backdrop-blur-xl flex flex-col min-h-[80px] transition hover:scale-[1.01]"
-                            >
-                              <span className="font-mono text-base text-foreground break-words select-text">
-                                {a.title || a.name || 'Untitled Attachment'}
-                              </span>
-                              <span className="text-xs text-muted-foreground mt-2">
-                                {new Date(a.createdAt).toLocaleString()}
-                              </span>
-                              {a.kind === 'image' && a.content && (
-                                <img
-                                  src={a.content}
-                                  alt={a.title}
-                                  className="mt-2 max-h-32 rounded"
-                                />
-                              )}
-                              {/* Add download/view link if available */}
-                              {a.content && (
-                                <a
-                                  href={a.content}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-xs text-blue-500 underline mt-2 w-fit"
-                                >
-                                  View/Download
-                                </a>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                </div>
-              </TabsContent>
               <TabsContent value="contact" className="mt-0">
                 <div className="space-y-6">
                   <Card className="bg-zinc-900/80 border border-white/10 shadow-xl">
@@ -846,10 +869,28 @@ export default function ClientAccountDashboard({ session }: { session: any }) {
                       </CardDescription>
                     </CardHeader>
                     <CardContent>
-                      <div className="space-y-4">
-                        <div className="h-28 rounded-lg bg-zinc-800/60" />
-                        <div className="h-20 rounded-lg bg-zinc-800/60" />
-                      </div>
+                      <form
+                        action="https://formspree.io/f/yourFormId"
+                        method="POST"
+                        className="space-y-4"
+                      >
+                        <Input name="name" placeholder="Your Name" required />
+                        <Input
+                          name="email"
+                          type="email"
+                          placeholder="Your Email"
+                          required
+                        />
+                        <textarea
+                          name="message"
+                          placeholder="Your Message"
+                          required
+                          className="w-full rounded border bg-background text-foreground px-3 py-2 min-h-[100px]"
+                        />
+                        <Button type="submit" className="w-full mt-2">
+                          Send Message
+                        </Button>
+                      </form>
                     </CardContent>
                   </Card>
                 </div>

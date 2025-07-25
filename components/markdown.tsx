@@ -80,7 +80,7 @@ const components: Partial<Components> = {
       <div className="relative group">
         <CopyButton
           getContent={() => String(children).replace(/\n$/, '')}
-          className="opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+          className="absolute right-4 top-1/2 -translate-y-1/2 z-10 opacity-100"
         />
         <code
           className={`block w-full overflow-x-auto rounded-xl bg-zinc-900 text-zinc-100 p-4 font-['JetBrains_Mono'] text-sm border border-zinc-700 ${className}`}

@@ -15,7 +15,7 @@ import { PlusIcon, SearchIcon } from '@/components/icons';
 import { useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import Image from 'next/image';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 // @ts-expect-error: no types for blueimp-md5
 import md5 from 'blueimp-md5';
 import { LogIn } from 'lucide-react';
@@ -23,6 +23,9 @@ import { SidebarUserNav } from './sidebar-user-nav';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Sun, Moon } from 'lucide-react';
 import { useRef } from 'react';
+import { LoaderIcon } from './icons';
+import { X } from 'lucide-react';
+import { User } from 'lucide-react';
 
 function getGravatarUrl(email: string) {
   if (!email) return undefined;
@@ -41,6 +44,7 @@ export function AppSidebar({
   const isMobile = useIsMobile();
   const [search, setSearch] = useState('');
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const [showFloatingSearch, setShowFloatingSearch] = useState(false);
   // Prefer SSR user prop, fallback to client session
   const user = typeof userProp !== 'undefined' ? userProp : session?.user;
   const userType = user?.type;
@@ -48,6 +52,36 @@ export function AppSidebar({
   const isLoggedIn = !!user && isRegularUser;
   const firstName = user?.name?.split(' ')[0] || '';
   const gravatar = user?.email ? getGravatarUrl(user.email) : undefined;
+
+  // Persistent guest ID logic
+  useEffect(() => {
+    if (!session && typeof window !== 'undefined') {
+      const guestId = localStorage.getItem('boltx-guest-id');
+      if (!guestId) {
+        // No guest ID, sign in as guest and store the ID
+        signIn('guest', { redirect: false }).then((res) => {
+          // After sign in, session will update and we can store the ID
+          // (session.user.id will be available on next render)
+        });
+      } else {
+        // Try to sign in with the stored guest ID (by email)
+        signIn('credentials', {
+          email: guestId,
+          password: 'guest',
+          redirect: false,
+        });
+      }
+    } else if (
+      session?.user?.type === 'guest' &&
+      typeof window !== 'undefined'
+    ) {
+      // Store the guest ID for future sessions
+      localStorage.setItem(
+        'boltx-guest-id',
+        session.user.email || session.user.id,
+      );
+    }
+  }, [session]);
 
   // Sidebar closed pill
   if (!open) {
@@ -95,6 +129,7 @@ export function AppSidebar({
     );
   }
 
+  // SidebarFooter
   return (
     <Sidebar
       {...props}
@@ -102,7 +137,7 @@ export function AppSidebar({
     >
       <SidebarHeader className="flex flex-col items-center justify-center shrink-0 py-6 gap-3">
         <div
-          className="w-28 h-14 rounded-2xl bg-white/30 dark:bg-zinc-900/60 border border-white/30 shadow-xl backdrop-blur-2xl flex items-center justify-center transition-all duration-100"
+          className="w-28 h-14 rounded-2xl bg-[#4B5DFE]/20 dark:bg-zinc-900/60 border border-white/30 shadow-xl backdrop-blur-2xl flex items-center justify-center transition-all duration-100"
           style={{ backdropFilter: 'blur(18px)' }}
         >
           <Image
@@ -123,23 +158,77 @@ export function AppSidebar({
           <PlusIcon size={18} />
           <span>New Chat</span>
         </Button>
-        <Input
-          ref={searchInputRef}
-          placeholder="Search your threads..."
-          className="pl-10 pr-3 py-2 rounded-full bg-muted border-0 focus:ring-2 focus:ring-primary focus:border-0 shadow-none mt-2 font-lato"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          style={{ boxShadow: 'none', border: 'none' }}
-        />
+        {/* Remove the search input container, add floating search bar trigger */}
+        <div className="flex items-center gap-2 mt-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label="Search"
+            onClick={() => setShowFloatingSearch(true)}
+            className="rounded-full bg-muted/30 hover:bg-muted/50"
+          >
+            <SearchIcon />
+          </Button>
+          {/* (Optional) Other quick actions here */}
+        </div>
+        {/* Floating search bar overlay */}
+        {showFloatingSearch && (
+          <div
+            className="fixed inset-0 z-[2000] flex items-start justify-center bg-black/30 backdrop-blur-sm"
+            onClick={() => setShowFloatingSearch(false)}
+          >
+            <div
+              className="mt-24 bg-[#4B5DFE]/30 dark:bg-zinc-900/80 border border-white/30 dark:border-zinc-700 rounded-2xl shadow-xl px-6 py-4 flex items-center gap-2 backdrop-blur-xl"
+              style={{ minWidth: 320, maxWidth: 400 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <Input
+                autoFocus
+                placeholder="Search your threads..."
+                className="flex-1 bg-transparent border-0 shadow-none text-lg px-2 py-2 focus:ring-0 focus:outline-none"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setShowFloatingSearch(false)}
+                aria-label="Close search"
+              >
+                <X />
+              </Button>
+            </div>
+          </div>
+        )}
+        {/* Remove the old search input here */}
         <SidebarHistory user={user} search={search} />
       </SidebarContent>
       <SidebarFooter className="flex flex-col items-center border-t shrink-0 gap-2 py-4">
-        {isLoggedIn ? (
-          <SidebarUserNav user={user} />
+        {status === 'loading' ? (
+          <Button
+            className="w-full flex flex-row items-center justify-center gap-2 text-base font-semibold rounded-lg bg-muted text-muted-foreground transition-colors py-2 shadow-md max-w-[180px] mx-auto font-lato cursor-wait"
+            disabled
+            size="sm"
+          >
+            <LoaderIcon size={18} />
+            <span>Loading...</span>
+          </Button>
+        ) : isLoggedIn ? (
+          <Button
+            className="w-full flex flex-row items-center justify-center gap-2 text-base font-semibold rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 focus-visible:ring-2 focus-visible:ring-indigo-500 dark:bg-indigo-500 dark:hover:bg-indigo-600 dark:text-white transition-colors py-2 shadow-md max-w-[180px] mx-auto font-lato"
+            onClick={() => router.push('/account')}
+            size="sm"
+          >
+            <User size={18} />
+            <span>Account</span>
+          </Button>
         ) : (
           <Button
             className="w-full flex flex-row items-center justify-center gap-2 text-base font-semibold rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 focus-visible:ring-2 focus-visible:ring-indigo-500 dark:bg-indigo-500 dark:hover:bg-indigo-600 dark:text-white transition-colors py-2 shadow-md max-w-[180px] mx-auto font-lato"
-            onClick={() => signIn()}
+            onClick={async () => {
+              await signIn();
+              router.refresh();
+            }}
             size="sm"
           >
             <LogIn size={18} />

@@ -8,8 +8,8 @@ import { DashboardOverlay } from '@/components/dashboard-overlay';
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://chat.vercel.ai'),
-  title: 'Next.js Chatbot Template',
-  description: 'Next.js chatbot template using the AI SDK.',
+  title: 'boltX',
+  description: 'Next-gen AI chat and productivity platform.',
 };
 
 export const viewport = {
@@ -44,7 +44,15 @@ export default async function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+        <meta
+          name="viewport"
+          content="width=device-width, initial-scale=1, maximum-scale=1"
+        />
+        <link rel="icon" type="image/png" href="/favicon.png" sizes="32x32" />
+        <link rel="icon" type="image/png" href="/favicon.png" sizes="16x16" />
+        <link rel="shortcut icon" href="/favicon.ico" />
+        <link rel="apple-touch-icon" href="/favicon.png" />
+        <link rel="manifest" href="/site.webmanifest" />
         <script
           dangerouslySetInnerHTML={{
             __html: THEME_COLOR_SCRIPT,
@@ -73,7 +81,9 @@ export default async function RootLayout({
                 <div className="p-4 border rounded-lg">Support/Help (TODO)</div>
               </div>
             </DashboardOverlay>
-            <main className="w-full min-h-screen flex flex-col">{children}</main>
+            <main className="w-full min-h-screen flex flex-col">
+              {children}
+            </main>
           </SessionProvider>
         </ThemeProvider>
       </body>

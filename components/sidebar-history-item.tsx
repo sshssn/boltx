@@ -22,6 +22,7 @@ import {
   MoreHorizontalIcon,
   ShareIcon,
   TrashIcon,
+  LoaderIcon,
 } from './icons';
 import { memo } from 'react';
 import { useChatVisibility } from '@/hooks/use-chat-visibility';
@@ -32,16 +33,35 @@ const PureChatItem = ({
   isActive,
   onDelete,
   setOpenMobile,
+  loading = false,
 }: {
   chat: Chat;
   isActive: boolean;
   onDelete: (chatId: string) => void;
   setOpenMobile: (open: boolean) => void;
+  loading?: boolean;
 }) => {
   const { visibilityType, setVisibilityType } = useChatVisibility({
     chatId: chat.id,
     initialVisibilityType: chat.visibility,
   });
+
+  if (loading) {
+    return (
+      <SidebarMenuItem>
+        <SidebarMenuButton asChild isActive={isActive} disabled>
+          <div className="flex items-center gap-2 animate-pulse">
+            <span className="text-muted-foreground">
+              <LoaderIcon size={16} />
+            </span>
+            <span className="font-medium text-muted-foreground">
+              New Thread
+            </span>
+          </div>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+    );
+  }
 
   return (
     <SidebarMenuItem>

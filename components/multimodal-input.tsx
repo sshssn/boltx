@@ -396,23 +396,53 @@ function PureMultimodalInput({
               }}
             />
             <div className="absolute bottom-3 right-3 flex flex-row gap-2 items-center">
+              {/* Stop button, only visible when status is 'streaming' */}
+              {status === 'streaming' && (
+                <ShadcnButton
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={stop}
+                  className={cx(
+                    'rounded-full bg-white/40 dark:bg-zinc-700/60 shadow-md',
+                    'hover:bg-red-500 hover:text-white',
+                    'transition',
+                    'text-red-600 dark:text-red-300',
+                    'border border-white/30 dark:border-zinc-700',
+                  )}
+                  aria-label="Stop generation"
+                >
+                  <StopIcon size={22} />
+                </ShadcnButton>
+              )}
               <ShadcnButton
                 type="button"
                 variant="ghost"
                 size="icon"
-                onClick={submitForm}
+                onClick={async () => {
+                  try {
+                    await submitForm();
+                  } catch (err) {
+                    toast.error(
+                      'Network error: Unable to send message. Please try again.',
+                    );
+                  }
+                }}
                 className={cx(
                   'rounded-full bg-white/40 dark:bg-zinc-700/60 shadow-md',
                   'hover:bg-indigo-500 hover:text-white',
                   'transition',
                   'text-indigo-600 dark:text-indigo-300',
                   'border border-white/30 dark:border-zinc-700',
-                  'w-10 h-10 flex items-center justify-center',
                 )}
                 aria-label="Send message"
-                disabled={disabled || (!input && attachments.length === 0)}
               >
-                <ArrowUpIcon size={20} />
+                <svg width="22" height="22" fill="none" viewBox="0 0 24 24">
+                  <path
+                    d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"
+                    fill="currentColor"
+                  />
+                </svg>
               </ShadcnButton>
               <ShadcnButton
                 type="button"

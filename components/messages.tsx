@@ -9,6 +9,17 @@ import type { ChatMessage } from '@/lib/types';
 import { useDataStream } from './data-stream-provider';
 import { useSession } from 'next-auth/react';
 import { useEffect, useState, useRef, useLayoutEffect } from 'react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { ChevronDown } from 'lucide-react';
+import React from 'react';
 
 interface MessagesProps {
   chatId: string;
@@ -21,6 +32,62 @@ interface MessagesProps {
   isArtifactVisible: boolean;
   extraPaddingBottom?: boolean;
   onGuestLimit?: (limit: number, used: number) => void;
+}
+
+// Add ScrollToBottomButton component
+function ScrollToBottomButton({
+  chatContainerRef,
+  className = '',
+}: { chatContainerRef: React.RefObject<HTMLElement>; className?: string }) {
+  const [showScrollButton, setShowScrollButton] = useState(false);
+
+  const checkScrollPosition = () => {
+    if (chatContainerRef.current) {
+      const { scrollTop, scrollHeight, clientHeight } =
+        chatContainerRef.current;
+      const isAtBottom = scrollHeight - scrollTop - clientHeight < 50;
+      setShowScrollButton(!isAtBottom);
+    }
+  };
+
+  const scrollToBottom = () => {
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTo({
+        top: chatContainerRef.current.scrollHeight,
+        behavior: 'smooth',
+      });
+    }
+  };
+
+  useEffect(() => {
+    const chatContainer = chatContainerRef.current;
+    if (chatContainer) {
+      chatContainer.addEventListener('scroll', checkScrollPosition);
+      checkScrollPosition();
+      return () =>
+        chatContainer.removeEventListener('scroll', checkScrollPosition);
+    }
+  }, [chatContainerRef]);
+
+  return (
+    <div
+      className={`transition-all duration-300 ease-out ${
+        showScrollButton
+          ? 'opacity-100 translate-y-0 scale-100'
+          : 'opacity-0 translate-y-4 scale-95 pointer-events-none'
+      } ${className}`}
+    >
+      <button
+        type="button"
+        onClick={scrollToBottom}
+        className="flex items-center space-x-2 px-3 py-2 bg-white/10 backdrop-blur-md border border-white/20 rounded-lg shadow-lg hover:bg-white/15 hover:scale-105 transition-all duration-200 ease-out text-white/90 text-sm font-medium"
+        aria-label="Scroll to bottom"
+      >
+        <span>Scroll to bottom</span>
+        <ChevronDown className="w-4 h-4" />
+      </button>
+    </div>
+  );
 }
 
 function PureMessages({
@@ -57,6 +124,7 @@ function PureMessages({
   const [containerWidth, setContainerWidth] = useState<number | undefined>(
     undefined,
   );
+  const [showSignupModal, setShowSignupModal] = useState(false);
 
   useLayoutEffect(() => {
     if (chatContainerRef.current) {
@@ -98,6 +166,12 @@ function PureMessages({
   useEffect(() => {
     setShowLimit(true); // Show again on new chat
   }, [chatId]);
+
+  useEffect(() => {
+    if (isGuest && messagesLimit - messagesUsed <= 0) {
+      setShowSignupModal(true);
+    }
+  }, [isGuest, messagesLimit, messagesUsed]);
 
   useDataStream();
 
@@ -147,47 +221,86 @@ function PureMessages({
 
       {/* Show quota message for both guests and regular users */}
       {showLimit && (isGuest || isRegular) && (
-        <div className="sticky" style={{ top: '1%' }}>
-          <div className="w-full flex justify-center z-50 transition-all duration-500">
-            <div className="bg-white/10 text-xs text-[#FAFAFA] px-4 py-2 rounded-lg shadow border border-white/20 backdrop-blur-md transition-all duration-500">
-              {isGuest ? (
-                <span>
-                  Guest account:{' '}
-                  <span className="text-indigo-400 font-bold">
-                    {Math.max(0, messagesLimit - messagesUsed)}
-                  </span>{' '}
-                  messages left.{' '}
-                  <a
-                    href="/auth"
-                    className="underline text-indigo-300 hover:text-indigo-100 transition"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    Sign up to chat, we will increase your limits — it&apos;s
-                    free!
-                  </a>
-                </span>
-              ) : (
-                <span>
-                  {`You have used ${messagesUsed} of ${messagesLimit} messages today. ${messagesLimit - messagesUsed} remaining.`}
-                  {messagesLimit - messagesUsed <= 2 &&
-                    messagesLimit - messagesUsed > 0 && (
-                      <span className="text-pink-400 ml-2">
-                        You&apos;re almost out of messages for today!
-                      </span>
-                    )}
-                  {messagesLimit - messagesUsed <= 0 && (
+        <div className="fixed left-1/2 top-6 -translate-x-1/2 z-[1000] w-auto flex justify-center pointer-events-none">
+          <div className="flex items-center gap-3 bg-[#4B5DFE]/20 dark:bg-zinc-900/60 backdrop-blur-md border border-zinc-200 dark:border-zinc-700 shadow-lg rounded-xl text-sm font-medium px-4 py-2 m-2 w-auto pointer-events-auto">
+            {isGuest ? (
+              <span className="text-zinc-900 dark:text-white whitespace-nowrap">
+                Guest account:{' '}
+                <span className="text-indigo-600 dark:text-indigo-400 font-bold">
+                  {Math.max(0, messagesLimit - messagesUsed)}
+                </span>{' '}
+                messages left.{' '}
+                <a
+                  href="/auth"
+                  className="underline text-indigo-700 dark:text-indigo-300 hover:text-indigo-900 dark:hover:text-indigo-100 transition"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Sign up to chat, we will increase your limits — it&apos;s
+                  free!
+                </a>
+              </span>
+            ) : (
+              <span>
+                {`You have used ${messagesUsed} of ${messagesLimit} messages today. ${messagesLimit - messagesUsed} remaining.`}
+                {messagesLimit - messagesUsed <= 2 &&
+                  messagesLimit - messagesUsed > 0 && (
                     <span className="text-pink-400 ml-2">
-                      You have reached your daily quota. Please come back
-                      tomorrow or upgrade your plan.
+                      You&apos;re almost out of messages for today!
                     </span>
                   )}
-                </span>
-              )}
-            </div>
+                {messagesLimit - messagesUsed <= 0 && (
+                  <span className="text-pink-400 ml-2">
+                    You have reached your daily quota. Please come back tomorrow
+                    or upgrade your plan.
+                  </span>
+                )}
+              </span>
+            )}
+            <button
+              type="button"
+              className="ml-2 p-1 rounded-full hover:bg-zinc-200 dark:hover:bg-zinc-800 transition"
+              onClick={() => setShowLimit(false)}
+              aria-label="Dismiss message limit warning"
+            >
+              <svg width="16" height="16" fill="none" viewBox="0 0 16 16">
+                <path
+                  stroke="currentColor"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M4 4l8 8m0-8l-8 8"
+                />
+              </svg>
+            </button>
           </div>
         </div>
       )}
+      {/* Modal for sign up when limit is reached */}
+      <Dialog open={showSignupModal} onOpenChange={setShowSignupModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Message Limit Reached</DialogTitle>
+            <DialogDescription>
+              You&apos;ve reached your daily limit of {messagesLimit} messages
+              as a guest. Sign up for a free account to continue chatting and
+              unlock more features!
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button asChild variant="default" size="lg">
+              <a href="/auth">Sign Up Free</a>
+            </Button>
+            <Button
+              variant="ghost"
+              size="lg"
+              onClick={() => setShowSignupModal(false)}
+            >
+              Maybe Later
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {messages.map((message, index) => (
         <PreviewMessage
@@ -216,6 +329,10 @@ function PureMessages({
         messages[messages.length - 1].role === 'user' && <ThinkingMessage />}
 
       <div ref={messagesEndRef} />
+      <ScrollToBottomButton
+        chatContainerRef={chatContainerRef}
+        className="fixed bottom-28 right-8 z-[1001]"
+      />
     </div>
   );
 }
