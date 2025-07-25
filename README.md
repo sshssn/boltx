@@ -6,6 +6,10 @@
 
 > The next-gen AI chat and productivity platform
 
+<p align="center">
+  <img src="public/images/boltX.png" alt="boltX" width="320" />
+</p>
+
 ---
 
 ## 🚀 Overview
