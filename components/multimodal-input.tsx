@@ -267,7 +267,7 @@ function PureMultimodalInput({
             aria-label="Dismiss"
             type="button"
           >
-            <X className="w-5 h-5" />
+            <X className="size-5" />
           </button>
           <AlertDialogHeader>
             <div className="text-5xl mb-2 text-center">💬</div>

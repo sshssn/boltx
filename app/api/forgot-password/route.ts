@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db/utils';
-import { user } from '@/lib/db/schema';
-import { randomBytes } from 'crypto';
+import { db } from '@/lib/db/queries';
+import { user, passwordResetToken } from '@/lib/db/schema';
+import { randomBytes } from 'node:crypto';
 import nodemailer from 'nodemailer';
+import { eq } from 'drizzle-orm';
 
 export async function POST(req: NextRequest) {
   const { email } = await req.json();
@@ -10,7 +11,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Email required' }, { status: 400 });
 
   // Find user by email
-  const [foundUser] = await db.select().from(user).where(user.email.eq(email));
+  const [foundUser] = await db.select().from(user).where(eq(user.email, email));
   if (!foundUser) {
     // Always respond success to avoid leaking info
     return NextResponse.json({ success: true });
@@ -21,10 +22,10 @@ export async function POST(req: NextRequest) {
   const expiresAt = new Date(Date.now() + 1000 * 60 * 60); // 1 hour
 
   // Store token in DB
-  await db.insert('password_reset_tokens').values({
-    user_id: foundUser.id,
+  await db.insert(passwordResetToken).values({
+    userId: foundUser.id,
     token,
-    expires_at: expiresAt,
+    expiresAt,
   });
 
   // Send email

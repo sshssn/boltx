@@ -117,7 +117,7 @@ export function SidebarUserNav({ user }: { user: UserType }) {
                   priority
                 />
                 {!isGuest && (
-                  <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-background rounded-full" />
+                  <div className="absolute -bottom-0.5 -right-0.5 size-3 bg-green-500 border-2 border-background rounded-full" />
                 )}
               </div>
 

@@ -5,7 +5,7 @@ export default function SupportPage() {
   return (
     <Card>
       <CardHeader className="flex flex-row items-center gap-2">
-        <HelpCircleIcon className="h-6 w-6" />
+        <HelpCircleIcon className="size-6" />
         <CardTitle>Support</CardTitle>
       </CardHeader>
     </Card>

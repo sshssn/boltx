@@ -1,5 +1,11 @@
 import Link from 'next/link';
-import React, { memo, useEffect, useState } from 'react';
+import React, {
+  memo,
+  useEffect,
+  useState,
+  Children,
+  isValidElement,
+} from 'react';
 import ReactMarkdown, { type Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import '@fontsource/jetbrains-mono';
@@ -96,10 +102,9 @@ const components: Partial<Components> = {
     // If any child is a block element, render all children directly (no <p>)
     const blockTags = ['pre', 'ul', 'ol'];
     if (
-      React.Children.toArray(children).some(
+      Children.toArray(children).some(
         (child) =>
-          React.isValidElement(child) &&
-          blockTags.includes((child as any).type),
+          isValidElement(child) && blockTags.includes((child as any).type),
       )
     ) {
       return <>{children}</>;

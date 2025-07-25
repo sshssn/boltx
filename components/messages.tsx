@@ -86,7 +86,7 @@ function ScrollToBottomButton({
         aria-label="Scroll to bottom"
       >
         <span>Scroll to bottom</span>
-        <ChevronDown className="w-4 h-4" />
+        <ChevronDown className="size-4" />
       </button>
     </div>
   );
@@ -141,8 +141,15 @@ function PureMessages({
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // Refetch quota info after every user message send
   useEffect(() => {
     if (isGuest || isRegular || !session?.user) {
+      // Only refetch if the last message is from the user (to avoid double fetch on system/assistant messages)
+      if (
+        messages.length === 0 ||
+        messages[messages.length - 1].role !== 'user'
+      )
+        return;
       fetch('/api/profile/tokens').then(async (r) => {
         if (r.ok) {
           const data = await r.json();
@@ -158,7 +165,7 @@ function PureMessages({
         }
       });
     }
-  }, [isGuest, isRegular, session, messages.length, onGuestLimit]);
+  }, [isGuest, isRegular, session, messages, onGuestLimit]);
 
   useEffect(() => {
     if (isGuest && messages.length > 0) {
@@ -223,8 +230,8 @@ function PureMessages({
 
       {/* Show quota message for both guests and regular users */}
       {showLimit && (isGuest || isRegular) && (
-        <div className="fixed left-1/2 top-6 -translate-x-1/2 z-[1000] w-auto flex justify-center pointer-events-none">
-          <div className="flex items-center gap-3 bg-[#4B5DFE]/20 dark:bg-zinc-900/60 backdrop-blur-md border border-zinc-200 dark:border-zinc-700 shadow-lg rounded-xl text-sm font-medium px-4 py-2 m-2 w-auto pointer-events-auto">
+        <div className="absolute left-1/2 top-6 -translate-x-1/2 z-[1000] w-auto flex justify-center pointer-events-none">
+          <div className="flex items-center gap-3 bg-[#4B5DFE]/30 dark:bg-zinc-900/70 backdrop-blur-md border border-zinc-200 dark:border-zinc-700 shadow-2xl rounded-xl text-base font-semibold px-5 py-2 m-2 w-auto pointer-events-auto animate-fade-in">
             {isGuest ? (
               <span className="text-zinc-900 dark:text-white whitespace-nowrap">
                 Guest account:{' '}

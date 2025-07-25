@@ -26,9 +26,7 @@ export function SidebarToggle({
           size={isMobile ? 'sm' : 'default'}
           className={`
             relative overflow-hidden transition-all duration-200 ease-in-out
-            ${
-              isMobile ? 'h-8 w-8 p-0 rounded-lg' : 'md:px-2 md:h-fit px-3 py-2'
-            }
+            ${isMobile ? 'size-8 p-0 rounded-lg' : 'md:px-2 md:h-fit px-3 py-2'}
             hover:bg-accent/80 active:scale-95
             focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2
             border-border/60 hover:border-border

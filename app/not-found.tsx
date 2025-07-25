@@ -1,33 +1,34 @@
-import { Button } from '@/components/ui/button';
-import { SparklesIcon } from '@/components/icons';
+'use client';
+
 import Link from 'next/link';
+import { useTheme } from 'next-themes';
+import Image from 'next/image';
 
 export default function NotFound() {
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === 'dark';
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-background to-muted px-4">
-      <div className="flex flex-col items-center gap-6 animate-fade-in">
-        <div className="flex items-center gap-2">
-          <div className="text-primary animate-bounce">
-            <SparklesIcon size={48} />
-          </div>
-          <h1 className="text-6xl font-extrabold tracking-tight text-primary drop-shadow-lg">
-            404
-          </h1>
-        </div>
-        <h2 className="text-2xl sm:text-3xl font-semibold text-foreground text-center">
-          Page Not Found
-        </h2>
-        <p className="text-lg text-muted-foreground text-center max-w-md">
-          Oops! The page you&apos;re looking for doesn&apos;t exist or has been
-          moved.
-          <br />
-          Let&apos;s get you back to something awesome.
-        </p>
+    <div className="relative min-h-svh w-full flex flex-col items-center justify-center bg-gradient-to-br from-[#181c2a] via-[#232329] to-[#181c2a]">
+      {/* Back to Chat Button */}
+      <div className="absolute top-6 left-6 z-10">
         <Link href="/">
-          <Button size="lg" className="mt-2 shadow-lg">
-            Go Home
-          </Button>
+          <button
+            type="button"
+            className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-white text-sm font-medium shadow border border-white/20 backdrop-blur-md transition-all"
+          >
+            ← Back to Chat
+          </button>
         </Link>
+      </div>
+      <div className="w-full flex flex-col items-center justify-center mt-24 mb-8">
+        <Image
+          src={isDark ? '/images/404-dark.svg' : '/images/404.svg'}
+          alt="404 Not Found"
+          width={400}
+          height={400}
+          className="mx-auto"
+          priority
+        />
       </div>
     </div>
   );

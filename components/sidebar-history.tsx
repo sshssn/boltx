@@ -244,12 +244,6 @@ export function SidebarHistory({
     setShowDeleteDialog(true);
   }, []);
 
-  const loadMore = useCallback(() => {
-    if (!isValidating && !hasReachedEnd) {
-      setSize((size) => size + 1);
-    }
-  }, [isValidating, setSize]);
-
   // Memoized calculations
   const { hasReachedEnd, hasEmptyChatHistory, filteredChats } = useMemo(() => {
     const hasReachedEnd = paginatedChatHistories
@@ -279,6 +273,12 @@ export function SidebarHistory({
       filteredChats: chatsFromHistory,
     };
   }, [paginatedChatHistories, search]);
+
+  const loadMore = useCallback(() => {
+    if (!isValidating && !hasReachedEnd) {
+      setSize((size) => size + 1);
+    }
+  }, [isValidating, setSize, hasReachedEnd]);
 
   const groupedChats = useMemo(
     () => groupChatsByDate(filteredChats),

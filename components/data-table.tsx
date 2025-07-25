@@ -427,7 +427,7 @@ export function DataTable({
             Past Performance{' '}
             <Badge
               variant="secondary"
-              className="flex h-5 w-5 items-center justify-center rounded-full bg-muted-foreground/30"
+              className="flex size-5 items-center justify-center rounded-full bg-muted-foreground/30"
             >
               3
             </Badge>
@@ -436,7 +436,7 @@ export function DataTable({
             Key Personnel{' '}
             <Badge
               variant="secondary"
-              className="flex h-5 w-5 items-center justify-center rounded-full bg-muted-foreground/30"
+              className="flex size-5 items-center justify-center rounded-full bg-muted-foreground/30"
             >
               2
             </Badge>

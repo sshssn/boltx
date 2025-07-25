@@ -181,3 +181,15 @@ export const memory = pgTable('Memory', {
 });
 
 export type Memory = InferSelectModel<typeof memory>;
+
+export const passwordResetToken = pgTable('password_reset_tokens', {
+  id: uuid('id').primaryKey().notNull().defaultRandom(),
+  userId: uuid('user_id')
+    .notNull()
+    .references(() => user.id, { onDelete: 'cascade' }),
+  token: varchar('token', { length: 255 }).notNull().unique(),
+  expiresAt: timestamp('expires_at').notNull(),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+
+export type PasswordResetToken = InferSelectModel<typeof passwordResetToken>;

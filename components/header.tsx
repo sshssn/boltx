@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { Logo } from '@/components/logo';
 import { Menu, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { signIn } from 'next-auth/react';
 
@@ -15,10 +15,10 @@ const menuItems = [
 ];
 
 export const HeroHeader = () => {
-  const [menuState, setMenuState] = React.useState(false);
-  const [isScrolled, setIsScrolled] = React.useState(false);
+  const [menuState, setMenuState] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
 
-  React.useEffect(() => {
+  useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 50);
     };

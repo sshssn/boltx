@@ -253,6 +253,11 @@ export default function ClientAccountDashboard({ session }: { session: any }) {
         ? 'Pro User'
         : 'Custom Plan';
 
+  const usernameChangeDisabled =
+    !!usernameLoading ||
+    (!!lastUsernameChange &&
+      Date.now() - lastUsernameChange.getTime() < 1000 * 60 * 60 * 24 * 30);
+
   return (
     <div
       className="relative min-h-svh w-full flex flex-col items-center justify-center bg-background text-foreground font-poppins overflow-hidden pt-4 dashboard-bg"
@@ -470,12 +475,7 @@ export default function ClientAccountDashboard({ session }: { session: any }) {
                                 }
                                 setUsernameLoading(false);
                               }}
-                              disabled={
-                                usernameLoading ||
-                                (lastUsernameChange &&
-                                  Date.now() - lastUsernameChange.getTime() <
-                                    1000 * 60 * 60 * 24 * 30)
-                              }
+                              disabled={usernameChangeDisabled}
                             >
                               Save
                             </Button>

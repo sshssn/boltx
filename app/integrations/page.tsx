@@ -5,7 +5,7 @@ export default function IntegrationsPage() {
   return (
     <Card>
       <CardHeader className="flex flex-row items-center gap-2">
-        <PlugIcon className="h-6 w-6" />
+        <PlugIcon className="size-6" />
         <CardTitle>Integrations</CardTitle>
       </CardHeader>
     </Card>

@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db/utils';
-import { user } from '@/lib/db/schema';
-import { hashPassword } from '@/lib/utils';
+import { db } from '@/lib/db/queries';
+import { user, passwordResetToken } from '@/lib/db/schema';
+import { generateHashedPassword } from '@/lib/db/utils';
+import { eq } from 'drizzle-orm';
 
 export async function POST(req: NextRequest) {
   const { token, password } = await req.json();
@@ -14,9 +15,9 @@ export async function POST(req: NextRequest) {
   // Find token in DB
   const [resetToken] = await db
     .select()
-    .from('password_reset_tokens')
-    .where({ token });
-  if (!resetToken || new Date(resetToken.expires_at) < new Date()) {
+    .from(passwordResetToken)
+    .where(eq(passwordResetToken.token, token));
+  if (!resetToken || new Date(resetToken.expiresAt) < new Date()) {
     return NextResponse.json(
       { error: 'Invalid or expired token' },
       { status: 400 },
@@ -24,14 +25,16 @@ export async function POST(req: NextRequest) {
   }
 
   // Update user password
-  const hashed = await hashPassword(password);
+  const hashed = generateHashedPassword(password);
   await db
     .update(user)
     .set({ password: hashed })
-    .where(user.id.eq(resetToken.user_id));
+    .where(eq(user.id, resetToken.userId));
 
   // Delete token
-  await db.delete('password_reset_tokens').where({ token });
+  await db
+    .delete(passwordResetToken)
+    .where(eq(passwordResetToken.token, token));
 
   return NextResponse.json({ success: true });
 }

@@ -298,7 +298,7 @@ export function LoginForm({
             <div className="w-px h-24 bg-gradient-to-b from-transparent via-primary/40 to-transparent dark:via-primary/30 rounded-full mx-4" />
           </div>
           {/* Logo Section */}
-          <div className="flex items-center justify-center w-full h-full bg-transparent p-8">
+          <div className="flex items-center justify-center size-full bg-transparent p-8">
             <Image
               src="/images/dark.svg"
               alt="App Logo"
