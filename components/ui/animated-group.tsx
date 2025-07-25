@@ -131,11 +131,22 @@ function AnimatedGroup({
       variants={containerVariants}
       className={className}
     >
-      {React.Children.map(children, (child, index) => (
-        <MotionChild key={child.key ?? String(index)} variants={itemVariants}>
-          {child}
-        </MotionChild>
-      ))}
+      {React.Children.map(children, (child, index) => {
+        if (!child) return null;
+        // Ensure key is string or number, and only access .key if child is a valid React element
+        let key: string | number = String(index);
+        if (React.isValidElement(child) && child.key != null) {
+          key =
+            typeof child.key === 'string' || typeof child.key === 'number'
+              ? child.key
+              : String(child.key);
+        }
+        return (
+          <MotionChild key={key} variants={itemVariants}>
+            {child}
+          </MotionChild>
+        );
+      })}
     </MotionComponent>
   );
 }
