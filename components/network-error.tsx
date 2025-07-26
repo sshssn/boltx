@@ -15,8 +15,8 @@ export function NetworkError({
   return (
     <div className="flex justify-center w-full px-4 mb-4">
       <div className="flex items-center gap-3 bg-red-500/10 dark:bg-red-500/20 backdrop-blur-md border border-red-500/30 shadow-lg rounded-lg text-sm font-medium px-4 py-3 w-auto max-w-md">
-        <div className="flex-shrink-0">
-          <AlertTriangle className="w-5 h-5 text-red-500" />
+        <div className="shrink-0">
+          <AlertTriangle className="size-5 text-red-500" />
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-red-700 dark:text-red-300 font-medium">
@@ -30,9 +30,9 @@ export function NetworkError({
           variant="outline"
           size="sm"
           onClick={onRetry}
-          className="flex-shrink-0 border-red-500/30 text-red-700 dark:text-red-300 hover:bg-red-500/10 hover:border-red-500/50"
+          className="shrink-0 border-red-500/30 text-red-700 dark:text-red-300 hover:bg-red-500/10 hover:border-red-500/50"
         >
-          <RefreshCw className="w-4 h-4 mr-1" />
+          <RefreshCw className="size-4 mr-1" />
           Retry
         </Button>
       </div>

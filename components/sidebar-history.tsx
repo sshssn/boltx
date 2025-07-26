@@ -160,9 +160,9 @@ const LoadingSkeleton = () => (
 
 const EmptyState = ({ isLoggedIn }: { isLoggedIn: boolean }) => (
   <div className="flex flex-col items-center justify-center py-8 px-4 text-center">
-    <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-3">
+    <div className="size-12 rounded-full bg-muted flex items-center justify-center mb-3">
       <svg
-        className="w-6 h-6 text-muted-foreground"
+        className="size-6 text-muted-foreground"
         fill="none"
         stroke="currentColor"
         viewBox="0 0 24 24"
@@ -199,7 +199,7 @@ const NewThreadLoading = ({ chatId }: { chatId: string }) => (
     animate={{ opacity: 1, y: 0 }}
     className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-sidebar-accent-foreground/5 border border-sidebar-accent-foreground/10 hover:bg-sidebar-accent-foreground/10 transition-all duration-200"
   >
-    <div className="flex items-center justify-center w-4 h-4 animate-spin">
+    <div className="flex items-center justify-center size-4 animate-spin">
       <LoaderIcon size={16} />
     </div>
     <span className="text-sm font-medium text-sidebar-foreground/80 truncate">
@@ -475,7 +475,7 @@ export function SidebarHistory({
 
         {/* Load more */}
         {!hasReachedEnd && (
-          <div className="px-2 py-2">
+          <div className="p-2">
             <button
               type="button"
               onClick={loadMore}

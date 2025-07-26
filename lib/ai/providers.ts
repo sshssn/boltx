@@ -81,6 +81,14 @@ export class GeminiProvider {
   getAvailableKeys() {
     return API_KEYS.length;
   }
+
+  languageModel(modelName: string) {
+    // Return a model configuration for the AI SDK
+    return {
+      model: modelName,
+      provider: this,
+    };
+  }
 }
 
 // Export a singleton instance

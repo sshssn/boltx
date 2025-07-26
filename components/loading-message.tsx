@@ -15,8 +15,8 @@ export function LoadingMessage({
   return (
     <div className="flex items-start gap-3 p-4 bg-white/5 dark:bg-zinc-800/20 backdrop-blur-sm rounded-2xl border border-white/10 dark:border-zinc-700/50">
       {/* Avatar */}
-      <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
-        <Sparkles className="w-4 h-4 text-white" />
+      <div className="shrink-0 size-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
+        <Sparkles className="size-4 text-white" />
       </div>
 
       {/* Content */}
@@ -30,7 +30,7 @@ export function LoadingMessage({
               animate={{ opacity: [0.4, 1, 0.4] }}
               transition={{ duration: 1.5, repeat: Number.POSITIVE_INFINITY }}
             >
-              <Loader2 className="w-3 h-3 text-indigo-500" />
+              <Loader2 className="size-3 text-indigo-500" />
             </motion.div>
           </div>
         </div>
@@ -38,7 +38,7 @@ export function LoadingMessage({
         {/* Animated dots */}
         <div className="flex items-center gap-1">
           <motion.div
-            className="w-2 h-2 bg-indigo-500 rounded-full"
+            className="size-2 bg-indigo-500 rounded-full"
             animate={{ opacity: [0.3, 1, 0.3] }}
             transition={{
               duration: 1.2,
@@ -47,7 +47,7 @@ export function LoadingMessage({
             }}
           />
           <motion.div
-            className="w-2 h-2 bg-indigo-500 rounded-full"
+            className="size-2 bg-indigo-500 rounded-full"
             animate={{ opacity: [0.3, 1, 0.3] }}
             transition={{
               duration: 1.2,
@@ -56,7 +56,7 @@ export function LoadingMessage({
             }}
           />
           <motion.div
-            className="w-2 h-2 bg-indigo-500 rounded-full"
+            className="size-2 bg-indigo-500 rounded-full"
             animate={{ opacity: [0.3, 1, 0.3] }}
             transition={{
               duration: 1.2,

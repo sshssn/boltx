@@ -202,7 +202,7 @@ function GuestMessageLimit({ messages }: { messages: ChatMessage[] }) {
                 variant="outline"
                 className="w-full sm:w-auto order-2 sm:order-1"
               >
-                <X className="w-4 h-4 mr-2" />
+                <X className="size-4 mr-2" />
                 Close
               </Button>
             </AlertDialogCancel>
@@ -213,7 +213,7 @@ function GuestMessageLimit({ messages }: { messages: ChatMessage[] }) {
                   window.open(isGuest ? '/auth' : '/account', '_blank')
                 }
               >
-                <Sparkles className="w-4 h-4 mr-2" />
+                <Sparkles className="size-4 mr-2" />
                 {isGuest ? 'Sign Up Free' : 'Upgrade'}
               </Button>
             </AlertDialogAction>

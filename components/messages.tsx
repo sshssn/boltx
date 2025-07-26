@@ -94,7 +94,7 @@ function ScrollToBottomButton({
         aria-label="Scroll to bottom"
       >
         <span>Scroll to bottom</span>
-        <ChevronDown className="w-4 h-4" />
+        <ChevronDown className="size-4" />
       </button>
     </div>
   );
@@ -213,7 +213,7 @@ function PureMessages({
             (!msg.parts[0].text || msg.parts[0].text.trim() === ''))),
     );
     setNetworkError(hasNetworkError);
-  }, [messages, setNetworkError]);
+  }, [messages]);
 
   // Additional timeout-based error detection for when AI doesn't respond
   useEffect(() => {
@@ -270,7 +270,7 @@ function PureMessages({
 
       {/* Enhanced Network Error Display */}
       {networkError && (
-        <div className="flex justify-center px-4 py-4">
+        <div className="flex justify-center p-4">
           <NetworkError
             onRetry={handleRetry}
             message="Failed to get response from AI"
@@ -282,8 +282,8 @@ function PureMessages({
       <AlertDialog open={showSignupModal} onOpenChange={setShowSignupModal}>
         <AlertDialogContent className="max-w-md border-0 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl shadow-2xl">
           <AlertDialogHeader>
-            <div className="flex items-center justify-center w-12 h-12 mx-auto mb-4 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full">
-              <Sparkles className="w-6 h-6 text-white" />
+            <div className="flex items-center justify-center size-12 mx-auto mb-4 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full">
+              <Sparkles className="size-6 text-white" />
             </div>
             <AlertDialogTitle className="text-center text-xl">
               Message Limit Reached
@@ -309,7 +309,7 @@ function PureMessages({
                   className="flex items-center gap-2"
                 >
                   {isGuest ? 'Sign Up Free' : 'Upgrade to Pro'}
-                  <Sparkles className="w-4 h-4" />
+                  <Sparkles className="size-4" />
                 </a>
               </Button>
             </AlertDialogAction>

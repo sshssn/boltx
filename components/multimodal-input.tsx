@@ -40,47 +40,46 @@ import { useMessageLimit } from './message-limit-provider';
 // Enhanced file type detection
 const getFileIcon = (contentType: string, fileName: string) => {
   // Images
-  if (contentType.startsWith('image/'))
-    return <Image className="w-4 h-4" alt="Image file" />;
+  if (contentType.startsWith('image/')) return <Image className="size-4" />;
 
   // Documents
   if (contentType === 'application/pdf' || fileName.endsWith('.pdf'))
-    return <FileText className="w-4 h-4" />;
+    return <FileText className="size-4" />;
   if (contentType.includes('word') || fileName.match(/\.(doc|docx)$/i))
-    return <FileText className="w-4 h-4" />;
+    return <FileText className="size-4" />;
   if (contentType.includes('excel') || fileName.match(/\.(xls|xlsx)$/i))
-    return <FileText className="w-4 h-4" />;
+    return <FileText className="size-4" />;
   if (contentType.includes('powerpoint') || fileName.match(/\.(ppt|pptx)$/i))
-    return <FileText className="w-4 h-4" />;
+    return <FileText className="size-4" />;
 
   // Code files
   if (
     contentType.includes('javascript') ||
     fileName.match(/\.(js|jsx|ts|tsx)$/i)
   )
-    return <FileText className="w-4 h-4" />;
+    return <FileText className="size-4" />;
   if (contentType.includes('python') || fileName.match(/\.py$/i))
-    return <FileText className="w-4 h-4" />;
+    return <FileText className="size-4" />;
   if (contentType.includes('java') || fileName.match(/\.java$/i))
-    return <FileText className="w-4 h-4" />;
+    return <FileText className="size-4" />;
   if (contentType.includes('css') || fileName.match(/\.(css|scss|sass|less)$/i))
-    return <FileText className="w-4 h-4" />;
+    return <FileText className="size-4" />;
   if (contentType.includes('html') || fileName.match(/\.(html|htm)$/i))
-    return <FileText className="w-4 h-4" />;
+    return <FileText className="size-4" />;
   if (fileName.match(/\.(json|xml|yaml|yml|toml|ini|sql|md|txt|csv)$/i))
-    return <FileText className="w-4 h-4" />;
+    return <FileText className="size-4" />;
 
   // Archives
   if (contentType.includes('zip') || fileName.match(/\.(zip|rar|7z|tar|gz)$/i))
-    return <File className="w-4 h-4" />;
+    return <File className="size-4" />;
 
   // Audio
-  if (contentType.startsWith('audio/')) return <File className="w-4 h-4" />;
+  if (contentType.startsWith('audio/')) return <File className="size-4" />;
 
   // Video
-  if (contentType.startsWith('video/')) return <File className="w-4 h-4" />;
+  if (contentType.startsWith('video/')) return <File className="size-4" />;
 
-  return <File className="w-4 h-4" />;
+  return <File className="size-4" />;
 };
 
 // Paste detection component
@@ -93,14 +92,14 @@ const PasteIndicator = ({
   return (
     <div className="absolute top-2 left-1/2 transform -translate-x-1/2 z-10">
       <div className="flex items-center gap-2 px-3 py-2 bg-blue-500/90 text-white text-sm rounded-lg backdrop-blur-sm shadow-lg animate-in slide-in-from-top-2 duration-300">
-        <Copy className="w-4 h-4" />
+        <Copy className="size-4" />
         <span>Content pasted</span>
         <button
           type="button"
           onClick={onDismiss}
           className="ml-2 hover:bg-white/20 rounded p-0.5"
         >
-          <X className="w-3 h-3" />
+          <X className="size-3" />
         </button>
       </div>
     </div>
@@ -151,21 +150,21 @@ function PureMultimodalInput({
     }
   }, []);
 
-  const adjustHeight = () => {
+  const adjustHeight = useCallback(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
       const maxHeight = width && width < 768 ? 120 : 200;
       textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight + 2, maxHeight)}px`;
     }
-  };
+  }, [width]);
 
-  const resetHeight = () => {
+  const resetHeight = useCallback(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
       const minHeight = width && width < 768 ? 60 : 80;
       textareaRef.current.style.height = `${minHeight}px`;
     }
-  };
+  }, [width]);
 
   const [localStorageInput, setLocalStorageInput] = useLocalStorage(
     'input',
@@ -179,7 +178,7 @@ function PureMultimodalInput({
       setInput(finalValue);
       adjustHeight();
     }
-  }, []);
+  }, [adjustHeight, localStorageInput, setInput]);
 
   useEffect(() => {
     setLocalStorageInput(input);
@@ -273,6 +272,9 @@ function PureMultimodalInput({
     setLocalStorageInput,
     width,
     chatId,
+    hasReachedLimit,
+    incrementMessageCount,
+    resetHeight,
   ]);
 
   const uploadFile = async (file: File) => {
@@ -302,117 +304,120 @@ function PureMultimodalInput({
     }
   };
 
-  const handleFileUpload = async (file: File) => {
-    // Validate file type and size
-    const maxSize = 50 * 1024 * 1024; // 50MB for larger documents and videos
-    if (file.size > maxSize) {
-      toast.error('File size must be less than 50MB');
-      return;
-    }
-
-    const allowedTypes = [
-      // Images
-      'image/jpeg',
-      'image/png',
-      'image/gif',
-      'image/webp',
-      'image/bmp',
-      'image/tiff',
-      'image/svg+xml',
-      'image/heic',
-      'image/heif',
-
-      // Documents
-      'application/pdf',
-      'application/msword',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      'application/vnd.ms-excel',
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'application/vnd.ms-powerpoint',
-      'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-      'text/plain',
-      'text/csv',
-      'text/html',
-      'text/markdown',
-      'text/xml',
-      'application/json',
-      'application/xml',
-
-      // Code files
-      'text/javascript',
-      'text/typescript',
-      'text/css',
-      'text/scss',
-      'text/sass',
-      'text/less',
-      'text/python',
-      'text/java',
-      'text/c',
-      'text/cpp',
-      'text/csharp',
-      'text/php',
-      'text/ruby',
-      'text/go',
-      'text/rust',
-      'text/swift',
-      'text/kotlin',
-      'text/scala',
-      'text/r',
-      'text/matlab',
-      'text/sql',
-      'text/yaml',
-      'text/toml',
-      'text/ini',
-      'text/bash',
-      'text/shell',
-      'text/dockerfile',
-      'text/makefile',
-
-      // Archives
-      'application/zip',
-      'application/x-rar-compressed',
-      'application/x-7z-compressed',
-      'application/x-tar',
-      'application/gzip',
-
-      // Audio (for transcription)
-      'audio/mpeg',
-      'audio/wav',
-      'audio/ogg',
-      'audio/mp4',
-      'audio/aac',
-      'audio/flac',
-
-      // Video (for frame extraction)
-      'video/mp4',
-      'video/avi',
-      'video/mov',
-      'video/wmv',
-      'video/flv',
-      'video/webm',
-      'video/mkv',
-    ];
-
-    if (!allowedTypes.includes(file.type)) {
-      toast.error('File type not supported');
-      return;
-    }
-
-    setUploadQueue((prev) => [...prev, file.name]);
-
-    try {
-      const uploadedAttachment = await uploadFile(file);
-      if (uploadedAttachment) {
-        setAttachments((current) => [...current, uploadedAttachment]);
-        toast.success(`${file.name} uploaded successfully`);
+  const handleFileUpload = useCallback(
+    async (file: File) => {
+      // Validate file type and size
+      const maxSize = 50 * 1024 * 1024; // 50MB for larger documents and videos
+      if (file.size > maxSize) {
+        toast.error('File size must be less than 50MB');
+        return;
       }
-    } catch (error) {
-      console.error('Error uploading file!', error);
-      toast.error(`Failed to upload ${file.name}`);
-    } finally {
-      setUploadQueue((prev) => prev.filter((name) => name !== file.name));
-    }
-  };
+
+      const allowedTypes = [
+        // Images
+        'image/jpeg',
+        'image/png',
+        'image/gif',
+        'image/webp',
+        'image/bmp',
+        'image/tiff',
+        'image/svg+xml',
+        'image/heic',
+        'image/heif',
+
+        // Documents
+        'application/pdf',
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'application/vnd.ms-excel',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'application/vnd.ms-powerpoint',
+        'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+        'text/plain',
+        'text/csv',
+        'text/html',
+        'text/markdown',
+        'text/xml',
+        'application/json',
+        'application/xml',
+
+        // Code files
+        'text/javascript',
+        'text/typescript',
+        'text/css',
+        'text/scss',
+        'text/sass',
+        'text/less',
+        'text/python',
+        'text/java',
+        'text/c',
+        'text/cpp',
+        'text/csharp',
+        'text/php',
+        'text/ruby',
+        'text/go',
+        'text/rust',
+        'text/swift',
+        'text/kotlin',
+        'text/scala',
+        'text/r',
+        'text/matlab',
+        'text/sql',
+        'text/yaml',
+        'text/toml',
+        'text/ini',
+        'text/bash',
+        'text/shell',
+        'text/dockerfile',
+        'text/makefile',
+
+        // Archives
+        'application/zip',
+        'application/x-rar-compressed',
+        'application/x-7z-compressed',
+        'application/x-tar',
+        'application/gzip',
+
+        // Audio (for transcription)
+        'audio/mpeg',
+        'audio/wav',
+        'audio/ogg',
+        'audio/mp4',
+        'audio/aac',
+        'audio/flac',
+
+        // Video (for frame extraction)
+        'video/mp4',
+        'video/avi',
+        'video/mov',
+        'video/wmv',
+        'video/flv',
+        'video/webm',
+        'video/mkv',
+      ];
+
+      if (!allowedTypes.includes(file.type)) {
+        toast.error('File type not supported');
+        return;
+      }
+
+      setUploadQueue((prev) => [...prev, file.name]);
+
+      try {
+        const uploadedAttachment = await uploadFile(file);
+        if (uploadedAttachment) {
+          setAttachments((current) => [...current, uploadedAttachment]);
+          toast.success(`${file.name} uploaded successfully`);
+        }
+      } catch (error) {
+        console.error('Error uploading file!', error);
+        toast.error(`Failed to upload ${file.name}`);
+      } finally {
+        setUploadQueue((prev) => prev.filter((name) => name !== file.name));
+      }
+    },
+    [setAttachments, setUploadQueue],
+  );
 
   const handleFileChange = useCallback(
     async (event: ChangeEvent<HTMLInputElement>) => {
@@ -427,7 +432,7 @@ function PureMultimodalInput({
         fileInputRef.current.value = '';
       }
     },
-    [setAttachments],
+    [setAttachments, handleFileUpload],
   );
 
   // Drag and drop handling
@@ -452,14 +457,17 @@ function PureMultimodalInput({
     e.stopPropagation();
   }, []);
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(false);
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDragging(false);
 
-    const files = Array.from(e.dataTransfer.files);
-    files.forEach(handleFileUpload);
-  }, []);
+      const files = Array.from(e.dataTransfer.files);
+      files.forEach(handleFileUpload);
+    },
+    [handleFileUpload],
+  );
 
   const { isAtBottom, scrollToBottom } = useScrollToBottom();
 
@@ -491,7 +499,7 @@ function PureMultimodalInput({
       {isDragging && (
         <div className="fixed inset-0 z-50 bg-blue-500/10 backdrop-blur-sm flex items-center justify-center">
           <div className="bg-white/90 dark:bg-zinc-800/90 backdrop-blur-md rounded-xl p-8 border border-blue-200 dark:border-blue-700 shadow-2xl">
-            <Upload className="w-12 h-12 text-blue-500 mx-auto mb-4" />
+            <Upload className="size-12 text-blue-500 mx-auto mb-4" />
             <p className="text-lg font-medium text-center text-zinc-900 dark:text-zinc-100">
               Drop files here to upload
             </p>
@@ -559,7 +567,7 @@ function PureMultimodalInput({
                 onClick={() => removeAttachment(attachment.url)}
                 className="text-zinc-400 hover:text-red-500 transition-colors"
               >
-                <X className="w-2.5 h-2.5 md:w-3 md:h-3" />
+                <X className="size-2.5 md:size-3" />
               </button>
             </div>
           ))}
@@ -569,7 +577,7 @@ function PureMultimodalInput({
               key={filename}
               className="flex items-center gap-1.5 md:gap-2 px-2 py-1.5 md:px-3 md:py-2 bg-blue-50/60 dark:bg-blue-900/20 backdrop-blur-sm rounded-lg border border-blue-200/30 dark:border-blue-700/30 shadow-sm"
             >
-              <div className="w-3 h-3 md:w-4 md:h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+              <div className="size-3 md:size-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
               <span className="text-xs md:text-sm text-blue-700 dark:text-blue-300 truncate max-w-24 md:max-w-32">
                 {filename}
               </span>
