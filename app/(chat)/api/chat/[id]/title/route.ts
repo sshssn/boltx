@@ -5,11 +5,11 @@ import { updateChatTitleById, getChatById } from '@/lib/db/queries';
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const { title } = await request.json();
-    const chatId = params.id;
+    const { id: chatId } = await params;
 
     // Check authentication
     const session = await auth();
