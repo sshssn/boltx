@@ -1,6 +1,13 @@
-import { PreviewMessage, ThinkingMessage } from './message';
+import { PreviewMessage } from './message';
 import { Greeting } from './greeting';
-import { memo } from 'react';
+import {
+  memo,
+  useEffect,
+  useState,
+  useRef,
+  useLayoutEffect,
+  useCallback,
+} from 'react';
 import type { Vote } from '@/lib/db/schema';
 import equal from 'fast-deep-equal';
 import type { UseChatHelpers } from '@ai-sdk/react';
@@ -8,13 +15,6 @@ import { useMessages } from '@/hooks/use-messages';
 import type { ChatMessage } from '@/lib/types';
 import { useDataStream } from './data-stream-provider';
 import { useSession } from 'next-auth/react';
-import {
-  useEffect,
-  useState,
-  useRef,
-  useLayoutEffect,
-  useCallback,
-} from 'react';
 import {
   AlertDialog,
   AlertDialogContent,
@@ -26,8 +26,8 @@ import {
   AlertDialogCancel,
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
-import { ChevronDown } from 'lucide-react';
-import React from 'react';
+import { ChevronDown, Sparkles } from 'lucide-react';
+import { NetworkError } from './network-error';
 
 interface MessagesProps {
   chatId: string;
@@ -42,7 +42,9 @@ interface MessagesProps {
   onGuestLimit?: (limit: number, used: number) => void;
 }
 
-// Add ScrollToBottomButton component
+// Simple Thinking Dots Component
+
+// Enhanced ScrollToBottomButton component
 function ScrollToBottomButton({
   chatContainerRef,
   className = '',
@@ -88,11 +90,11 @@ function ScrollToBottomButton({
       <button
         type="button"
         onClick={scrollToBottom}
-        className="flex items-center space-x-2 px-3 py-2 bg-white/10 backdrop-blur-md border border-white/20 rounded-lg shadow-lg hover:bg-white/15 hover:scale-105 transition-all duration-200 ease-out text-white/90 text-sm font-medium"
+        className="flex items-center gap-2 px-4 py-2.5 bg-white/90 dark:bg-zinc-800/90 backdrop-blur-xl border border-white/30 dark:border-zinc-700/50 rounded-xl shadow-lg hover:bg-white/95 dark:hover:bg-zinc-800/95 hover:scale-105 transition-all duration-200 ease-out text-zinc-700 dark:text-zinc-300 text-sm font-medium"
         aria-label="Scroll to bottom"
       >
         <span>Scroll to bottom</span>
-        <ChevronDown className="size-4" />
+        <ChevronDown className="w-4 h-4" />
       </button>
     </div>
   );
@@ -126,13 +128,13 @@ function PureMessages({
   const isGuest = session?.user?.type === 'guest';
   const isRegular = session?.user?.type === 'regular';
   const [messagesUsed, setMessagesUsed] = useState<number>(0);
-  const [messagesLimit, setMessagesLimit] = useState<number>(isGuest ? 10 : 20);
-  const [showLimit, setShowLimit] = useState(true);
+  const [messagesLimit, setMessagesLimit] = useState<number>(isGuest ? 20 : 50);
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState<number | undefined>(
     undefined,
   );
   const [showSignupModal, setShowSignupModal] = useState(false);
+  const [networkError, setNetworkError] = useState(false);
 
   useLayoutEffect(() => {
     if (chatContainerRef.current) {
@@ -147,172 +149,176 @@ function PureMessages({
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Refetch quota info after every user message send
+  // Fixed: Proper message limit tracking that persists across chats
   useEffect(() => {
     if (isGuest || isRegular || !session?.user) {
-      // Only refetch if the last message is from the user (to avoid double fetch on system/assistant messages)
-      if (
-        messages.length === 0 ||
-        messages[messages.length - 1].role !== 'user'
-      )
-        return;
-      fetch('/api/profile/tokens').then(async (r) => {
-        if (r.ok) {
-          const data = await r.json();
-          setMessagesUsed(data.tokensUsed ?? messages.length);
-          setMessagesLimit(
-            data.messagesLimit ?? (isGuest ? 10 : isRegular ? 20 : 10),
-          );
-          if (onGuestLimit)
-            onGuestLimit(
-              data.messagesLimit ?? 10,
-              data.tokensUsed ?? messages.length,
-            );
+      // Fetch quota info on component mount and when messages change
+      const fetchQuotaInfo = async () => {
+        try {
+          const response = await fetch('/api/profile/tokens');
+          if (response.ok) {
+            const data = await response.json();
+            // Use server data as source of truth
+            const serverUsed = data.tokensUsed ?? 0;
+            const serverLimit =
+              data.messagesLimit ?? (isGuest ? 20 : isRegular ? 50 : 20);
+
+            setMessagesUsed(serverUsed);
+            setMessagesLimit(serverLimit);
+
+            if (onGuestLimit) {
+              onGuestLimit(serverLimit, serverUsed);
+            }
+          }
+        } catch (error) {
+          console.error('Failed to fetch quota info:', error);
+          // Fallback to counting messages if API fails
+          const userMessageCount = messages.filter(
+            (msg) => msg.role === 'user',
+          ).length;
+          setMessagesUsed(userMessageCount);
         }
-      });
-    }
-  }, [isGuest, isRegular, session, messages, onGuestLimit]);
+      };
 
-  useEffect(() => {
-    if (isGuest && messages.length > 0) {
-      setShowLimit(true); // Show again on new message
-    }
-  }, [isGuest, messages.length]);
-  useEffect(() => {
-    setShowLimit(true); // Show again on new chat
-  }, [chatId]);
+      fetchQuotaInfo();
 
+      // Also fetch when a new user message is added
+      const userMessages = messages.filter((msg) => msg.role === 'user');
+      if (userMessages.length > 0) {
+        // Small delay to ensure the message is processed on the server
+        const timeoutId = setTimeout(fetchQuotaInfo, 1000);
+        return () => clearTimeout(timeoutId);
+      }
+    }
+  }, [isGuest, isRegular, session, messages.length, onGuestLimit]);
+
+  // Show signup modal when limit is reached
   useEffect(() => {
-    if (isGuest && messagesLimit - messagesUsed <= 0) {
+    if ((isGuest || isRegular) && messagesUsed >= messagesLimit) {
       setShowSignupModal(true);
     }
-  }, [isGuest, messagesLimit, messagesUsed]);
+  }, [isGuest, isRegular, messagesUsed, messagesLimit]);
 
   useDataStream();
+
+  // Check for network errors in messages
+  useEffect(() => {
+    const hasNetworkError = messages.some(
+      (msg) =>
+        msg.role === 'assistant' &&
+        (!msg.parts ||
+          msg.parts.length === 0 ||
+          (msg.parts.length === 1 &&
+            msg.parts[0].type === 'text' &&
+            (!msg.parts[0].text || msg.parts[0].text.trim() === ''))),
+    );
+    setNetworkError(hasNetworkError);
+  }, [messages, setNetworkError]);
+
+  // Additional timeout-based error detection for when AI doesn't respond
+  useEffect(() => {
+    if (status === 'submitted' || status === 'streaming') {
+      const timeoutId = setTimeout(() => {
+        // If we're still in submitted/streaming state after 30 seconds, show error
+        if (status === 'submitted' || status === 'streaming') {
+          setNetworkError(true);
+        }
+      }, 30000); // 30 seconds timeout
+
+      return () => clearTimeout(timeoutId);
+    }
+  }, [status]);
+
+  const handleRetry = () => {
+    setNetworkError(false);
+    // Remove the last assistant message if it's empty/broken
+    setMessages((prev) => {
+      const lastAssistantIndex = prev.findLastIndex(
+        (msg) => msg.role === 'assistant',
+      );
+      if (lastAssistantIndex !== -1) {
+        const lastAssistant = prev[lastAssistantIndex];
+        if (
+          !lastAssistant.parts ||
+          lastAssistant.parts.length === 0 ||
+          (lastAssistant.parts.length === 1 &&
+            lastAssistant.parts[0].type === 'text' &&
+            (!lastAssistant.parts[0].text ||
+              lastAssistant.parts[0].text.trim() === ''))
+        ) {
+          return prev.slice(0, lastAssistantIndex);
+        }
+      }
+      return prev;
+    });
+    // Regenerate the response
+    regenerate();
+  };
 
   return (
     <div
       ref={chatContainerRef}
-      className={`flex flex-col overflow-y-auto relative w-full flex-1${extraPaddingBottom ? ' pb-32' : ''}`}
+      className={`flex flex-col overflow-y-auto relative w-full flex-1 ${
+        extraPaddingBottom ? 'pb-32' : ''
+      }`}
+      style={{
+        scrollbarWidth: 'thin',
+        scrollbarColor: 'rgb(156 163 175) transparent',
+      }}
     >
       {messages.length === 0 && <Greeting />}
 
-      {/* Guest user message limit warning: absolutely centered at top of chat container, not viewport */}
-      {/*
-      {isGuest && messages.length > 0 && showLimit && (
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 z-50 w-auto mx-auto flex justify-center pointer-events-none">
-          <div className="flex items-center gap-3 bg-white/60 dark:bg-zinc-900/60 backdrop-blur-md border border-zinc-200 dark:border-zinc-700 shadow-lg rounded-xl text-sm font-medium px-4 py-2 m-2 w-auto pointer-events-auto">
-            <span className="text-zinc-900 dark:text-white whitespace-nowrap">
-              You're down to{' '}
-              <span className="text-indigo-600 dark:text-indigo-400 font-bold">
-                {Math.max(0, messagesLimit - messagesUsed)}
-              </span>{' '}
-              messages—
-              <a
-                href="/auth"
-                className="underline text-indigo-700 dark:text-indigo-300 hover:text-indigo-900 dark:hover:text-indigo-100 transition"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Sign up
-              </a>
-              &nbsp;and we will increase your limits!{' '}
-              <span role="img" aria-label="smile">
-                😊
-              </span>
-            </span>
-            <button
-              type="button"
-              className="ml-2 p-1 rounded-full hover:bg-zinc-200 dark:hover:bg-zinc-800 transition"
-              onClick={() => setShowLimit(false)}
-              aria-label="Dismiss message limit warning"
-            >
-              <X size={16} />
-            </button>
-          </div>
+      {/* Enhanced Network Error Display */}
+      {networkError && (
+        <div className="flex justify-center px-4 py-4">
+          <NetworkError
+            onRetry={handleRetry}
+            message="Failed to get response from AI"
+          />
         </div>
       )}
-      */}
 
-      {/* Show quota message for both guests and regular users */}
-      {showLimit && (isGuest || isRegular) && (
-        <div className="absolute left-1/2 top-6 -translate-x-1/2 z-[1000] w-auto flex justify-center pointer-events-none">
-          <div className="flex items-center gap-3 bg-[#4B5DFE]/30 dark:bg-zinc-900/70 backdrop-blur-md border border-zinc-200 dark:border-zinc-700 shadow-2xl rounded-xl text-base font-semibold px-5 py-2 m-2 w-auto pointer-events-auto animate-fade-in">
-            {isGuest ? (
-              <span className="text-zinc-900 dark:text-white whitespace-nowrap">
-                Guest account:{' '}
-                <span className="text-indigo-600 dark:text-indigo-400 font-bold">
-                  {Math.max(0, messagesLimit - messagesUsed)}
-                </span>{' '}
-                messages left.{' '}
-                <a
-                  href="/auth"
-                  className="underline text-indigo-700 dark:text-indigo-300 hover:text-indigo-900 dark:hover:text-indigo-100 transition"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Sign up to chat, we will increase your limits — it&apos;s
-                  free!
-                </a>
-              </span>
-            ) : (
-              <span>
-                {`You have used ${messagesUsed} of ${messagesLimit} messages today. ${messagesLimit - messagesUsed} remaining.`}
-                {messagesLimit - messagesUsed <= 2 &&
-                  messagesLimit - messagesUsed > 0 && (
-                    <span className="text-pink-400 ml-2">
-                      You&apos;re almost out of messages for today!
-                    </span>
-                  )}
-                {messagesLimit - messagesUsed <= 0 && (
-                  <span className="text-pink-400 ml-2">
-                    You have reached your daily quota. Please come back tomorrow
-                    or upgrade your plan.
-                  </span>
-                )}
-              </span>
-            )}
-            <button
-              type="button"
-              className="ml-2 p-1 rounded-full hover:bg-zinc-200 dark:hover:bg-zinc-800 transition"
-              onClick={() => setShowLimit(false)}
-              aria-label="Dismiss message limit warning"
-            >
-              <svg width="16" height="16" fill="none" viewBox="0 0 16 16">
-                <path
-                  stroke="currentColor"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M4 4l8 8m0-8l-8 8"
-                />
-              </svg>
-            </button>
-          </div>
-        </div>
-      )}
-      {/* Modal for sign up when limit is reached */}
+      {/* Enhanced Signup Modal */}
       <AlertDialog open={showSignupModal} onOpenChange={setShowSignupModal}>
-        <AlertDialogContent className="max-w-md">
+        <AlertDialogContent className="max-w-md border-0 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl shadow-2xl">
           <AlertDialogHeader>
-            <AlertDialogTitle>Message Limit Reached</AlertDialogTitle>
-            <AlertDialogDescription>
-              You&apos;ve reached your daily limit of {messagesLimit} messages
-              as a guest. Sign up for a free account to continue chatting and
-              unlock more features!
+            <div className="flex items-center justify-center w-12 h-12 mx-auto mb-4 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full">
+              <Sparkles className="w-6 h-6 text-white" />
+            </div>
+            <AlertDialogTitle className="text-center text-xl">
+              Message Limit Reached
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-center text-zinc-600 dark:text-zinc-400">
+              You&apos;ve reached your daily limit of{' '}
+              <strong>{messagesLimit}</strong> messages as a{' '}
+              {isGuest ? 'guest' : 'registered user'}.
+              {isGuest
+                ? ' Sign up for a free account to continue chatting and unlock more features!'
+                : ' Upgrade to Pro for unlimited messages and advanced features!'}
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogAction asChild>
-              <Button asChild variant="default" size="lg">
-                <a href="/auth">Sign Up Free</a>
+          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+            <AlertDialogAction asChild className="w-full">
+              <Button
+                asChild
+                className="bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white"
+                size="lg"
+              >
+                <a
+                  href={isGuest ? '/auth' : '/billing'}
+                  className="flex items-center gap-2"
+                >
+                  {isGuest ? 'Sign Up Free' : 'Upgrade to Pro'}
+                  <Sparkles className="w-4 h-4" />
+                </a>
               </Button>
             </AlertDialogAction>
-            <AlertDialogCancel asChild>
+            <AlertDialogCancel asChild className="w-full">
               <Button
                 variant="ghost"
                 size="lg"
                 onClick={() => setShowSignupModal(false)}
+                className="text-zinc-600 dark:text-zinc-400"
               >
                 Maybe Later
               </Button>
@@ -321,6 +327,7 @@ function PureMessages({
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* Messages */}
       {messages.map((message, index) => (
         <PreviewMessage
           key={message.id}
@@ -343,14 +350,53 @@ function PureMessages({
         />
       ))}
 
-      {status === 'submitted' &&
-        messages.length > 0 &&
-        messages[messages.length - 1].role === 'user' && <ThinkingMessage />}
+      {/* Glassmorphism typing animation */}
+      {(status === 'streaming' || status === 'submitted') && (
+        <div className="w-full mx-auto max-w-3xl px-4 group/message my-6">
+          <div className="flex gap-4 w-full">
+            <div className="flex flex-col gap-4 w-full">
+              <div className="flex flex-row gap-2 items-start">
+                <div
+                  data-testid="message-content"
+                  className="flex flex-col gap-4 w-full"
+                >
+                  {/* Simple animated dots - no full width container */}
+                  <div className="flex items-center gap-1 md:gap-1.5">
+                    <div
+                      className="w-2 h-2 md:w-2.5 md:h-2.5 bg-zinc-600 dark:bg-zinc-300 rounded-full animate-bounce"
+                      style={{
+                        animationDelay: '0ms',
+                        animationDuration: '1.4s',
+                      }}
+                    />
+                    <div
+                      className="w-2 h-2 md:w-2.5 md:h-2.5 bg-zinc-600 dark:bg-zinc-300 rounded-full animate-bounce"
+                      style={{
+                        animationDelay: '200ms',
+                        animationDuration: '1.4s',
+                      }}
+                    />
+                    <div
+                      className="w-2 h-2 md:w-2.5 md:h-2.5 bg-zinc-600 dark:bg-zinc-300 rounded-full animate-bounce"
+                      style={{
+                        animationDelay: '400ms',
+                        animationDuration: '1.4s',
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div ref={messagesEndRef} />
+
+      {/* Enhanced Scroll to Bottom Button */}
       <ScrollToBottomButton
         chatContainerRef={chatContainerRef}
-        className="fixed bottom-28 right-8 z-[1001]"
+        className="fixed bottom-32 right-6 z-[1001]"
       />
     </div>
   );

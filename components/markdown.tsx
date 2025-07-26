@@ -86,7 +86,7 @@ const components: Partial<Components> = {
       <div className="relative group">
         <CopyButton
           getContent={() => String(children).replace(/\n$/, '')}
-          className="absolute right-4 top-1/2 -translate-y-1/2 z-10 opacity-100"
+          className="absolute right-4 top-4 z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
         />
         <code
           className={`block w-full overflow-x-auto rounded-xl bg-zinc-900 text-zinc-100 p-4 font-['JetBrains_Mono'] text-sm border border-zinc-700 ${className}`}
@@ -208,15 +208,12 @@ const components: Partial<Components> = {
       return '';
     }
     return (
-      <div className="overflow-x-auto my-4 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900">
+      <div className="overflow-x-auto my-4 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 group relative">
         <table className="min-w-full text-sm text-left rounded-xl">
           {children}
         </table>
-        <div className="flex justify-end p-2">
-          <CopyButton
-            getContent={() => getTableText(children)}
-            className="static top-auto right-auto"
-          />
+        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+          <CopyButton getContent={() => getTableText(children)} className="" />
         </div>
       </div>
     );

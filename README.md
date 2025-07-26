@@ -2,82 +2,136 @@
   <img src="public/images/dark.svg" alt="boltX logo" width="220" />
 </div>
 
-# ⚡️ boltX
+# boltX
 
-> The next-gen AI chat and productivity platform
+A modern AI chat application built with Next.js, featuring real-time streaming, file uploads, and intelligent conversation management.
 
-<p align="center">
-  <img src="public/images/boltX.png" alt="boltX" width="320" />
-</p>
+## Features
 
----
+- 🤖 **AI Chat**: Powered by Google Gemini with real-time streaming
+- 📁 **File Uploads**: Support for images, documents, and code files
+- 🔄 **Conversation History**: Persistent chat history with smart organization
+- 🎨 **Modern UI**: Beautiful, responsive interface with dark/light themes
+- 🔐 **Authentication**: Guest and registered user support
+- 📱 **Mobile Optimized**: Works seamlessly on all devices
 
-## 🚀 Overview
+## Quick Start
 
-**boltX** is a powerful, modern AI chat and productivity platform designed for speed, privacy, and extensibility. Built with Next.js, TypeScript, and a beautiful UI, boltX helps you get more done, faster.
+1. **Clone the repository**
+   ```bash
+   git clone <repository-url>
+   cd boltX
+   ```
 
----
+2. **Install dependencies**
+   ```bash
+   pnpm install
+   ```
 
-## ✨ Features
+3. **Set up environment variables**
+   ```bash
+   cp .env.example .env.local
+   ```
 
-- ⚡️ Blazing fast AI chat with streaming responses
-- 🔒 Privacy-first: your data stays yours
-- 🧩 Modular architecture for easy extension
-- 🎨 Beautiful, responsive UI (Lato font, shadcn/ui components)
-- 🗂️ Document, code, and image artifact support
-- 🧠 Memory and context-aware conversations
-- 🌙 Dark mode & accessibility built-in
-- 🛡️ Secure authentication (NextAuth)
-- 📦 Easy deployment (Vercel, Docker, etc.)
+   Add your configuration:
+   ```env
+   # Database
+   POSTGRES_URL=your_postgres_connection_string
+   
+   # Authentication
+   AUTH_SECRET=your_auth_secret
+   GITHUB_CLIENT_ID=your_github_client_id
+   GITHUB_CLIENT_SECRET=your_github_client_secret
+   
+   # AI Provider (Gemini)
+   GEMINI_API_KEY=your_gemini_api_key
+   ```
 
----
+4. **Set up the database**
+   ```bash
+   pnpm db:generate
+   pnpm db:migrate
+   ```
 
-## 🛠️ Getting Started
+5. **Run the development server**
+   ```bash
+   pnpm dev
+   ```
 
-### 1. Clone the repo
-```bash
-git clone https://github.com/sshssn/boltx.git
-cd boltX
-```
+6. **Open your browser**
+   Navigate to [http://localhost:3000](http://localhost:3000)
 
-### 2. Install dependencies
-```bash
-pnpm install
-```
+## Multiple API Keys Setup (Recommended for Production)
 
-### 3. Set up environment variables
-Copy `.env.example` to `.env.local` and fill in your secrets (API keys, DB, etc).
+To handle rate limiting and ensure high availability, you can set up multiple Gemini API keys:
 
-### 4. Run locally
-```bash
-pnpm dev
-```
+1. **Create multiple API keys** in the [Google AI Studio](https://aistudio.google.com/app/apikey)
 
-### 5. Build for production
-```bash
-pnpm build
-```
+2. **Add them to your environment variables**:
+   ```env
+   GEMINI_API_KEY=your_primary_api_key
+   GEMINI_API_KEY_2=your_secondary_api_key
+   GEMINI_API_KEY_3=your_tertiary_api_key
+   ```
 
----
+3. **The application will automatically**:
+   - Use the primary key by default
+   - Switch to the next available key when rate limited
+   - Retry failed requests with different keys
+   - Provide fallback mechanisms for better reliability
 
-## 📦 Deployment
-boltX is ready for deployment on Vercel, Docker, or your favorite cloud provider.
+## Rate Limiting Solutions
 
----
+If you're experiencing rate limiting issues:
 
-## 🙏 Credits
+### For Development
+- Use multiple API keys as described above
+- Consider upgrading to a paid Gemini plan for higher limits
 
-**boltX** was crafted with ❤️ by [ssh @ affinityX](https://github.com/sshssn) and the open source community.
+### For Production
+- Set up multiple API keys for redundancy
+- Monitor usage and implement proper rate limiting
+- Consider using a queue system for high-traffic scenarios
 
-- Built with [Next.js](https://nextjs.org/), [TypeScript](https://www.typescriptlang.org/), [shadcn/ui](https://ui.shadcn.com/), and more.
-- Inspired by the best in AI chat and productivity tools.
+## Database Schema
 
----
+The application uses PostgreSQL with the following main tables:
+- `User`: User accounts and authentication
+- `Chat`: Conversation metadata and titles
+- `Message`: Individual messages with parts and attachments
+- `Memory`: User context and preferences
+- `Document`: Uploaded files and artifacts
 
-## 📄 License
+## API Endpoints
 
-MIT — see [LICENSE](./LICENSE)
+- `POST /api/chat`: Send messages and get AI responses
+- `GET /api/history`: Retrieve chat history
+- `POST /api/files/upload`: Upload files for processing
+- `GET /api/profile/tokens`: Get user message limits
 
----
+## Contributing
 
-> _If you use, fork, or remix boltX, please credit ssh @ affinityX!_
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests if applicable
+5. Submit a pull request
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Support
+
+If you encounter any issues:
+
+1. Check the [Issues](https://github.com/your-repo/boltX/issues) page
+2. Review the logs for error details
+3. Ensure your environment variables are correctly set
+4. Verify your database connection and migrations
+
+For production deployments, consider:
+- Setting up proper monitoring and logging
+- Implementing backup strategies
+- Using a CDN for static assets
+- Setting up SSL certificates

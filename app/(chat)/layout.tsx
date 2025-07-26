@@ -5,6 +5,8 @@ import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 import { auth } from '../(auth)/auth';
 import Script from 'next/script';
 import { DataStreamProvider } from '@/components/data-stream-provider';
+import { ChatCacheProvider } from '@/components/chat-cache-provider';
+import { MessageLimitProvider } from '@/components/message-limit-provider';
 
 export const experimental_ppr = true;
 
@@ -25,10 +27,16 @@ export default async function Layout({
         strategy="beforeInteractive"
       />
       <DataStreamProvider>
-        <SidebarProvider defaultOpen={!isCollapsed}>
-          <AppSidebar user={session?.user} />
-          <SidebarInset>{children}</SidebarInset>
-        </SidebarProvider>
+        <MessageLimitProvider>
+          <ChatCacheProvider>
+            <SidebarProvider defaultOpen={!isCollapsed}>
+              <AppSidebar user={session?.user} />
+              <SidebarInset className="flex-1 min-w-0">
+                <div className="flex flex-col h-dvh">{children}</div>
+              </SidebarInset>
+            </SidebarProvider>
+          </ChatCacheProvider>
+        </MessageLimitProvider>
       </DataStreamProvider>
     </>
   );

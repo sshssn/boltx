@@ -9,13 +9,96 @@ import { getDocumentsByUserId } from '@/lib/db/queries';
 const FileSchema = z.object({
   file: z
     .instanceof(Blob)
-    .refine((file) => file.size <= 5 * 1024 * 1024, {
-      message: 'File size should be less than 5MB',
+    .refine((file) => file.size <= 50 * 1024 * 1024, {
+      message: 'File size should be less than 50MB',
     })
-    // Update the file type based on the kind of files you want to accept
-    .refine((file) => ['image/jpeg', 'image/png'].includes(file.type), {
-      message: 'File type should be JPEG or PNG',
-    }),
+    // Support all file types that Gemini can process
+    .refine(
+      (file) => {
+        const allowedTypes = [
+          // Images
+          'image/jpeg',
+          'image/png',
+          'image/gif',
+          'image/webp',
+          'image/bmp',
+          'image/tiff',
+          'image/svg+xml',
+          'image/heic',
+          'image/heif',
+          // Documents
+          'application/pdf',
+          'application/msword',
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          'application/vnd.ms-excel',
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          'application/vnd.ms-powerpoint',
+          'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+          'text/plain',
+          'text/csv',
+          'text/html',
+          'text/markdown',
+          'text/xml',
+          'application/json',
+          'application/xml',
+          // Code files
+          'text/javascript',
+          'text/typescript',
+          'text/css',
+          'text/scss',
+          'text/sass',
+          'text/less',
+          'text/python',
+          'text/java',
+          'text/c',
+          'text/cpp',
+          'text/csharp',
+          'text/php',
+          'text/ruby',
+          'text/go',
+          'text/rust',
+          'text/swift',
+          'text/kotlin',
+          'text/scala',
+          'text/r',
+          'text/matlab',
+          'text/sql',
+          'text/yaml',
+          'text/toml',
+          'text/ini',
+          'text/bash',
+          'text/shell',
+          'text/dockerfile',
+          'text/makefile',
+          // Archives
+          'application/zip',
+          'application/x-rar-compressed',
+          'application/x-7z-compressed',
+          'application/x-tar',
+          'application/gzip',
+          // Audio
+          'audio/mpeg',
+          'audio/wav',
+          'audio/ogg',
+          'audio/mp4',
+          'audio/aac',
+          'audio/flac',
+          // Video
+          'video/mp4',
+          'video/avi',
+          'video/mov',
+          'video/wmv',
+          'video/flv',
+          'video/webm',
+          'video/mkv',
+        ];
+        return allowedTypes.includes(file.type);
+      },
+      {
+        message:
+          'File type not supported. Please upload images, documents, code files, audio, or video files.',
+      },
+    ),
 });
 
 export async function POST(request: Request) {

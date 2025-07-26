@@ -16,6 +16,7 @@ import { Sun, Moon, Cog, Palette, X, User, LogIn } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import Image from 'next/image';
+import Link from 'next/link';
 import { useState, useEffect, useRef } from 'react';
 // @ts-expect-error: no types for blueimp-md5
 import md5 from 'blueimp-md5';
@@ -113,33 +114,8 @@ export function AppSidebar({
     }
   }, [session]);
 
-  // Mobile overlay for sidebar
-  const sidebarOverlay = open && isMobile && (
-    <div
-      className="fixed inset-0 bg-black/50 z-40 lg:hidden"
-      onClick={toggleSidebar}
-      aria-hidden="true"
-    />
-  );
-
-  // Hamburger for mobile (always visible)
-  if (isMobile && !open) {
-    return (
-      <>
-        <button
-          type="button"
-          className="fixed left-2 top-2 z-50 flex items-center justify-center rounded-full bg-background/90 border shadow-lg p-2 lg:hidden"
-          aria-label="Open sidebar"
-          onClick={toggleSidebar}
-        >
-          <MenuIcon size={22} />
-        </button>
-      </>
-    );
-  }
-
-  // Desktop/iPad floating pill (old version)
-  if (!isMobile && !open) {
+  // Desktop/iPad floating pill (when sidebar is closed)
+  if (!open) {
     return (
       <>
         {/* Left pill: sidebar toggle, search, new chat */}
@@ -196,48 +172,6 @@ export function AppSidebar({
             ) : (
               <Moon size={16} />
             )}
-          </Button>
-        </div>
-      </>
-    );
-  }
-
-  // Sidebar closed - mobile floating controls
-  if (!open) {
-    return (
-      <>
-        <div className="fixed left-2 top-2 sm:left-4 sm:top-4 z-50 flex items-center gap-1 sm:gap-2 bg-background/95 backdrop-blur-sm border rounded-full shadow-lg px-2 sm:px-3 py-1.5 sm:py-2 font-lato">
-          <SidebarToggle aria-label="Open sidebar" />
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label="Search"
-            className="size-7 sm:size-8"
-            onClick={() => setShowFloatingSearch(true)}
-          >
-            <span className="size-4 text-zinc-500">
-              <SearchIcon size={16} />
-            </span>
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label="New Chat"
-            className="size-7 sm:size-8"
-            onClick={() => router.push('/')}
-          >
-            <PlusIcon size={16} />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label="Toggle theme"
-            className="size-7 sm:size-8"
-            onClick={() =>
-              setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')
-            }
-          >
-            {resolvedTheme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
           </Button>
         </div>
 
@@ -300,36 +234,28 @@ export function AppSidebar({
   // Main sidebar
   return (
     <>
-      {sidebarOverlay}
       <Sidebar
         {...props}
-        className={`
-          flex flex-col h-dvh min-h-0 bg-auth-gradient border-r border-border z-50 font-lato
-          ${
-            isMobile
-              ? 'fixed left-0 top-0 w-80 max-w-[85vw] shadow-xl'
-              : 'w-72 max-w-full z-20'
-          }
-        `}
+        className="flex flex-col h-dvh min-h-0 bg-auth-gradient border-r border-border z-50 font-lato w-72 max-w-full"
       >
         <SidebarHeader className="flex flex-row items-center gap-4 p-4 sm:py-6 w-full">
           {/* Sidebar toggle (close/open) */}
-          {!isMobile && (
-            <SidebarToggle className="!shadow-none !border-none !bg-transparent hover:!bg-zinc-200/40 dark:hover:!bg-zinc-800/40 transition-all duration-100" />
-          )}
-          {/* Logo */}
+          <SidebarToggle className="!shadow-none !border-none !bg-transparent hover:!bg-zinc-200/40 dark:hover:!bg-zinc-800/40 transition-all duration-100" />
+          {/* Logo - properly sized container */}
           <div
-            className="flex items-center justify-center w-28 h-14 sm:w-32 sm:h-16 rounded-2xl bg-[#4B5DFE]/20 dark:bg-zinc-900/60 border border-white/30 shadow-xl backdrop-blur-2xl transition-all duration-100"
+            className="flex items-center justify-center rounded-2xl bg-[#4B5DFE]/20 dark:bg-zinc-900/60 border border-white/30 shadow-xl backdrop-blur-2xl transition-all duration-100 h-14 sm:h-16 px-4 sm:px-6"
             style={{ backdropFilter: 'blur(18px)' }}
           >
-            <Image
-              src="/images/dark.svg"
-              alt="boltX logo"
-              width={isMobile ? 80 : 110}
-              height={isMobile ? 26 : 36}
-              className="object-contain"
-              priority
-            />
+            <Link href="/" className="flex items-center justify-center">
+              <Image
+                src="/images/dark.svg"
+                alt="boltX logo"
+                width={110}
+                height={36}
+                className="object-contain"
+                priority
+              />
+            </Link>
           </div>
         </SidebarHeader>
 
@@ -362,25 +288,6 @@ export function AppSidebar({
               <SearchIcon size={20} />
             </span>
           </div>
-          {/* Theme toggle for mobile only */}
-          {isMobile && (
-            <div className="flex items-center justify-center mt-2">
-              <button
-                type="button"
-                className="rounded-full p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition"
-                aria-label="Toggle theme"
-                onClick={() =>
-                  setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')
-                }
-              >
-                {resolvedTheme === 'dark' ? (
-                  <Sun size={18} />
-                ) : (
-                  <Moon size={18} />
-                )}
-              </button>
-            </div>
-          )}
 
           {/* Floating search bar overlay */}
           {showFloatingSearch && (

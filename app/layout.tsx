@@ -1,6 +1,7 @@
 import { Toaster } from 'sonner';
 import type { Metadata } from 'next';
 import { ThemeProvider } from '@/components/theme-provider';
+import { ChatTitleUpdatesProvider } from '@/components/chat-title-updates-provider';
 
 import './globals.css';
 import { SessionProvider } from 'next-auth/react';
@@ -60,7 +61,7 @@ export default async function RootLayout({
           }}
         />
       </head>
-      <body className="antialiased font-sans bg-[hsl(240,6%,12%)] text-foreground min-h-screen w-full">
+      <body className="antialiased font-sans bg-background text-foreground min-h-screen w-full">
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
@@ -69,23 +70,29 @@ export default async function RootLayout({
         >
           <Toaster position="top-center" />
           <SessionProvider>
-            <DashboardOverlay>
-              {/* Dashboard content goes here */}
-              <div className="space-y-4">
-                <div className="p-4 border rounded-lg">
-                  Profile/Settings (TODO)
+            <ChatTitleUpdatesProvider>
+              <DashboardOverlay>
+                {/* Dashboard content goes here */}
+                <div className="space-y-4">
+                  <div className="p-4 border rounded-lg">
+                    Profile/Settings (TODO)
+                  </div>
+                  <div className="p-4 border rounded-lg">
+                    Subscription/Billing (TODO)
+                  </div>
+                  <div className="p-4 border rounded-lg">
+                    Integrations (TODO)
+                  </div>
+                  <div className="p-4 border rounded-lg">
+                    Support/Help (TODO)
+                  </div>
                 </div>
-                <div className="p-4 border rounded-lg">
-                  Subscription/Billing (TODO)
-                </div>
-                <div className="p-4 border rounded-lg">Integrations (TODO)</div>
-                <div className="p-4 border rounded-lg">Support/Help (TODO)</div>
-              </div>
-            </DashboardOverlay>
-            <main className="w-full min-h-screen flex flex-col">
-              {children}
-            </main>
-            <Analytics />
+              </DashboardOverlay>
+              <main className="w-full min-h-screen flex flex-col">
+                {children}
+              </main>
+              <Analytics />
+            </ChatTitleUpdatesProvider>
           </SessionProvider>
         </ThemeProvider>
       </body>

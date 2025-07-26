@@ -125,6 +125,51 @@
         @apply bg-background text-foreground;
         overflow: hidden;
     }
+    
+    /* Ensure proper theme colors on mobile */
+    @media (prefers-color-scheme: light) {
+        body {
+            @apply bg-white text-zinc-900;
+        }
+    }
+    
+    @media (prefers-color-scheme: dark) {
+        body {
+            @apply bg-zinc-900 text-zinc-100;
+        }
+    }
+    
+    /* Mobile-specific improvements */
+    @media (max-width: 768px) {
+        body {
+            @apply bg-background text-foreground;
+        }
+        
+        /* Ensure proper contrast on mobile */
+        .dark body {
+            @apply bg-zinc-900 text-zinc-100;
+        }
+        
+        /* Fix mobile chat area visibility */
+        .chat-container {
+            @apply bg-background;
+        }
+        
+        /* Ensure mobile chat area is properly visible */
+        .chat-container .flex-1 {
+            @apply bg-background;
+        }
+        
+        /* Ensure sidebar doesn't overlap content */
+        .sidebar-overlay {
+            @apply z-40;
+        }
+        
+        /* Fix mobile input areas */
+        input, textarea {
+            @apply bg-background text-foreground;
+        }
+    }
 }
 
 html {
@@ -138,7 +183,6 @@ body {
 html, body {
   margin: 0;
   padding: 0;
-  background-color: #0c0c0c;
   font-family: 'Lato', Arial, sans-serif;
 }
 
@@ -220,4 +264,14 @@ header, .sticky, .top-0 {
 
 .dark .text-bright {
     color: var(--white-bright) !important;
+}
+
+/* Shimmer animation for glassmorphism effects */
+@keyframes shimmer {
+  0% { transform: translateX(-100%) skewX(-12deg); }
+  100% { transform: translateX(200%) skewX(-12deg); }
+}
+
+.animate-shimmer {
+  animation: shimmer 3s ease-in-out infinite;
 }

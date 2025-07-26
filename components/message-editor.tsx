@@ -53,6 +53,50 @@ export function MessageEditor({
     adjustHeight();
   };
 
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (
+      event.key === 'Enter' &&
+      !event.shiftKey &&
+      !event.nativeEvent.isComposing
+    ) {
+      event.preventDefault();
+      handleSend();
+    }
+  };
+
+  const handleSend = async () => {
+    if (limitReached || isSubmitting) return;
+    setIsSubmitting(true);
+
+    try {
+      await deleteTrailingMessages({
+        id: message.id,
+      });
+
+      setMessages((messages) => {
+        const index = messages.findIndex((m) => m.id === message.id);
+
+        if (index !== -1) {
+          const updatedMessage: ChatMessage = {
+            ...message,
+            parts: [{ type: 'text', text: draftContent }],
+          };
+
+          return [...messages.slice(0, index), updatedMessage];
+        }
+
+        return messages;
+      });
+
+      setMode('view');
+      regenerate();
+    } catch (error) {
+      console.error('Error sending edited message:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <div className="flex flex-col gap-2 w-full">
       <Textarea
@@ -61,6 +105,7 @@ export function MessageEditor({
         className="bg-white/10 dark:bg-muted/30 backdrop-blur-md outline-none overflow-hidden resize-none !text-base rounded-xl w-full text-[#FAFAFA] shadow-lg border border-indigo-500/40"
         value={draftContent}
         onChange={handleInput}
+        onKeyDown={handleKeyDown}
         disabled={limitReached}
       />
 
@@ -80,32 +125,7 @@ export function MessageEditor({
           variant="default"
           className="h-fit py-2 px-3 bg-indigo-600 text-white hover:bg-indigo-700"
           disabled={isSubmitting || limitReached}
-          onClick={async () => {
-            if (limitReached) return;
-            setIsSubmitting(true);
-
-            await deleteTrailingMessages({
-              id: message.id,
-            });
-
-            setMessages((messages) => {
-              const index = messages.findIndex((m) => m.id === message.id);
-
-              if (index !== -1) {
-                const updatedMessage: ChatMessage = {
-                  ...message,
-                  parts: [{ type: 'text', text: draftContent }],
-                };
-
-                return [...messages.slice(0, index), updatedMessage];
-              }
-
-              return messages;
-            });
-
-            setMode('view');
-            regenerate();
-          }}
+          onClick={handleSend}
         >
           {isSubmitting ? 'Sending...' : 'Send'}
         </Button>

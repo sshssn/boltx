@@ -144,11 +144,10 @@ const PurePreviewMessage = ({
                       <div
                         data-testid="message-content"
                         className={cn('flex flex-col gap-4 w-full', {
-                          // User bubble: frosted glass look
-                          'backdrop-blur-md bg-white/10 dark:bg-muted/30 text-[#FAFAFA] px-3 py-2 rounded-xl shadow-lg':
+                          // User bubble: consistent glassmorphism styling like multimodal-input
+                          'bg-white/90 dark:bg-zinc-900/90 backdrop-blur-xl backdrop-saturate-150 border border-zinc-200/60 dark:border-zinc-700/60 shadow-lg shadow-black/5 dark:shadow-black/20 rounded-2xl px-4 py-3 text-zinc-900 dark:text-zinc-100':
                             message.role === 'user',
                         })}
-                        // Remove fontFamily override for assistant
                       >
                         {message.role === 'assistant' ? (
                           <Markdown>{sanitizeText(part.text)}</Markdown>
@@ -352,31 +351,33 @@ export const PreviewMessage = memo(
 );
 
 export const ThinkingMessage = () => {
-  const role = 'assistant';
-
   return (
     <motion.div
       data-testid="message-assistant-loading"
-      className="w-full mx-auto max-w-3xl px-4 group/message min-h-96"
+      className="w-full mx-auto max-w-3xl px-4 group/message"
       initial={{ y: 5, opacity: 0 }}
-      animate={{ y: 0, opacity: 1, transition: { delay: 1 } }}
-      data-role={role}
+      animate={{ y: 0, opacity: 1, transition: { delay: 0.2 } }}
+      data-role="assistant"
     >
-      <div
-        className={cx(
-          'flex gap-4 group-data-[role=user]/message:px-3 w-full group-data-[role=user]/message:w-fit group-data-[role=user]/message:ml-auto group-data-[role=user]/message:max-w-2xl group-data-[role=user]/message:py-2 rounded-xl',
-          {
-            'group-data-[role=user]/message:bg-muted': true,
-          },
-        )}
-      >
-        <div className="size-8 flex items-center rounded-full justify-center ring-1 shrink-0 ring-border">
+      <div className="flex gap-4 w-full">
+        <div className="size-8 flex items-center rounded-full justify-center ring-1 shrink-0 ring-border bg-background">
           <SparklesIcon size={14} />
         </div>
 
-        <div className="flex flex-col gap-2 w-full">
-          <div className="flex flex-col gap-4 text-muted-foreground">
-            Hmm...
+        <div className="flex items-center justify-center w-full py-8">
+          <div className="flex items-center gap-1.5">
+            <div
+              className="w-2 h-2 bg-primary rounded-full animate-bounce"
+              style={{ animationDelay: '0ms', animationDuration: '1.4s' }}
+            />
+            <div
+              className="w-2 h-2 bg-primary rounded-full animate-bounce"
+              style={{ animationDelay: '160ms', animationDuration: '1.4s' }}
+            />
+            <div
+              className="w-2 h-2 bg-primary rounded-full animate-bounce"
+              style={{ animationDelay: '320ms', animationDuration: '1.4s' }}
+            />
           </div>
         </div>
       </div>

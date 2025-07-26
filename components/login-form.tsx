@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from '@/components/toast';
 import { signIn } from 'next-auth/react';
@@ -25,6 +25,15 @@ export function LoginForm({
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+
+  // Handle URL parameters for mode
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const modeParam = urlParams.get('mode');
+    if (modeParam === 'signup') {
+      setMode('register');
+    }
+  }, []);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -212,37 +221,7 @@ export function LoginForm({
                   className="w-full bg-indigo-600 text-white font-extrabold text-lg py-4 rounded-xl shadow-md hover:bg-indigo-700 transition-all duration-200 flex items-center justify-center gap-2"
                   disabled={loading}
                 >
-                  {mode === 'login' && (
-                    <>
-                      {/* Door with Arrow Icon */}
-                      <svg
-                        width="22"
-                        height="22"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        className="mr-2"
-                      >
-                        <rect
-                          x="4"
-                          y="3"
-                          width="12"
-                          height="18"
-                          rx="2"
-                          fill="none"
-                          stroke="currentColor"
-                        />
-                        <path
-                          d="M16 12h4m0 0l-2-2m2 2l-2 2"
-                          stroke="currentColor"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
-                      </svg>
-                      Login
-                    </>
-                  )}
+                  {mode === 'login' && 'Login'}
                   {mode === 'register' && 'Sign Up'}
                   {mode === 'forgot' && 'Send Reset Link'}
                 </Button>

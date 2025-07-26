@@ -263,37 +263,39 @@ export default function ClientAccountDashboard({ session }: { session: any }) {
       className="relative min-h-svh w-full flex flex-col items-center justify-center bg-background text-foreground font-poppins overflow-hidden pt-4 dashboard-bg"
       style={{ fontFamily: 'Poppins, Lato, Arial, sans-serif' }}
     >
-      <div className="absolute top-6 left-6 z-10">
+      <div className="absolute top-4 left-4 md:top-6 md:left-6 z-10">
         <Button
           variant="ghost"
           size="sm"
-          className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-foreground text-sm font-medium shadow border border-white/20 backdrop-blur-md transition-all"
+          className="px-3 py-1.5 md:px-4 md:py-2 rounded-lg bg-white/10 hover:bg-white/20 text-foreground text-xs md:text-sm font-medium shadow border border-white/20 backdrop-blur-md transition-all"
           onClick={() => router.push('/')}
         >
           ← Back to Chat
         </Button>
       </div>
-      <div className="mx-auto max-w-7xl px-4 py-0 md:px-8 flex flex-col md:flex-row gap-8 w-full">
+      <div className="mx-auto max-w-7xl px-3 py-0 md:px-8 flex flex-col md:flex-row gap-4 md:gap-8 w-full">
         {/* Sidebar */}
-        <aside className="w-full md:w-80 shrink-0 flex flex-col gap-6">
-          <Card className="bg-zinc-900/80 border border-white/10 shadow-xl flex flex-col items-center gap-2 p-8">
-            <Avatar className="size-24 mb-2">
+        <aside className="w-full md:w-80 shrink-0 flex flex-col gap-4 md:gap-6">
+          <Card className="bg-zinc-900/80 border border-white/10 shadow-xl flex flex-col items-center gap-2 p-4 md:p-8">
+            <Avatar className="size-16 md:size-24 mb-2">
               <AvatarFallback>
-                <User size={32} />
+                <User size={24} className="md:w-8 md:h-8" />
               </AvatarFallback>
             </Avatar>
-            <span className="text-xl font-bold text-white">{displayName}</span>
-            <span className="text-sm text-zinc-300">
+            <span className="text-lg md:text-xl font-bold text-white text-center">
+              {displayName}
+            </span>
+            <span className="text-xs md:text-sm text-zinc-300 text-center">
               {sessionData?.user?.email}
             </span>
             <Badge variant="secondary" className="mt-2">
               {plan}
             </Badge>
           </Card>
-          <Card className="bg-zinc-900/80 border border-white/10 shadow p-6 flex flex-col gap-4">
+          <Card className="bg-zinc-900/80 border border-white/10 shadow p-4 md:p-6 flex flex-col gap-3 md:gap-4">
             <div>
               <div className="flex justify-between items-center mb-1">
-                <span className="text-sm font-medium text-zinc-200">
+                <span className="text-xs md:text-sm font-medium text-zinc-200">
                   Message Usage
                 </span>
                 <span className="text-xs text-zinc-400">
@@ -326,22 +328,24 @@ export default function ClientAccountDashboard({ session }: { session: any }) {
               tools.
             </div>
           </Card>
-          <Card className="bg-zinc-900/80 border border-white/10 shadow p-6 flex flex-col gap-2">
-            <div className="font-medium text-sm mb-2">Keyboard Shortcuts</div>
+          <Card className="bg-zinc-900/80 border border-white/10 shadow p-4 md:p-6 flex flex-col gap-2">
+            <div className="font-medium text-xs md:text-sm mb-2">
+              Keyboard Shortcuts
+            </div>
             <div className="flex flex-col gap-2">
-              <div className="flex justify-between items-center text-sm">
+              <div className="flex justify-between items-center text-xs md:text-sm">
                 <span>Search</span>
                 <span className="bg-zinc-800 px-2 py-1 rounded text-xs">
                   ⌘ K
                 </span>
               </div>
-              <div className="flex justify-between items-center text-sm">
+              <div className="flex justify-between items-center text-xs md:text-sm">
                 <span>New Chat</span>
                 <span className="bg-zinc-800 px-2 py-1 rounded text-xs">
                   ⇧ O
                 </span>
               </div>
-              <div className="flex justify-between items-center text-sm">
+              <div className="flex justify-between items-center text-xs md:text-sm">
                 <span>Toggle Sidebar</span>
                 <span className="bg-zinc-800 px-2 py-1 rounded text-xs">
                   ⌘ B
@@ -351,7 +355,7 @@ export default function ClientAccountDashboard({ session }: { session: any }) {
           </Card>
         </aside>
         {/* Main Content */}
-        <main className="flex-1 w-full bg-[#23243a]/80 backdrop-blur-xl border border-white/20 shadow-2xl rounded-xl p-4">
+        <main className="flex-1 w-full bg-[#23243a]/80 backdrop-blur-xl border border-white/20 shadow-2xl rounded-xl p-3 md:p-4">
           <Tabs
             value={activeTab}
             onValueChange={setActiveTab}
@@ -364,10 +368,10 @@ export default function ClientAccountDashboard({ session }: { session: any }) {
                     <TabsTrigger
                       key={tab.id}
                       value={tab.id}
-                      className="flex items-center gap-2 whitespace-nowrap rounded-md px-3 py-2 text-sm font-medium transition-all data-[state=active]:bg-zinc-950/80 data-[state=active]:text-white data-[state=active]:shadow-sm hover:bg-zinc-900/60"
+                      className="flex items-center gap-1 md:gap-2 whitespace-nowrap rounded-md px-2 py-1.5 md:px-3 md:py-2 text-xs md:text-sm font-medium transition-all data-[state=active]:bg-zinc-950/80 data-[state=active]:text-white data-[state=active]:shadow-sm hover:bg-zinc-900/60"
                     >
                       {tab.icon}
-                      {tab.label}
+                      <span className="hidden sm:inline">{tab.label}</span>
                     </TabsTrigger>
                   ))}
                 </div>

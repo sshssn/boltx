@@ -35,41 +35,52 @@ export async function GET(request: Request) {
 }
 
 export async function PATCH(request: Request) {
-  const {
-    chatId,
-    messageId,
-    type,
-  }: { chatId: string; messageId: string; type: 'up' | 'down' } =
-    await request.json();
+  try {
+    const {
+      chatId,
+      messageId,
+      type,
+    }: { chatId: string; messageId: string; type: 'up' | 'down' } =
+      await request.json();
 
-  if (!chatId || !messageId || !type) {
+    console.log('Vote request:', { chatId, messageId, type });
+
+    if (!chatId || !messageId || !type) {
+      return new ChatSDKError(
+        'bad_request:api',
+        'Parameters chatId, messageId, and type are required.',
+      ).toResponse();
+    }
+
+    const session = await auth();
+
+    if (!session?.user) {
+      return new ChatSDKError('unauthorized:vote').toResponse();
+    }
+
+    const chat = await getChatById({ id: chatId });
+
+    if (!chat) {
+      return new ChatSDKError('not_found:vote').toResponse();
+    }
+
+    if (chat.userId !== session.user.id) {
+      return new ChatSDKError('forbidden:vote').toResponse();
+    }
+
+    await voteMessage({
+      chatId,
+      messageId,
+      type: type,
+    });
+
+    console.log('Vote successful:', { chatId, messageId, type });
+    return new Response('Message voted', { status: 200 });
+  } catch (error) {
+    console.error('Vote error:', error);
     return new ChatSDKError(
       'bad_request:api',
-      'Parameters chatId, messageId, and type are required.',
+      'Failed to vote message',
     ).toResponse();
   }
-
-  const session = await auth();
-
-  if (!session?.user) {
-    return new ChatSDKError('unauthorized:vote').toResponse();
-  }
-
-  const chat = await getChatById({ id: chatId });
-
-  if (!chat) {
-    return new ChatSDKError('not_found:vote').toResponse();
-  }
-
-  if (chat.userId !== session.user.id) {
-    return new ChatSDKError('forbidden:vote').toResponse();
-  }
-
-  await voteMessage({
-    chatId,
-    messageId,
-    type: type,
-  });
-
-  return new Response('Message voted', { status: 200 });
 }

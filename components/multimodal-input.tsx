@@ -33,8 +33,79 @@ import {
   AlertDialogDescription,
   AlertDialogAction,
 } from '@/components/ui/alert-dialog';
-import { X } from 'lucide-react';
+import { X, Upload, FileText, Image, File, Copy } from 'lucide-react';
 import { useSidebar } from './ui/sidebar';
+import { useMessageLimit } from './message-limit-provider';
+
+// Enhanced file type detection
+const getFileIcon = (contentType: string, fileName: string) => {
+  // Images
+  if (contentType.startsWith('image/'))
+    return <Image className="w-4 h-4" alt="Image file" />;
+
+  // Documents
+  if (contentType === 'application/pdf' || fileName.endsWith('.pdf'))
+    return <FileText className="w-4 h-4" />;
+  if (contentType.includes('word') || fileName.match(/\.(doc|docx)$/i))
+    return <FileText className="w-4 h-4" />;
+  if (contentType.includes('excel') || fileName.match(/\.(xls|xlsx)$/i))
+    return <FileText className="w-4 h-4" />;
+  if (contentType.includes('powerpoint') || fileName.match(/\.(ppt|pptx)$/i))
+    return <FileText className="w-4 h-4" />;
+
+  // Code files
+  if (
+    contentType.includes('javascript') ||
+    fileName.match(/\.(js|jsx|ts|tsx)$/i)
+  )
+    return <FileText className="w-4 h-4" />;
+  if (contentType.includes('python') || fileName.match(/\.py$/i))
+    return <FileText className="w-4 h-4" />;
+  if (contentType.includes('java') || fileName.match(/\.java$/i))
+    return <FileText className="w-4 h-4" />;
+  if (contentType.includes('css') || fileName.match(/\.(css|scss|sass|less)$/i))
+    return <FileText className="w-4 h-4" />;
+  if (contentType.includes('html') || fileName.match(/\.(html|htm)$/i))
+    return <FileText className="w-4 h-4" />;
+  if (fileName.match(/\.(json|xml|yaml|yml|toml|ini|sql|md|txt|csv)$/i))
+    return <FileText className="w-4 h-4" />;
+
+  // Archives
+  if (contentType.includes('zip') || fileName.match(/\.(zip|rar|7z|tar|gz)$/i))
+    return <File className="w-4 h-4" />;
+
+  // Audio
+  if (contentType.startsWith('audio/')) return <File className="w-4 h-4" />;
+
+  // Video
+  if (contentType.startsWith('video/')) return <File className="w-4 h-4" />;
+
+  return <File className="w-4 h-4" />;
+};
+
+// Paste detection component
+const PasteIndicator = ({
+  show,
+  onDismiss,
+}: { show: boolean; onDismiss: () => void }) => {
+  if (!show) return null;
+
+  return (
+    <div className="absolute top-2 left-1/2 transform -translate-x-1/2 z-10">
+      <div className="flex items-center gap-2 px-3 py-2 bg-blue-500/90 text-white text-sm rounded-lg backdrop-blur-sm shadow-lg animate-in slide-in-from-top-2 duration-300">
+        <Copy className="w-4 h-4" />
+        <span>Content pasted</span>
+        <button
+          type="button"
+          onClick={onDismiss}
+          className="ml-2 hover:bg-white/20 rounded p-0.5"
+        >
+          <X className="w-3 h-3" />
+        </button>
+      </div>
+    </div>
+  );
+};
 
 function PureMultimodalInput({
   chatId,
@@ -70,6 +141,9 @@ function PureMultimodalInput({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { width } = useWindowSize();
   const { open: sidebarOpen, isMobile } = useSidebar();
+  const [showPasteIndicator, setShowPasteIndicator] = useState(false);
+  const { incrementMessageCount, remaining, hasReachedLimit } =
+    useMessageLimit();
 
   useEffect(() => {
     if (textareaRef.current) {
@@ -80,14 +154,16 @@ function PureMultimodalInput({
   const adjustHeight = () => {
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
-      textareaRef.current.style.height = `${textareaRef.current.scrollHeight + 2}px`;
+      const maxHeight = width && width < 768 ? 120 : 200;
+      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight + 2, maxHeight)}px`;
     }
   };
 
   const resetHeight = () => {
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
-      textareaRef.current.style.height = '98px';
+      const minHeight = width && width < 768 ? 60 : 80;
+      textareaRef.current.style.height = `${minHeight}px`;
     }
   };
 
@@ -99,13 +175,10 @@ function PureMultimodalInput({
   useEffect(() => {
     if (textareaRef.current) {
       const domValue = textareaRef.current.value;
-      // Prefer DOM value over localStorage to handle hydration
       const finalValue = domValue || localStorageInput || '';
       setInput(finalValue);
       adjustHeight();
     }
-    // Only run once after hydration
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -117,10 +190,49 @@ function PureMultimodalInput({
     adjustHeight();
   };
 
+  // Enhanced paste handling
+  const handlePaste = useCallback((event: React.ClipboardEvent) => {
+    const items = event.clipboardData?.items;
+    let hasFiles = false;
+
+    if (items) {
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        if (item.type.indexOf('image') !== -1) {
+          hasFiles = true;
+          const file = item.getAsFile();
+          if (file) {
+            handleFileUpload(file);
+          }
+        }
+      }
+    }
+
+    // Show paste indicator for text content
+    if (!hasFiles && event.clipboardData?.getData('text')) {
+      setShowPasteIndicator(true);
+      setTimeout(() => setShowPasteIndicator(false), 3000);
+    }
+  }, []);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadQueue, setUploadQueue] = useState<Array<string>>([]);
 
   const submitForm = useCallback(() => {
+    if (!input.trim() && attachments.length === 0) {
+      toast.error('Please enter a message or attach a file');
+      return;
+    }
+
+    // Check message limit
+    if (hasReachedLimit) {
+      toast.error('Daily message limit reached. Please upgrade to continue.');
+      return;
+    }
+
+    // Increment message count
+    incrementMessageCount();
+
     window.history.replaceState({}, '', `/chat/${chatId}`);
 
     sendMessage({
@@ -143,6 +255,11 @@ function PureMultimodalInput({
     setLocalStorageInput('');
     resetHeight();
     setInput('');
+
+    setTimeout(() => {
+      const event = new CustomEvent('refreshMessageCount');
+      window.dispatchEvent(event);
+    }, 1000);
 
     if (width && width > 768) {
       textareaRef.current?.focus();
@@ -185,54 +302,166 @@ function PureMultimodalInput({
     }
   };
 
+  const handleFileUpload = async (file: File) => {
+    // Validate file type and size
+    const maxSize = 50 * 1024 * 1024; // 50MB for larger documents and videos
+    if (file.size > maxSize) {
+      toast.error('File size must be less than 50MB');
+      return;
+    }
+
+    const allowedTypes = [
+      // Images
+      'image/jpeg',
+      'image/png',
+      'image/gif',
+      'image/webp',
+      'image/bmp',
+      'image/tiff',
+      'image/svg+xml',
+      'image/heic',
+      'image/heif',
+
+      // Documents
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/vnd.ms-excel',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'application/vnd.ms-powerpoint',
+      'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+      'text/plain',
+      'text/csv',
+      'text/html',
+      'text/markdown',
+      'text/xml',
+      'application/json',
+      'application/xml',
+
+      // Code files
+      'text/javascript',
+      'text/typescript',
+      'text/css',
+      'text/scss',
+      'text/sass',
+      'text/less',
+      'text/python',
+      'text/java',
+      'text/c',
+      'text/cpp',
+      'text/csharp',
+      'text/php',
+      'text/ruby',
+      'text/go',
+      'text/rust',
+      'text/swift',
+      'text/kotlin',
+      'text/scala',
+      'text/r',
+      'text/matlab',
+      'text/sql',
+      'text/yaml',
+      'text/toml',
+      'text/ini',
+      'text/bash',
+      'text/shell',
+      'text/dockerfile',
+      'text/makefile',
+
+      // Archives
+      'application/zip',
+      'application/x-rar-compressed',
+      'application/x-7z-compressed',
+      'application/x-tar',
+      'application/gzip',
+
+      // Audio (for transcription)
+      'audio/mpeg',
+      'audio/wav',
+      'audio/ogg',
+      'audio/mp4',
+      'audio/aac',
+      'audio/flac',
+
+      // Video (for frame extraction)
+      'video/mp4',
+      'video/avi',
+      'video/mov',
+      'video/wmv',
+      'video/flv',
+      'video/webm',
+      'video/mkv',
+    ];
+
+    if (!allowedTypes.includes(file.type)) {
+      toast.error('File type not supported');
+      return;
+    }
+
+    setUploadQueue((prev) => [...prev, file.name]);
+
+    try {
+      const uploadedAttachment = await uploadFile(file);
+      if (uploadedAttachment) {
+        setAttachments((current) => [...current, uploadedAttachment]);
+        toast.success(`${file.name} uploaded successfully`);
+      }
+    } catch (error) {
+      console.error('Error uploading file!', error);
+      toast.error(`Failed to upload ${file.name}`);
+    } finally {
+      setUploadQueue((prev) => prev.filter((name) => name !== file.name));
+    }
+  };
+
   const handleFileChange = useCallback(
     async (event: ChangeEvent<HTMLInputElement>) => {
       const files = Array.from(event.target.files || []);
 
-      setUploadQueue(files.map((file) => file.name));
+      for (const file of files) {
+        await handleFileUpload(file);
+      }
 
-      try {
-        const uploadPromises = files.map((file) => uploadFile(file));
-        const uploadedAttachments = await Promise.all(uploadPromises);
-        const successfullyUploadedAttachments = uploadedAttachments.filter(
-          (attachment) => attachment !== undefined,
-        );
-
-        setAttachments((currentAttachments) => [
-          ...currentAttachments,
-          ...successfullyUploadedAttachments,
-        ]);
-      } catch (error) {
-        console.error('Error uploading files!', error);
-      } finally {
-        setUploadQueue([]);
+      // Reset input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
       }
     },
     [setAttachments],
   );
 
-  const { isAtBottom, scrollToBottom } = useScrollToBottom();
-  const [hasInteracted, setHasInteracted] = useState(false);
-  const [showScrollButton, setShowScrollButton] = useState(false);
-  const fadeTimeout = useRef<NodeJS.Timeout | null>(null);
+  // Drag and drop handling
+  const [isDragging, setIsDragging] = useState(false);
 
-  useEffect(() => {
-    setHasInteracted(true);
+  const handleDragEnter = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
   }, []);
 
-  // Fade out the button after a delay when at bottom
-  useEffect(() => {
-    if (isAtBottom) {
-      if (fadeTimeout.current) clearTimeout(fadeTimeout.current);
-      fadeTimeout.current = setTimeout(() => setShowScrollButton(false), 1200);
-    } else {
-      if (fadeTimeout.current) clearTimeout(fadeTimeout.current);
-      setShowScrollButton(true);
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.currentTarget === e.target) {
+      setIsDragging(false);
     }
-    return () => {
-      if (fadeTimeout.current) clearTimeout(fadeTimeout.current);
-    };
-  }, [isAtBottom]);
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    const files = Array.from(e.dataTransfer.files);
+    files.forEach(handleFileUpload);
+  }, []);
+
+  const { isAtBottom, scrollToBottom } = useScrollToBottom();
 
   useEffect(() => {
     if (status === 'submitted') {
@@ -240,32 +469,51 @@ function PureMultimodalInput({
     }
   }, [status, scrollToBottom]);
 
-  const [open, setOpen] = useState(limitReached);
+  const [open, setOpen] = useState(false);
+  const [limitReachedState, setLimitReachedState] = useState(limitReached);
+
   useEffect(() => {
-    setOpen(limitReached);
+    setLimitReachedState(limitReached);
+    if (limitReached) {
+      setOpen(true);
+    }
   }, [limitReached]);
 
+  const removeAttachment = (urlToRemove: string) => {
+    setAttachments((current) =>
+      current.filter((att) => att.url !== urlToRemove),
+    );
+  };
+
   return (
-    <div
-      className={cx(
-        'relative w-full flex flex-col gap-4',
-        limitReached && 'opacity-60',
+    <div className="relative w-full">
+      {/* Drag overlay */}
+      {isDragging && (
+        <div className="fixed inset-0 z-50 bg-blue-500/10 backdrop-blur-sm flex items-center justify-center">
+          <div className="bg-white/90 dark:bg-zinc-800/90 backdrop-blur-md rounded-xl p-8 border border-blue-200 dark:border-blue-700 shadow-2xl">
+            <Upload className="w-12 h-12 text-blue-500 mx-auto mb-4" />
+            <p className="text-lg font-medium text-center text-zinc-900 dark:text-zinc-100">
+              Drop files here to upload
+            </p>
+            <p className="text-sm text-zinc-500 dark:text-zinc-400 text-center mt-2">
+              Supports images, PDFs, and text files
+            </p>
+          </div>
+        </div>
       )}
-    >
-      {/* Remove the scroll to bottom button */}
-      {/* <div className="w-full flex justify-center items-center mb-2"> ... </div> */}
 
-      {/* Removed duplicate SuggestedActions rendering. Only Chat should render it. */}
+      <PasteIndicator
+        show={showPasteIndicator}
+        onDismiss={() => setShowPasteIndicator(false)}
+      />
 
-      {/* Limit reached modal will be implemented with shadcn/ui AlertDialog below */}
-
-      <AlertDialog open={open} onOpenChange={setOpen}>
-        <AlertDialogContent>
+      <AlertDialog open={open && limitReachedState} onOpenChange={setOpen}>
+        <AlertDialogContent className="border-0 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl">
           <button
+            type="button"
             className="absolute top-3 right-3 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 transition"
             onClick={() => setOpen(false)}
             aria-label="Dismiss"
-            type="button"
           >
             <X className="size-5" />
           </button>
@@ -275,9 +523,9 @@ function PureMultimodalInput({
               You&apos;re out of messages!
             </AlertDialogTitle>
             <AlertDialogDescription className="text-center">
-              You&apos;ve hit your daily limit of 10 messages as a guest.
+              You&apos;ve hit your daily limit of 20 messages as a guest.
               <br />
-              <span className="my-2">
+              <span className="my-2 block">
                 Sign up for a free account to keep the conversation going and
                 unlock more features!
               </span>
@@ -286,7 +534,7 @@ function PureMultimodalInput({
               </span>
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <a href="/auth" className="w-full block">
+          <a href="/auth?mode=signup" className="w-full block">
             <AlertDialogAction asChild>
               <span className="w-full block text-center">Sign Up Free</span>
             </AlertDialogAction>
@@ -294,194 +542,191 @@ function PureMultimodalInput({
         </AlertDialogContent>
       </AlertDialog>
 
-      <input
-        type="file"
-        className="fixed -top-4 -left-4 size-0.5 opacity-0 pointer-events-none"
-        ref={fileInputRef}
-        multiple
-        onChange={handleFileChange}
-        tabIndex={-1}
-      />
-
+      {/* Attachments preview */}
       {(attachments.length > 0 || uploadQueue.length > 0) && (
-        <div
-          data-testid="attachments-preview"
-          className="flex flex-row gap-2 overflow-x-scroll items-end"
-        >
+        <div className="mb-3 md:mb-4 flex flex-wrap gap-1.5 md:gap-2">
           {attachments.map((attachment) => (
-            <PreviewAttachment key={attachment.url} attachment={attachment} />
+            <div
+              key={attachment.url}
+              className="flex items-center gap-1.5 md:gap-2 px-2 py-1.5 md:px-3 md:py-2 bg-white/60 dark:bg-zinc-800/60 backdrop-blur-sm rounded-lg border border-white/20 dark:border-zinc-700/50 shadow-sm"
+            >
+              {getFileIcon(attachment.contentType, attachment.name)}
+              <span className="text-xs md:text-sm text-zinc-700 dark:text-zinc-300 truncate max-w-24 md:max-w-32">
+                {attachment.name}
+              </span>
+              <button
+                type="button"
+                onClick={() => removeAttachment(attachment.url)}
+                className="text-zinc-400 hover:text-red-500 transition-colors"
+              >
+                <X className="w-2.5 h-2.5 md:w-3 md:h-3" />
+              </button>
+            </div>
           ))}
 
           {uploadQueue.map((filename) => (
-            <PreviewAttachment
+            <div
               key={filename}
-              attachment={{
-                url: '',
-                name: filename,
-                contentType: '',
-              }}
-              isUploading={true}
-            />
+              className="flex items-center gap-1.5 md:gap-2 px-2 py-1.5 md:px-3 md:py-2 bg-blue-50/60 dark:bg-blue-900/20 backdrop-blur-sm rounded-lg border border-blue-200/30 dark:border-blue-700/30 shadow-sm"
+            >
+              <div className="w-3 h-3 md:w-4 md:h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+              <span className="text-xs md:text-sm text-blue-700 dark:text-blue-300 truncate max-w-24 md:max-w-32">
+                {filename}
+              </span>
+            </div>
           ))}
         </div>
       )}
 
+      {/* Main input container */}
       <div
         className={cx(
-          isMobile
-            ? 'sticky bottom-0 z-30 flex justify-center items-end pointer-events-none px-2 pb-4 md:px-0'
-            : 'fixed bottom-0 right-0 z-30 flex justify-center items-end pointer-events-none px-2 pb-4 md:px-0 transition-all duration-300',
+          'relative',
+          limitReached && 'opacity-60',
+          disabled && 'pointer-events-none',
         )}
-        style={
-          isMobile
-            ? { width: '100%' }
-            : sidebarOpen
-              ? { left: '16rem', width: 'auto' }
-              : { left: 0, width: '100%' }
-        }
+        onDragEnter={handleDragEnter}
+        onDragLeave={handleDragLeave}
+        onDragOver={handleDragOver}
+        onDrop={handleDrop}
       >
         <div
           className={cx(
-            'w-full md:max-w-3xl pointer-events-auto',
-            'flex flex-col items-center',
+            'relative flex items-end min-h-[60px] md:min-h-[80px] w-full',
+            // Consistent glassmorphism that doesn't change on focus
+            'bg-white/90 dark:bg-zinc-900/90',
+            'backdrop-blur-xl backdrop-saturate-150',
+            'border border-zinc-200/60 dark:border-zinc-700/60',
+            'shadow-lg shadow-black/5 dark:shadow-black/20',
+            'rounded-xl md:rounded-2xl',
+            'transition-all duration-200 ease-out',
+            // Subtle hover and focus effects without changing the main blur
+            'hover:bg-white/95 dark:hover:bg-zinc-900/95',
+            'focus-within:border-zinc-300/80 dark:focus-within:border-zinc-600/80',
+            'focus-within:shadow-xl focus-within:shadow-black/10',
+            isDragging &&
+              'border-blue-400 dark:border-blue-500 bg-blue-50/30 dark:bg-blue-900/20',
           )}
         >
-          <div
+          {/* Hidden file input */}
+          <input
+            type="file"
+            ref={fileInputRef}
+            multiple
+            onChange={handleFileChange}
+            className="hidden"
+            accept="image/*,.pdf,.txt,.json,.csv"
+          />
+
+          {/* Textarea */}
+          <ShadcnTextarea
+            ref={textareaRef}
+            value={input}
+            onChange={handleInput}
+            onPaste={handlePaste}
+            placeholder="Type your message here..."
             className={cx(
-              'relative flex items-end w-full',
-              'rounded-2xl bg-white/30 dark:bg-zinc-800/60',
-              'backdrop-blur-2xl border border-white/30 dark:border-zinc-700',
-              'shadow-2xl',
-              'transition-all duration-200',
-              disabled && 'opacity-60',
-              'focus-within:ring-2 focus-within:ring-indigo-400',
+              'flex-1 min-h-[60px] max-h-[120px] md:min-h-[80px] md:max-h-[240px] resize-none',
+              'bg-transparent border-0 outline-none ring-0 focus:ring-0 focus-visible:ring-0 focus:outline-none',
+              'text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 dark:placeholder:text-zinc-400',
+              'px-3 py-3 pr-20 md:px-5 md:py-5 md:pr-28 text-sm md:text-base leading-6 md:leading-7',
+              'scrollbar-thin scrollbar-thumb-zinc-300 dark:scrollbar-thumb-zinc-600',
+              disabled && 'cursor-not-allowed opacity-50',
             )}
-            style={{ boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.15)' }}
-          >
-            <ShadcnTextarea
-              data-testid="multimodal-input"
-              ref={textareaRef}
-              placeholder="Type your message here..."
-              value={input}
-              onChange={handleInput}
-              className={cx(
-                'flex-1 min-h-[48px] max-h-[180px] resize-none rounded-2xl !text-base bg-transparent text-zinc-900 dark:text-zinc-100 p-4 pr-12',
-                'transition-all duration-200',
-                'focus:outline-none focus:ring-0',
-                disabled && 'cursor-not-allowed select-none',
-              )}
-              rows={2}
-              autoFocus
-              onKeyDown={(event) => {
-                if (
-                  event.key === 'Enter' &&
-                  !event.shiftKey &&
-                  !event.nativeEvent.isComposing
-                ) {
-                  event.preventDefault();
-                  if (status !== 'ready' || disabled) {
-                    toast.error(
-                      'Please wait for the model to finish its response!',
-                    );
-                  } else {
-                    submitForm();
-                  }
+            style={{
+              boxShadow: 'none',
+              outline: 'none',
+            }}
+            onKeyDown={(event) => {
+              if (
+                event.key === 'Enter' &&
+                !event.shiftKey &&
+                !event.nativeEvent.isComposing
+              ) {
+                event.preventDefault();
+                if (status === 'streaming') {
+                  toast.error('Please wait for AI to finish responding...');
+                } else if (limitReached) {
+                  toast.error(
+                    'Daily message limit reached. Please upgrade to continue.',
+                  );
+                } else {
+                  submitForm();
                 }
-              }}
-              disabled={disabled}
-              style={{
-                background: 'transparent',
-                boxShadow: 'none',
-                border: 'none',
-              }}
-            />
-            <div className="absolute bottom-3 right-3 flex flex-row gap-2 items-center">
-              {/* Stop button, only visible when status is 'streaming' */}
-              {status === 'streaming' && (
+              }
+            }}
+            disabled={disabled || limitReached}
+          />
+
+          {/* Action buttons */}
+          <div className="absolute bottom-2 right-2 md:bottom-3 md:right-3 flex items-center gap-1 md:gap-2">
+            {status === 'streaming' ? (
+              <ShadcnButton
+                type="button"
+                size="sm"
+                variant="ghost"
+                onClick={stop}
+                className={cx(
+                  'h-8 w-8 md:h-9 md:w-9 rounded-full p-0',
+                  'bg-red-500/10 hover:bg-red-500/20 dark:bg-red-500/20 dark:hover:bg-red-500/30',
+                  'text-red-600 dark:text-red-400',
+                  'border border-red-200/50 dark:border-red-700/50',
+                  'transition-all duration-200',
+                )}
+                aria-label="Stop generation"
+              >
+                <StopIcon size={14} />
+              </ShadcnButton>
+            ) : (
+              <>
                 <ShadcnButton
                   type="button"
+                  size="sm"
                   variant="ghost"
-                  size="icon"
-                  onClick={stop}
+                  onClick={() => fileInputRef.current?.click()}
                   className={cx(
-                    'rounded-full bg-white/40 dark:bg-zinc-700/60 shadow-md',
-                    'hover:bg-red-500 hover:text-white',
-                    'transition',
-                    'text-red-600 dark:text-red-300',
-                    'border border-white/30 dark:border-zinc-700',
+                    'h-8 w-8 md:h-10 md:w-10 rounded-full p-0',
+                    'bg-zinc-100/80 hover:bg-zinc-200/80 dark:bg-zinc-800/80 dark:hover:bg-zinc-700/80',
+                    'text-zinc-600 dark:text-zinc-400',
+                    'border border-zinc-200/50 dark:border-zinc-700/50',
+                    'transition-all duration-200',
                   )}
-                  aria-label="Stop generation"
+                  disabled={limitReached}
+                  aria-label="Attach file"
                 >
-                  <StopIcon size={22} />
+                  <PaperclipIcon size={16} />
                 </ShadcnButton>
-              )}
-              <ShadcnButton
-                type="button"
-                variant="ghost"
-                size="icon"
-                onClick={async () => {
-                  try {
-                    await submitForm();
-                  } catch (err) {
-                    toast.error(
-                      'Network error: Unable to send message. Please try again.',
-                    );
+
+                <ShadcnButton
+                  type="button"
+                  size="sm"
+                  onClick={submitForm}
+                  disabled={
+                    limitReached ||
+                    (!input.trim() && attachments.length === 0) ||
+                    uploadQueue.length > 0
                   }
-                }}
-                className={cx(
-                  'rounded-full bg-white/40 dark:bg-zinc-700/60 shadow-md',
-                  'hover:bg-indigo-500 hover:text-white',
-                  'transition',
-                  'text-indigo-600 dark:text-indigo-300',
-                  'border border-white/30 dark:border-zinc-700',
-                )}
-                aria-label="Send message"
-              >
-                <svg width="22" height="22" fill="none" viewBox="0 0 24 24">
-                  <path
-                    d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"
-                    fill="currentColor"
-                  />
-                </svg>
-              </ShadcnButton>
-              <ShadcnButton
-                type="button"
-                variant="ghost"
-                size="icon"
-                onClick={(e) => {
-                  e.preventDefault();
-                  fileInputRef.current?.click();
-                }}
-                className={cx(
-                  'rounded-full bg-white/40 dark:bg-zinc-700/60 shadow-md',
-                  'hover:bg-indigo-500 hover:text-white',
-                  'transition',
-                  'text-indigo-600 dark:text-indigo-300',
-                  'border border-white/30 dark:border-zinc-700',
-                  'w-10 h-10 flex items-center justify-center',
-                )}
-                aria-label="Attach file"
-                disabled={disabled}
-              >
-                <PaperclipIcon size={20} />
-              </ShadcnButton>
-            </div>
-            <input
-              type="file"
-              className="hidden"
-              ref={fileInputRef}
-              multiple
-              onChange={handleFileChange}
-              tabIndex={-1}
-            />
-            <div className="absolute bottom-3 left-4 flex flex-row gap-2 items-center">
-              <span className="text-xs text-zinc-400 dark:text-zinc-500 select-none">
-                Shift+Enter for new line
-              </span>
-            </div>
-            <div className="absolute bottom-3 right-20 text-xs text-zinc-400 dark:text-zinc-500 select-none">
-              {/* removed word count */}
-            </div>
+                  className={cx(
+                    'h-8 w-8 md:h-10 md:w-10 rounded-full p-0',
+                    'bg-zinc-700 hover:bg-zinc-800 dark:bg-zinc-600 dark:hover:bg-zinc-500',
+                    'text-white',
+                    'shadow-sm',
+                    'transition-all duration-200',
+                    'disabled:opacity-50 disabled:cursor-not-allowed',
+                  )}
+                  aria-label="Send message"
+                >
+                  <ArrowUpIcon size={16} />
+                </ShadcnButton>
+              </>
+            )}
+          </div>
+
+          {/* Helper text */}
+          <div className="absolute bottom-2 left-3 md:bottom-3 md:left-5 text-xs text-zinc-400 dark:text-zinc-500 select-none pointer-events-none">
+            {uploadQueue.length > 0
+              ? `Uploading ${uploadQueue.length} file${uploadQueue.length > 1 ? 's' : ''}...`
+              : 'Shift + Enter for new line'}
           </div>
         </div>
       </div>
@@ -497,108 +742,8 @@ export const MultimodalInput = memo(
     if (!equal(prevProps.attachments, nextProps.attachments)) return false;
     if (prevProps.selectedVisibilityType !== nextProps.selectedVisibilityType)
       return false;
-
+    if (prevProps.disabled !== nextProps.disabled) return false;
+    if (prevProps.limitReached !== nextProps.limitReached) return false;
     return true;
   },
 );
-
-function PureAttachmentsButton({
-  fileInputRef,
-  status,
-  large,
-  color,
-}: {
-  fileInputRef: React.MutableRefObject<HTMLInputElement | null>;
-  status: UseChatHelpers<ChatMessage>['status'];
-  large?: boolean;
-  color?: string;
-}) {
-  return (
-    <ShadcnButton
-      data-testid="attachments-button"
-      className={cx(
-        'rounded-md rounded-bl-lg p-2 h-fit bg-indigo-600 text-white hover:bg-indigo-700 shadow-md',
-        large && 'p-2',
-      )}
-      onClick={(event) => {
-        event.preventDefault();
-        fileInputRef.current?.click();
-      }}
-      disabled={status !== 'ready'}
-      variant="ghost"
-    >
-      <PaperclipIcon size={14} />
-    </ShadcnButton>
-  );
-}
-
-const AttachmentsButton = memo(PureAttachmentsButton);
-
-function PureStopButton({
-  stop,
-  setMessages,
-  large,
-  color,
-}: {
-  stop: () => void;
-  setMessages: UseChatHelpers<ChatMessage>['setMessages'];
-  large?: boolean;
-  color?: string;
-}) {
-  return (
-    <ShadcnButton
-      data-testid="stop-button"
-      className={cx(
-        'rounded-full p-2 h-fit bg-indigo-600 text-white hover:bg-indigo-700 shadow-md',
-        large && 'p-2',
-      )}
-      onClick={(event) => {
-        event.preventDefault();
-        stop();
-        setMessages((messages) => messages);
-      }}
-    >
-      <StopIcon size={14} />
-    </ShadcnButton>
-  );
-}
-
-const StopButton = memo(PureStopButton);
-
-function PureSendButton({
-  submitForm,
-  input,
-  uploadQueue,
-  large,
-  color,
-}: {
-  submitForm: () => void;
-  input: string;
-  uploadQueue: Array<string>;
-  large?: boolean;
-  color?: string;
-}) {
-  return (
-    <ShadcnButton
-      data-testid="send-button"
-      className={cx(
-        'rounded-full p-2 h-fit bg-indigo-600 text-white hover:bg-indigo-700 shadow-md',
-        large && 'p-2',
-      )}
-      onClick={(event) => {
-        event.preventDefault();
-        submitForm();
-      }}
-      disabled={input.length === 0 || uploadQueue.length > 0}
-    >
-      <ArrowUpIcon size={14} />
-    </ShadcnButton>
-  );
-}
-
-const SendButton = memo(PureSendButton, (prevProps, nextProps) => {
-  if (prevProps.uploadQueue.length !== nextProps.uploadQueue.length)
-    return false;
-  if (prevProps.input !== nextProps.input) return false;
-  return true;
-});

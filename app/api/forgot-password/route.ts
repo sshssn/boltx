@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db/queries';
 import { user, passwordResetToken } from '@/lib/db/schema';
 import { randomBytes } from 'node:crypto';
-import nodemailer from 'nodemailer';
+import { createTransport } from 'nodemailer';
 import { eq } from 'drizzle-orm';
 
 export async function POST(req: NextRequest) {
@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
   });
 
   // Send email
-  const transporter = nodemailer.createTransport({
+  const transporter = createTransport({
     service: 'gmail',
     auth: {
       user: process.env.SMTP_USER,

@@ -9,24 +9,50 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuPortal,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from './ui/dropdown-menu';
-import {
-  CheckCircleFillIcon,
-  GlobeIcon,
-  LockIcon,
-  MoreHorizontalIcon,
-  ShareIcon,
-  TrashIcon,
-  LoaderIcon,
-} from './icons';
-import { memo } from 'react';
-import { useChatVisibility } from '@/hooks/use-chat-visibility';
-import { getShortTitle } from './sidebar-history';
+import { MoreHorizontalIcon, TrashIcon, LoaderIcon } from './icons';
+import { memo, useState, useEffect } from 'react';
+
+// Simple, clean title processing - GPT style
+const getCleanTitle = (title: string): string => {
+  if (!title?.trim()) return 'New Chat';
+
+  // Remove common prefixes
+  let cleaned = title
+    .replace(/^(Chat|Conversation|Thread|New|Untitled)\s*[-:]?\s*/i, '')
+    .replace(/^\d+\.\s*/, '')
+    .replace(/^[-•*]\s*/, '')
+    .trim();
+
+  if (!cleaned) return 'New Chat';
+
+  // Take first 4-5 words max (GPT style)
+  const words = cleaned.split(' ').slice(0, 4);
+  cleaned = words.join(' ');
+
+  // Truncate if still too long
+  if (cleaned.length > 35) {
+    const truncated = cleaned.substring(0, 32);
+    const lastSpace = truncated.lastIndexOf(' ');
+    cleaned = `${lastSpace > 20 ? truncated.substring(0, lastSpace) : truncated}...`;
+  }
+
+  return cleaned;
+};
+
+const LoadingChatItem = ({ isActive }: { isActive: boolean }) => (
+  <SidebarMenuItem>
+    <SidebarMenuButton asChild isActive={isActive} disabled>
+      <div className="flex items-center gap-2 py-2 px-3">
+        <div className="animate-spin text-muted-foreground">
+          <LoaderIcon size={16} />
+        </div>
+        <span className="text-sm text-muted-foreground">New Thread</span>
+      </div>
+    </SidebarMenuButton>
+  </SidebarMenuItem>
+);
 
 const PureChatItem = ({
   chat,
@@ -34,106 +60,104 @@ const PureChatItem = ({
   onDelete,
   setOpenMobile,
   loading = false,
+  onMouseEnter,
 }: {
   chat: Chat;
   isActive: boolean;
   onDelete: (chatId: string) => void;
   setOpenMobile: (open: boolean) => void;
   loading?: boolean;
+  onMouseEnter?: () => void;
 }) => {
-  const { visibilityType, setVisibilityType } = useChatVisibility({
-    chatId: chat.id,
-    initialVisibilityType: chat.visibility,
-  });
+  const [isHovered, setIsHovered] = useState(false);
+  const [currentTitle, setCurrentTitle] = useState(chat.title);
+  const [isGeneratingTitle, setIsGeneratingTitle] = useState(false);
 
-  if (loading) {
-    return (
-      <SidebarMenuItem>
-        <SidebarMenuButton asChild isActive={isActive} disabled>
-          <div className="flex items-center gap-2 animate-pulse">
-            <span className="text-muted-foreground">
-              <LoaderIcon size={16} />
-            </span>
-            <span className="font-medium text-muted-foreground">
-              New Thread
-            </span>
-          </div>
-        </SidebarMenuButton>
-      </SidebarMenuItem>
+  useEffect(() => {
+    const handleStatusUpdate = (event: CustomEvent) => {
+      const { chatId, status, title } = event.detail;
+
+      if (chatId === chat.id) {
+        if (status === 'generating-title') {
+          setIsGeneratingTitle(true);
+          setCurrentTitle('New Thread');
+        } else if (status === 'completed') {
+          setIsGeneratingTitle(false);
+          setCurrentTitle(title);
+        }
+      }
+    };
+
+    window.addEventListener(
+      'chat-status-update',
+      handleStatusUpdate as EventListener,
     );
+    return () => {
+      window.removeEventListener(
+        'chat-status-update',
+        handleStatusUpdate as EventListener,
+      );
+    };
+  }, [chat.id]);
+
+  // Check if this is a new chat (no real title yet)
+  const isNewChat =
+    !chat.title || chat.title === 'New Chat' || isGeneratingTitle;
+
+  if (loading || isGeneratingTitle) {
+    return <LoadingChatItem isActive={isActive} />;
   }
 
+  const cleanTitle = getCleanTitle(currentTitle);
+
   return (
-    <SidebarMenuItem>
+    <SidebarMenuItem
+      onMouseEnter={() => {
+        onMouseEnter?.();
+        setIsHovered(true);
+      }}
+      onMouseLeave={() => setIsHovered(false)}
+      className="group"
+    >
       <SidebarMenuButton asChild isActive={isActive}>
-        <Link href={`/chat/${chat.id}`} onClick={() => setOpenMobile(false)}>
-          <span>{getShortTitle(chat.title)}</span>
+        <Link
+          href={`/chat/${chat.id}`}
+          onClick={() => setOpenMobile(false)}
+          className="flex items-center gap-2 w-full py-2 px-3 text-sm hover:bg-sidebar-accent/50 transition-colors"
+        >
+          <span className="truncate font-medium">{cleanTitle}</span>
         </Link>
       </SidebarMenuButton>
 
-      <DropdownMenu modal={true}>
-        <DropdownMenuTrigger asChild>
-          <SidebarMenuAction
-            className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground mr-0.5"
-            showOnHover={!isActive}
-          >
-            <MoreHorizontalIcon />
-            <span className="sr-only">More</span>
-          </SidebarMenuAction>
-        </DropdownMenuTrigger>
-
-        <DropdownMenuContent side="bottom" align="end">
-          <DropdownMenuSub>
-            <DropdownMenuSubTrigger className="cursor-pointer">
-              <ShareIcon />
-              <span>Share</span>
-            </DropdownMenuSubTrigger>
-            <DropdownMenuPortal>
-              <DropdownMenuSubContent>
-                <DropdownMenuItem
-                  className="cursor-pointer flex-row justify-between"
-                  onClick={() => {
-                    setVisibilityType('private');
-                  }}
-                >
-                  <div className="flex flex-row gap-2 items-center">
-                    <LockIcon size={12} />
-                    <span>Private</span>
-                  </div>
-                  {visibilityType === 'private' ? (
-                    <CheckCircleFillIcon />
-                  ) : null}
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  className="cursor-pointer flex-row justify-between"
-                  onClick={() => {
-                    setVisibilityType('public');
-                  }}
-                >
-                  <div className="flex flex-row gap-2 items-center">
-                    <GlobeIcon />
-                    <span>Public</span>
-                  </div>
-                  {visibilityType === 'public' ? <CheckCircleFillIcon /> : null}
-                </DropdownMenuItem>
-              </DropdownMenuSubContent>
-            </DropdownMenuPortal>
-          </DropdownMenuSub>
-
-          <DropdownMenuItem
-            className="cursor-pointer text-destructive focus:bg-destructive/15 focus:text-destructive dark:text-red-500"
-            onSelect={() => onDelete(chat.id)}
-          >
-            <TrashIcon />
-            <span>Delete</span>
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+      {/* Show delete button on hover */}
+      {isHovered && (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <SidebarMenuAction className="opacity-100">
+              <MoreHorizontalIcon size={16} />
+              <span className="sr-only">More</span>
+            </SidebarMenuAction>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent side="bottom" align="end">
+            <DropdownMenuItem
+              className="cursor-pointer text-destructive focus:bg-destructive/15 focus:text-destructive"
+              onClick={() => onDelete(chat.id)}
+            >
+              <TrashIcon size={14} />
+              <span>Delete</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
     </SidebarMenuItem>
   );
 };
 
 export const ChatItem = memo(PureChatItem, (prevProps, nextProps) => {
-  if (prevProps.isActive !== nextProps.isActive) return false;
-  return true;
+  return (
+    prevProps.isActive === nextProps.isActive &&
+    prevProps.loading === nextProps.loading &&
+    prevProps.chat.id === nextProps.chat.id &&
+    prevProps.chat.title === nextProps.chat.title
+  );
 });

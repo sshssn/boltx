@@ -8,7 +8,6 @@ import { useState } from 'react';
 import { SparklesIcon, GlobeIcon, CodeIcon, InfoIcon } from './icons';
 import { cn } from '@/lib/utils';
 import { Greeting } from './greeting';
-import React from 'react';
 
 interface SuggestedActionsProps {
   chatId: string;

@@ -8,7 +8,12 @@ import {
   addMemory,
   getMessageCountByUserId,
   getChatsByUserId,
+  updateChatTitleById,
 } from '@/lib/db/queries';
+import {
+  generateTitleFromUserMessage,
+  generateTitleFromAIResponse,
+} from '@/lib/ai/title-generation';
 import { generateUUID } from '@/lib/utils';
 import type { DBMessage } from '@/lib/db/schema';
 import { entitlementsByUserType } from '@/lib/ai/entitlements';
@@ -24,7 +29,7 @@ export async function POST(request: Request) {
     // Rate limit enforcement
     const userType = session.user.type || 'guest';
     const messagesLimit =
-      entitlementsByUserType[userType]?.maxMessagesPerDay || 10;
+      entitlementsByUserType[userType]?.maxMessagesPerDay || 20;
     const tokensUsed = await getMessageCountByUserId({
       id: session.user.id,
       differenceInHours: 24,
@@ -47,6 +52,7 @@ export async function POST(request: Request) {
       id: chatId,
       messages: contextMessages,
       selectedVisibilityType,
+      selectedChatModel,
     } = body;
 
     if (
@@ -99,53 +105,86 @@ export async function POST(request: Request) {
     }
     // --- END FACT EXTRACTION ---
 
-    // Run database operations in parallel for speed
-    const dbOperations = Promise.all([
-      // Check/create chat and save user message in parallel
-      (async () => {
-        const chat = await getChatById({ id: chatId });
-        if (!chat) {
-          const title =
-            userMessage.parts?.[0]?.text || userMessage.content || 'New Chat';
-          await saveChat({
-            id: chatId,
-            userId: session.user.id,
-            title: title.length > 80 ? `${title.substring(0, 77)}...` : title,
-            visibility: selectedVisibilityType || 'private',
-          });
-        }
-        await saveMessages({ messages: [userMessageToSave] });
-      })(),
-    ]);
+    // Save user message first to ensure it's stored
+    try {
+      // Ensure the message has the correct structure
+      const messageToSave: DBMessage = {
+        id: userMessageToSave.id,
+        chatId: userMessageToSave.chatId,
+        role: userMessageToSave.role,
+        parts: userMessageToSave.parts || [
+          { type: 'text', text: userMessage.content || '' },
+        ],
+        attachments: userMessageToSave.attachments || [],
+        createdAt: userMessageToSave.createdAt,
+      };
 
-    // Don't wait for database operations to complete before starting AI generation
-    dbOperations.catch((error) =>
-      console.error('Database operation error:', error),
-    );
+      await saveMessages({ messages: [messageToSave] });
+    } catch (error) {
+      console.error('Failed to save user message to database:', error);
+      // Continue with AI generation even if database fails
+      // This could be due to database connection issues or schema problems
+    }
 
-    // Initialize Google GenAI
-    const ai = new GoogleGenAI({
-      apiKey: process.env.GEMINI_API_KEY,
-    });
+    // Check/create chat with "New Thread" title initially
+    let chatTitle = '';
+    try {
+      const chat = await getChatById({ id: chatId });
+      if (!chat) {
+        // Create chat with "New Thread" title initially
+        chatTitle = 'New Thread';
+        console.log('Creating new chat with temporary title:', chatTitle);
+
+        await saveChat({
+          id: chatId,
+          userId: session.user.id,
+          title: chatTitle,
+          visibility: selectedVisibilityType || 'private',
+        });
+
+        console.log('Chat created with temporary title:', chatTitle);
+      } else {
+        chatTitle = chat.title;
+      }
+    } catch (error) {
+      console.error('Failed to save chat:', error);
+      // Use a fallback title
+      chatTitle = 'New Thread';
+    }
+
+    // Initialize Gemini provider with fallback keys
+    const { geminiProvider } = await import('@/lib/ai/providers');
 
     // Only fetch memory if user is a regular (logged-in) user
     let memoryItems: Array<{ content: string }> = [];
     if (session?.user && session.user.type === 'regular') {
-      memoryItems = await getMemoryByUserId({
-        userId: session.user.id,
-        limit: 20,
+      try {
+        memoryItems = await getMemoryByUserId({
+          userId: session.user.id,
+          limit: 20,
+        });
+      } catch (error) {
+        console.error('Failed to fetch memory:', error);
+      }
+    }
+
+    // Prepare context for AI
+    let contents: any[] = [];
+
+    // Add memory context for regular users
+    if (memoryItems.length > 0) {
+      const memoryContext = memoryItems.map((item) => item.content).join('\n');
+      contents.push({
+        role: 'user',
+        parts: [
+          {
+            text: `Here is some context about the user that you should remember and use in your responses:\n\n${memoryContext}\n\nNow, please respond to the user's message.`,
+          },
+        ],
       });
     }
 
-    // Convert context messages to the format expected by Google GenAI
-    // Prepend memory items as a user message if any (Gemini does not support system role)
-    let contents = [];
-    if (memoryItems.length > 0) {
-      contents.push({
-        role: 'user',
-        parts: [{ text: memoryItems.map((m) => m.content).join('\n') }],
-      });
-    }
+    // Add conversation context
     contents = [
       ...contents,
       ...contextMessages.map((msg) => ({
@@ -163,91 +202,191 @@ export async function POST(request: Request) {
       thinkingConfig: {
         thinkingBudget: 0, // Disable thinking for maximum speed
       },
-      responseMimeType: 'text/plain',
       generationConfig: {
-        temperature: 0.5, // Even lower temperature for faster responses
-        topK: 20, // Further limit token selection for speed
-        topP: 0.7, // More focused sampling for speed
-        maxOutputTokens: 1024, // Shorter responses for speed
-        candidateCount: 1, // Single response for speed
-        stopSequences: [], // No stop sequences for speed
+        temperature: 0.7,
+        topK: 40,
+        topP: 0.95,
+        maxOutputTokens: 2048,
       },
-      safetySettings: [], // Disable safety checks for speed (use with caution)
     };
 
-    const model = 'gemini-2.0-flash-exp'; // Use the fastest Gemini model
+    // Generate streaming response with better error handling
+    let response: any;
+    try {
+      response = await geminiProvider.generateContentStream(
+        selectedChatModel || 'gemini-2.0-flash-exp',
+        config,
+        contents,
+      );
+    } catch (error: any) {
+      console.error('Chat API error:', error);
 
-    // Generate streaming response
-    const response = await ai.models.generateContentStream({
-      model,
-      config,
-      contents,
-    });
+      // Handle specific Gemini API errors
+      if (error.status === 429) {
+        // Rate limit exceeded
+        return new Response(
+          JSON.stringify({
+            error:
+              'API rate limit exceeded. Please try again later or upgrade your plan.',
+            details:
+              'You have exceeded the daily request limit for the free tier.',
+            retryAfter: error.details?.[0]?.retryDelay || '40s',
+          }),
+          {
+            status: 429,
+            headers: {
+              'Content-Type': 'application/json',
+              'Retry-After': '40',
+            },
+          },
+        );
+      }
 
-    // Create assistant message ID for saving later
+      if (error.status === 403) {
+        // API key issues
+        return new Response(
+          JSON.stringify({
+            error: 'API access denied. Please check your configuration.',
+            details: 'Invalid or missing API key.',
+          }),
+          {
+            status: 403,
+            headers: { 'Content-Type': 'application/json' },
+          },
+        );
+      }
+
+      // Generic error response
+      return new Response(
+        JSON.stringify({
+          error: 'AI service temporarily unavailable. Please try again.',
+          details: error.message || 'Unknown error occurred',
+        }),
+        {
+          status: 500,
+          headers: { 'Content-Type': 'application/json' },
+        },
+      );
+    }
+
+    // Create assistant message for database
     const assistantMessageId = generateUUID();
-    let assistantResponse = '';
+    const assistantMessageToSave: DBMessage = {
+      id: assistantMessageId,
+      chatId,
+      role: 'assistant',
+      parts: [{ type: 'text', text: '' }], // Will be updated as stream progresses
+      attachments: [],
+      createdAt: new Date(),
+    };
 
-    // Create a high-performance stream with minimal buffering
+    // Save assistant message placeholder
+    try {
+      await saveMessages({ messages: [assistantMessageToSave] });
+    } catch (error) {
+      console.error('Failed to save assistant message:', error);
+    }
+
+    // Create streaming response
     const stream = new ReadableStream({
       async start(controller) {
+        let fullResponse = '';
+
         try {
-          // Pre-encode static events for speed
-          const textStartEvent = new TextEncoder().encode(
-            `data: ${JSON.stringify({ type: 'text-start', id: assistantMessageId })}\n\n`,
-          );
-          const textEndEvent = new TextEncoder().encode(
-            `data: ${JSON.stringify({ type: 'text-end', id: assistantMessageId })}\n\n`,
-          );
-          const finishEvent = new TextEncoder().encode(
-            `data: ${JSON.stringify({ type: 'finish' })}\n\n`,
-          );
-          const doneEvent = new TextEncoder().encode('data: [DONE]\n\n');
+          // Generate proper title when AI starts responding (first chunk)
+          let titleGenerated = false;
 
-          // Send text-start immediately
-          controller.enqueue(textStartEvent);
-
-          // Process chunks with maximum speed - no buffering
           for await (const chunk of response) {
-            if (chunk.text) {
-              assistantResponse += chunk.text;
+            // Handle different response formats
+            let text = '';
+            if (typeof chunk.text === 'function') {
+              text = chunk.text();
+            } else if (chunk.text) {
+              text = chunk.text;
+            } else if (chunk.candidates?.[0]?.content?.parts?.[0]?.text) {
+              text = chunk.candidates[0].content.parts[0].text;
+            }
 
-              // Send chunk immediately - no JSON.stringify overhead for small chunks
-              const delta =
-                chunk.text.length < 10
-                  ? `data: {"type":"text-delta","id":"${assistantMessageId}","delta":"${chunk.text}"}\n\n`
-                  : `data: ${JSON.stringify({ type: 'text-delta', id: assistantMessageId, delta: chunk.text })}\n\n`;
+            if (text) {
+              // Generate title on first chunk (when AI starts responding)
+              if (!titleGenerated) {
+                try {
+                  const userText =
+                    userMessage.parts?.[0]?.text || userMessage.content || '';
+                  const generatedTitle = await generateTitleFromUserMessage(
+                    userText,
+                    {
+                      selectedModelId: selectedChatModel,
+                    },
+                  );
 
-              controller.enqueue(new TextEncoder().encode(delta));
+                  // Update chat title in database
+                  await updateChatTitleById({
+                    chatId,
+                    title: generatedTitle,
+                  });
+
+                  console.log(
+                    'Generated title when AI started responding:',
+                    generatedTitle,
+                  );
+                  titleGenerated = true;
+                } catch (error) {
+                  console.error(
+                    'Failed to generate title when AI started responding:',
+                    error,
+                  );
+                }
+              }
+
+              fullResponse += text;
+              controller.enqueue(
+                new TextEncoder().encode(
+                  `data: ${JSON.stringify({ text })}\n\n`,
+                ),
+              );
             }
           }
 
-          // Send text-end immediately
-          controller.enqueue(textEndEvent);
-
-          // Save to database in background (non-blocking)
-          const savePromise = (async () => {
-            const assistantMessageToSave: DBMessage = {
-              id: assistantMessageId,
+          // Update the assistant message with full response
+          try {
+            await updateChatTitleById({
               chatId,
-              role: 'assistant',
-              parts: [{ type: 'text', text: assistantResponse }],
-              attachments: [],
-              createdAt: new Date(),
-            };
-            await saveMessages({ messages: [assistantMessageToSave] });
-          })();
+              title: chatTitle || 'New Chat',
+            });
+          } catch (error) {
+            console.error('Failed to update chat title:', error);
+          }
 
-          // Send finish events immediately
-          controller.enqueue(finishEvent);
-          controller.enqueue(doneEvent);
-          controller.close();
-
-          // Wait for database save to complete (but don't block the stream)
-          await savePromise;
+          try {
+            controller.enqueue(new TextEncoder().encode(`data: [DONE]\n\n`));
+          } catch (controllerError) {
+            console.error('Controller already closed:', controllerError);
+          }
         } catch (error) {
-          console.error('Stream error:', error);
-          controller.error(error);
+          console.error('Stream processing error:', error);
+          try {
+            controller.enqueue(
+              new TextEncoder().encode(
+                `data: ${JSON.stringify({
+                  error: 'Stream processing failed',
+                  details:
+                    error instanceof Error ? error.message : 'Unknown error',
+                })}\n\n`,
+              ),
+            );
+          } catch (controllerError) {
+            console.error(
+              'Controller already closed during error:',
+              controllerError,
+            );
+          }
+        } finally {
+          try {
+            controller.close();
+          } catch (closeError) {
+            console.error('Controller already closed:', closeError);
+          }
         }
       },
     });
@@ -255,15 +394,22 @@ export async function POST(request: Request) {
     return new Response(stream, {
       headers: {
         'Content-Type': 'text/plain; charset=utf-8',
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Cache-Control': 'no-cache',
         Connection: 'keep-alive',
-        'X-Accel-Buffering': 'no', // Disable nginx buffering for faster streaming
-        'Transfer-Encoding': 'chunked',
       },
     });
   } catch (error) {
-    console.error('Chat API error:', error);
-    return new Response('Internal Server Error', { status: 500 });
+    console.error('Unexpected error in chat route:', error);
+    return new Response(
+      JSON.stringify({
+        error: 'Internal server error',
+        details: error instanceof Error ? error.message : 'Unknown error',
+      }),
+      {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      },
+    );
   }
 }
 
