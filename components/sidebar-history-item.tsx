@@ -11,14 +11,16 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from './ui/dropdown-menu';
-import { MoreHorizontalIcon, TrashIcon, LoaderIcon } from './icons';
-import { memo, useState, useEffect } from 'react';
+import { MoreHorizontalIcon, TrashIcon, LoaderIcon, PencilEditIcon, CheckCircleFillIcon, CrossIcon } from './icons';
+import { memo, useState, useEffect, useRef } from 'react';
+import { Input } from './ui/input';
+import { toast } from 'sonner';
 
-// Simple, clean title processing - GPT style
+// Enhanced title processing - ChatGPT style
 const getCleanTitle = (title: string): string => {
   if (!title?.trim()) return 'New Chat';
 
-  // Remove common prefixes
+  // Remove common prefixes and clean up
   let cleaned = title
     .replace(/^(Chat|Conversation|Thread|New|Untitled)\s*[-:]?\s*/i, '')
     .replace(/^\d+\.\s*/, '')
@@ -27,28 +29,31 @@ const getCleanTitle = (title: string): string => {
 
   if (!cleaned) return 'New Chat';
 
-  // Take first 4-5 words max (GPT style)
+  // Take first 4-5 words max (ChatGPT style)
   const words = cleaned.split(' ').slice(0, 4);
   cleaned = words.join(' ');
 
-  // Truncate if still too long
-  if (cleaned.length > 35) {
-    const truncated = cleaned.substring(0, 32);
+  // Truncate if still too long with smooth ellipsis
+  if (cleaned.length > 32) {
+    const truncated = cleaned.substring(0, 29);
     const lastSpace = truncated.lastIndexOf(' ');
-    cleaned = `${lastSpace > 20 ? truncated.substring(0, lastSpace) : truncated}...`;
+    cleaned = `${lastSpace > 15 ? truncated.substring(0, lastSpace) : truncated}...`;
   }
 
   return cleaned;
 };
 
+// Beautiful loading component with spinning animation
 const LoadingChatItem = ({ isActive }: { isActive: boolean }) => (
   <SidebarMenuItem>
     <SidebarMenuButton asChild isActive={isActive} disabled>
-      <div className="flex items-center gap-2 py-2 px-3">
-        <div className="animate-spin text-muted-foreground">
-          <LoaderIcon size={16} />
+      <div className="flex items-center gap-3 py-2.5 px-3 w-full">
+        <div className="animate-spin text-muted-foreground/70">
+          <LoaderIcon size={14} />
         </div>
-        <span className="text-sm text-muted-foreground">New Thread</span>
+        <span className="text-sm text-muted-foreground animate-pulse">
+          New Chat Thread
+        </span>
       </div>
     </SidebarMenuButton>
   </SidebarMenuItem>
@@ -72,7 +77,12 @@ const PureChatItem = ({
   const [isHovered, setIsHovered] = useState(false);
   const [currentTitle, setCurrentTitle] = useState(chat.title);
   const [isGeneratingTitle, setIsGeneratingTitle] = useState(false);
+  const [isRenaming, setIsRenaming] = useState(false);
+  const [renameValue, setRenameValue] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
 
+  // Handle title updates from the title manager
   useEffect(() => {
     const handleStatusUpdate = (event: CustomEvent) => {
       const { chatId, status, title } = event.detail;
@@ -80,7 +90,7 @@ const PureChatItem = ({
       if (chatId === chat.id) {
         if (status === 'generating-title') {
           setIsGeneratingTitle(true);
-          setCurrentTitle('New Thread');
+          setCurrentTitle('New Chat Thread');
         } else if (status === 'completed') {
           setIsGeneratingTitle(false);
           setCurrentTitle(title);
@@ -100,10 +110,72 @@ const PureChatItem = ({
     };
   }, [chat.id]);
 
-  // Check if this is a new chat (no real title yet)
-  const isNewChat =
-    !chat.title || chat.title === 'New Chat' || isGeneratingTitle;
+  // Handle rename functionality
+  const startRename = () => {
+    setIsRenaming(true);
+    setRenameValue(currentTitle || '');
+    setTimeout(() => {
+      inputRef.current?.focus();
+      inputRef.current?.select();
+    }, 50);
+  };
 
+  const cancelRename = () => {
+    setIsRenaming(false);
+    setRenameValue('');
+  };
+
+  const saveRename = async () => {
+    if (!renameValue.trim() || renameValue === currentTitle) {
+      cancelRename();
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const response = await fetch(`/api/chat/${chat.id}/title`, {
+        method: 'PATCH',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache',
+        },
+        body: JSON.stringify({ title: renameValue.trim() }),
+      });
+
+      if (response.ok) {
+        setCurrentTitle(renameValue.trim());
+        setIsRenaming(false);
+        setRenameValue('');
+        toast.success('Chat renamed successfully');
+        
+        // Notify other components
+        window.dispatchEvent(
+          new CustomEvent('chat-renamed', {
+            detail: { chatId: chat.id, title: renameValue.trim() },
+          }),
+        );
+      } else {
+        throw new Error('Failed to rename chat');
+      }
+    } catch (error) {
+      console.error('Failed to rename chat:', error);
+      toast.error('Failed to rename chat');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleRenameKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      saveRename();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      cancelRename();
+    }
+  };
+
+  // Show loading state during title generation
   if (loading || isGeneratingTitle) {
     return <LoadingChatItem isActive={isActive} />;
   }
@@ -117,37 +189,86 @@ const PureChatItem = ({
         setIsHovered(true);
       }}
       onMouseLeave={() => setIsHovered(false)}
-      className="group"
+      className="group relative"
     >
-      <SidebarMenuButton asChild isActive={isActive}>
-        <Link
-          href={`/chat/${chat.id}`}
-          onClick={() => setOpenMobile(false)}
-          className="flex items-center gap-2 w-full py-2 px-3 text-sm hover:bg-sidebar-accent/50 transition-colors"
-        >
-          <span className="truncate font-medium">{cleanTitle}</span>
-        </Link>
-      </SidebarMenuButton>
-
-      {/* Show delete button on hover */}
-      {isHovered && (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <SidebarMenuAction className="opacity-100">
-              <MoreHorizontalIcon size={16} />
-              <span className="sr-only">More</span>
-            </SidebarMenuAction>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent side="bottom" align="end">
-            <DropdownMenuItem
-              className="cursor-pointer text-destructive focus:bg-destructive/15 focus:text-destructive"
-              onClick={() => onDelete(chat.id)}
+      {isRenaming ? (
+        // Rename mode
+        <div className="flex items-center gap-2 py-2 px-3 w-full">
+          <Input
+            ref={inputRef}
+            value={renameValue}
+            onChange={(e) => setRenameValue(e.target.value)}
+            onKeyDown={handleRenameKeyDown}
+            onBlur={saveRename}
+            className="h-7 text-sm border-0 bg-sidebar-accent/50 focus:bg-sidebar-accent focus:ring-1 focus:ring-primary/50"
+            disabled={isSaving}
+          />
+          <div className="flex items-center gap-1">
+            <button
+              onClick={saveRename}
+              disabled={isSaving}
+              className="p-1 hover:bg-sidebar-accent rounded text-green-600 hover:text-green-700 disabled:opacity-50"
             >
-              <TrashIcon size={14} />
-              <span>Delete</span>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+                             {isSaving ? (
+                 <div className="animate-spin">
+                   <LoaderIcon size={12} />
+                 </div>
+               ) : (
+                 <CheckCircleFillIcon size={12} />
+               )}
+            </button>
+            <button
+              onClick={cancelRename}
+              disabled={isSaving}
+              className="p-1 hover:bg-sidebar-accent rounded text-muted-foreground hover:text-foreground"
+            >
+                             <CrossIcon size={12} />
+            </button>
+          </div>
+        </div>
+      ) : (
+        // Normal mode
+        <>
+          <SidebarMenuButton asChild isActive={isActive}>
+            <Link
+              href={`/chat/${chat.id}`}
+              onClick={() => setOpenMobile(false)}
+              className="flex items-center gap-3 w-full py-2.5 px-3 text-sm hover:bg-sidebar-accent/50 transition-colors group-hover:pr-8"
+            >
+              <span className="truncate font-medium leading-tight">
+                {cleanTitle}
+              </span>
+            </Link>
+          </SidebarMenuButton>
+
+          {/* Three dots menu - shows on hover */}
+          {(isHovered || isActive) && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <SidebarMenuAction className="opacity-100 data-[state=open]:opacity-100">
+                  <MoreHorizontalIcon size={16} />
+                  <span className="sr-only">Chat options</span>
+                </SidebarMenuAction>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent side="bottom" align="end" className="w-48">
+                <DropdownMenuItem
+                  className="cursor-pointer flex items-center gap-2"
+                  onClick={startRename}
+                >
+                                     <PencilEditIcon size={14} />
+                  <span>Rename</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="cursor-pointer text-destructive focus:bg-destructive/15 focus:text-destructive flex items-center gap-2"
+                  onClick={() => onDelete(chat.id)}
+                >
+                  <TrashIcon size={14} />
+                  <span>Delete</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+        </>
       )}
     </SidebarMenuItem>
   );

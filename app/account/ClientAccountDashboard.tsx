@@ -107,23 +107,75 @@ export default function ClientAccountDashboard({ session }: { session: any }) {
     setIsGuest(sessionData?.user?.type === 'guest');
   }, [sessionData]);
 
+  // Enhanced usage fetching with better error handling and caching
   useEffect(() => {
     async function fetchUsage() {
-      const res = await fetch('/api/profile/tokens');
-      if (res.ok) {
-        const data = await res.json();
-        setMessagesUsed(data.tokensUsed ?? 0);
-        setMessagesLimit(data.messagesLimit ?? 20);
-        // Set plan name based on limit
-        // Remove all setPlan and plan state logic
-      } else {
+      try {
+        // Add timestamp to prevent caching issues
+        const timestamp = Date.now();
+        const res = await fetch(`/api/profile/tokens?t=${timestamp}`, {
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0',
+          },
+        });
+        
+        if (res.ok) {
+          const data = await res.json();
+          const used = data.tokensUsed ?? 0;
+          const limit = data.messagesLimit ?? 20;
+          
+          setMessagesUsed(used);
+          setMessagesLimit(limit);
+          
+          // Force update the message limit provider if available
+          if (typeof window !== 'undefined' && window.dispatchEvent) {
+            window.dispatchEvent(new CustomEvent('tokenUsageUpdate', {
+              detail: { used, limit }
+            }));
+          }
+        } else {
+          console.warn('Failed to fetch usage data:', res.status, res.statusText);
+          // Set fallback values
+          setMessagesUsed(0);
+          setMessagesLimit(20);
+        }
+      } catch (error) {
+        console.error('Error fetching usage data:', error);
+        // Set fallback values on error
         setMessagesUsed(0);
         setMessagesLimit(20);
-        // Remove all setPlan and plan state logic
       }
     }
-    fetchUsage();
+
+    // Only fetch if we have session data
+    if (sessionData?.user) {
+      fetchUsage();
+      
+      // Set up periodic refresh to keep data in sync
+      const intervalId = setInterval(fetchUsage, 30000); // Refresh every 30 seconds
+      
+      return () => clearInterval(intervalId);
+    }
   }, [sessionData]);
+
+  // Listen for token usage updates from other parts of the app
+  useEffect(() => {
+    const handleTokenUpdate = (event: CustomEvent) => {
+      const { used, limit } = event.detail;
+      setMessagesUsed(used);
+      setMessagesLimit(limit);
+    };
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('tokenUsageUpdate', handleTokenUpdate as EventListener);
+      
+      return () => {
+        window.removeEventListener('tokenUsageUpdate', handleTokenUpdate as EventListener);
+      };
+    }
+  }, []);
 
   useEffect(() => {
     if (
@@ -279,7 +331,7 @@ export default function ClientAccountDashboard({ session }: { session: any }) {
           <Card className="bg-zinc-900/80 border border-white/10 shadow-xl flex flex-col items-center gap-2 p-4 md:p-8">
             <Avatar className="size-16 md:size-24 mb-2">
               <AvatarFallback>
-                <User size={24} className="md:w-8 md:h-8" />
+                <User size={24}                 className="md:size-8" />
               </AvatarFallback>
             </Avatar>
             <span className="text-lg md:text-xl font-bold text-white text-center">
