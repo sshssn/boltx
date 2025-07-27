@@ -1,6 +1,7 @@
 import { auth } from '@/app/(auth)/auth';
 import {
   getChatById,
+  getChatsByUserId,
   getMessagesByChatId,
   saveChat,
   saveMessages,
@@ -137,12 +138,13 @@ export async function POST(request: Request) {
       parts: userMessage.parts || [{ text: userMessage.content }],
     });
 
-         // Generate AI response
-     const stream = await geminiProvider.doStream({
-       inputFormat: 'messages',
-       mode: { type: 'regular' },
-       prompt: contents,
-     });
+             // Generate AI response
+    const model = geminiProvider.languageModel(selectedChatModel || 'gemini-2.0-flash-exp');
+    const stream = await model.doStream({
+      inputFormat: 'messages',
+      mode: { type: 'regular' },
+      prompt: contents,
+    });
 
     let fullResponse = '';
     let titleGenerated = false;
@@ -152,8 +154,13 @@ export async function POST(request: Request) {
     const readableStream = new ReadableStream({
       async start(controller) {
         try {
-          for await (const chunk of stream.stream) {
-            const text = chunk.textDelta;
+          const reader = stream.stream.getReader();
+          
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            
+            const text = value.type === 'text-delta' ? value.textDelta : '';
 
             if (text) {
               // Emit stream start event for title generation on first chunk
@@ -214,6 +221,8 @@ export async function POST(request: Request) {
               );
             }
           }
+          
+          reader.releaseLock();
 
           // Save the complete AI response
           try {
@@ -289,7 +298,7 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     console.error('Chat API error:', error);
-    return new ChatSDKError('internal:chat').toResponse();
+    return new ChatSDKError('bad_request:chat').toResponse();
   }
 }
 

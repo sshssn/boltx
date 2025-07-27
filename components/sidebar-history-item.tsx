@@ -210,7 +210,9 @@ const PureChatItem = ({
               className="p-1 hover:bg-sidebar-accent rounded text-green-600 hover:text-green-700 disabled:opacity-50"
             >
                              {isSaving ? (
-                 <LoaderIcon size={12} className="animate-spin" />
+                 <div className="animate-spin">
+                   <LoaderIcon size={12} />
+                 </div>
                ) : (
                  <CheckCircleFillIcon size={12} />
                )}

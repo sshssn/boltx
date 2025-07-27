@@ -242,32 +242,10 @@ export function Chat({
   } = useChat<ChatMessage>({
     id,
     messages: initialMessages,
-    api: '/api/chat',
     onError: (error) => {
       console.error('Chat error:', error);
       setLastError(error);
       handleApiError(error);
-    },
-    onChunk: (chunk) => {
-      // Handle title updates from the stream
-      try {
-        const data = JSON.parse(chunk);
-        if (data.type === 'title-update' && data.chatId === id) {
-          console.log('📡 Received title update:', data.title);
-          // Emit event for sidebar to update
-          window.dispatchEvent(
-            new CustomEvent('chat-status-update', {
-              detail: { 
-                chatId: id, 
-                status: 'completed',
-                title: data.title
-              },
-            }),
-          );
-        }
-      } catch (e) {
-        // Not a JSON chunk, ignore
-      }
     },
   });
 
