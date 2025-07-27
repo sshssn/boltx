@@ -48,18 +48,12 @@ interface MessagesProps {
 function ScrollToBottomButton({
   chatContainerRef,
   className = '',
-}: { chatContainerRef: React.RefObject<HTMLElement>; className?: string }) {
-  const [showScrollButton, setShowScrollButton] = useState(false);
-
-  const checkScrollPosition = useCallback(() => {
-    if (chatContainerRef.current) {
-      const { scrollTop, scrollHeight, clientHeight } =
-        chatContainerRef.current;
-      const isAtBottom = scrollHeight - scrollTop - clientHeight < 50;
-      setShowScrollButton(!isAtBottom);
-    }
-  }, [chatContainerRef]);
-
+  isVisible,
+}: {
+  chatContainerRef: React.RefObject<HTMLDivElement>;
+  className?: string;
+  isVisible: boolean;
+}) {
   const scrollToBottom = () => {
     if (chatContainerRef.current) {
       chatContainerRef.current.scrollTo({
@@ -69,191 +63,260 @@ function ScrollToBottomButton({
     }
   };
 
-  useEffect(() => {
-    const chatContainer = chatContainerRef.current;
-    if (chatContainer) {
-      chatContainer.addEventListener('scroll', checkScrollPosition);
-      checkScrollPosition();
-      return () =>
-        chatContainer.removeEventListener('scroll', checkScrollPosition);
-    }
-  }, [chatContainerRef, checkScrollPosition]);
+  if (!isVisible) return null;
 
   return (
-    <div
-      className={`transition-all duration-300 ease-out ${
-        showScrollButton
-          ? 'opacity-100 translate-y-0 scale-100'
-          : 'opacity-0 translate-y-4 scale-95 pointer-events-none'
-      } ${className}`}
+    <Button
+      onClick={scrollToBottom}
+      size="sm"
+      variant="outline"
+      className={`fixed bottom-20 left-1/2 transform -translate-x-1/2 z-10 rounded-full shadow-lg bg-white/90 dark:bg-zinc-800/90 backdrop-blur-sm border-zinc-200/50 dark:border-zinc-700/50 hover:bg-white dark:hover:bg-zinc-800 transition-all duration-200 ${className}`}
     >
-      <button
-        type="button"
-        onClick={scrollToBottom}
-        className="flex items-center gap-2 px-4 py-2.5 bg-white/90 dark:bg-zinc-800/90 backdrop-blur-xl border border-white/30 dark:border-zinc-700/50 rounded-xl shadow-lg hover:bg-white/95 dark:hover:bg-zinc-800/95 hover:scale-105 transition-all duration-200 ease-out text-zinc-700 dark:text-zinc-300 text-sm font-medium"
-        aria-label="Scroll to bottom"
-      >
-        <span>Scroll to bottom</span>
-        <ChevronDown className="size-4" />
-      </button>
-    </div>
+      <ChevronDown className="h-4 w-4" />
+    </Button>
   );
 }
 
-function PureMessages({
-  chatId,
-  status,
-  votes,
-  messages,
-  setMessages,
-  regenerate,
-  isReadonly,
-  isArtifactVisible,
-  extraPaddingBottom,
-  onGuestLimit,
-}: MessagesProps) {
+export const Messages = memo((props: MessagesProps) => {
   const {
-    containerRef: messagesContainerRef,
-    endRef: messagesEndRef,
-    onViewportEnter,
-    onViewportLeave,
-    hasSentMessage,
-    isAtBottom,
-  } = useMessages({
     chatId,
     status,
-  });
+    votes,
+    messages,
+    setMessages,
+    regenerate,
+    isReadonly,
+    isArtifactVisible,
+    extraPaddingBottom,
+    onGuestLimit,
+  } = props;
 
   const { data: session } = useSession();
   const isGuest = session?.user?.type === 'guest';
   const isRegular = session?.user?.type === 'regular';
+
+  const chatContainerRef = useRef<HTMLDivElement>(null);
+  const [showScrollButton, setShowScrollButton] = useState(false);
+
+  // Enhanced state management for better error tracking
   const [messagesUsed, setMessagesUsed] = useState<number>(0);
   const [messagesLimit, setMessagesLimit] = useState<number>(isGuest ? 20 : 50);
-  const chatContainerRef = useRef<HTMLDivElement>(null);
-  const [containerWidth, setContainerWidth] = useState<number | undefined>(
-    undefined,
-  );
-  const [showSignupModal, setShowSignupModal] = useState(false);
   const [networkError, setNetworkError] = useState(false);
+  const [errorTimeout, setErrorTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [lastMessageTime, setLastMessageTime] = useState<number>(Date.now());
+  const [isWaitingForResponse, setIsWaitingForResponse] = useState(false);
 
-  useLayoutEffect(() => {
-    if (chatContainerRef.current) {
-      setContainerWidth(chatContainerRef.current.offsetWidth);
-    }
-    const handleResize = () => {
-      if (chatContainerRef.current) {
-        setContainerWidth(chatContainerRef.current.offsetWidth);
+  // Enhanced error detection function
+  const isMessageEmpty = useCallback((message: ChatMessage): boolean => {
+    if (!message.parts || message.parts.length === 0) return true;
+    
+    // Check if all parts are empty
+    const hasContent = message.parts.some(part => {
+      if (part.type === 'text') {
+        return part.text && part.text.trim().length > 0;
       }
-    };
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+      // For other part types, assume they have content if they exist
+      return true;
+    });
+    
+    return !hasContent;
   }, []);
 
-  // Fixed: Proper message limit tracking that persists across chats
-  useEffect(() => {
-    if (isGuest || isRegular || !session?.user) {
-      // Fetch quota info on component mount and when messages change
-      const fetchQuotaInfo = async () => {
-        try {
-          const response = await fetch('/api/profile/tokens');
-          if (response.ok) {
-            const data = await response.json();
-            // Use server data as source of truth
-            const serverUsed = data.tokensUsed ?? 0;
-            const serverLimit =
-              data.messagesLimit ?? (isGuest ? 20 : isRegular ? 50 : 20);
-
-            setMessagesUsed(serverUsed);
-            setMessagesLimit(serverLimit);
-
-            if (onGuestLimit) {
-              onGuestLimit(serverLimit, serverUsed);
-            }
-          }
-        } catch (error) {
-          console.error('Failed to fetch quota info:', error);
-          // Fallback to counting messages if API fails
-          const userMessageCount = messages.filter(
-            (msg) => msg.role === 'user',
-          ).length;
-          setMessagesUsed(userMessageCount);
-        }
-      };
-
-      fetchQuotaInfo();
-
-      // Also fetch when a new user message is added
-      const userMessages = messages.filter((msg) => msg.role === 'user');
-      if (userMessages.length > 0) {
-        // Small delay to ensure the message is processed on the server
-        const timeoutId = setTimeout(fetchQuotaInfo, 1000);
-        return () => clearTimeout(timeoutId);
+  // Enhanced network error detection
+  const detectNetworkErrors = useCallback(() => {
+    const lastMessage = messages[messages.length - 1];
+    
+    // Check for empty assistant messages
+    if (lastMessage?.role === 'assistant' && isMessageEmpty(lastMessage)) {
+      console.log('Detected empty assistant message');
+      return true;
+    }
+    
+    // Check for messages that only contain whitespace or minimal content
+    if (lastMessage?.role === 'assistant' && lastMessage.parts) {
+      const textContent = lastMessage.parts
+        .filter(part => part.type === 'text')
+        .map(part => part.text)
+        .join('')
+        .trim();
+      
+      // Consider very short responses as potential errors (less than 3 characters)
+      if (textContent.length > 0 && textContent.length < 3) {
+        console.log('Detected suspiciously short response:', textContent);
+        return true;
       }
     }
-  }, [isGuest, isRegular, session, messages.length, onGuestLimit]);
+    
+    return false;
+  }, [messages, isMessageEmpty]);
 
-  // Show signup modal when limit is reached
+  // Track message timing for timeout detection
+  useEffect(() => {
+    if (messages.length > 0) {
+      setLastMessageTime(Date.now());
+    }
+  }, [messages.length]);
+
+  // Enhanced error detection with multiple triggers
+  useEffect(() => {
+    // Clear any existing error state when messages change (unless it's an error case)
+    if (!detectNetworkErrors()) {
+      setNetworkError(false);
+      if (errorTimeout) {
+        clearTimeout(errorTimeout);
+        setErrorTimeout(null);
+      }
+    } else {
+      setNetworkError(true);
+    }
+  }, [messages, detectNetworkErrors, errorTimeout]);
+
+  // Enhanced timeout-based error detection
+  useEffect(() => {
+    if (status === 'submitted' || status === 'streaming') {
+      setIsWaitingForResponse(true);
+      
+      // Clear any existing timeout
+      if (errorTimeout) {
+        clearTimeout(errorTimeout);
+      }
+      
+      // Set a new timeout for detecting unresponsive AI
+      const timeoutId = setTimeout(() => {
+        console.log('AI response timeout detected');
+        setNetworkError(true);
+        setIsWaitingForResponse(false);
+      }, 45000); // Increased to 45 seconds for better reliability
+      
+      setErrorTimeout(timeoutId);
+    } else {
+      setIsWaitingForResponse(false);
+      if (errorTimeout) {
+        clearTimeout(errorTimeout);
+        setErrorTimeout(null);
+      }
+    }
+
+    return () => {
+      if (errorTimeout) {
+        clearTimeout(errorTimeout);
+      }
+    };
+  }, [status]);
+
+  // Monitor for stuck streaming states
+  useEffect(() => {
+    if (status === 'streaming') {
+      const lastActivity = Date.now();
+      
+      const checkStreamingTimeout = setTimeout(() => {
+        // If we've been streaming for too long without new content, show error
+        if (status === 'streaming' && Date.now() - lastActivity > 30000) {
+          console.log('Streaming timeout detected');
+          setNetworkError(true);
+        }
+      }, 30000);
+      
+      return () => clearTimeout(checkStreamingTimeout);
+    }
+  }, [status, lastMessageTime]);
+
+  // Fetch usage data with better error handling
+  useEffect(() => {
+    async function fetchUsage() {
+      try {
+        const res = await fetch('/api/profile/tokens', {
+          headers: {
+            'Cache-Control': 'no-cache',
+          },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const serverUsed = data.tokensUsed ?? 0;
+          const serverLimit =
+            data.messagesLimit ?? (isGuest ? 20 : isRegular ? 50 : 20);
+          setMessagesUsed(serverUsed);
+          setMessagesLimit(serverLimit);
+        } else {
+          console.warn('Failed to fetch usage data:', res.status);
+        }
+      } catch (error) {
+        console.error('Error fetching usage data:', error);
+      }
+    }
+
+    // Only fetch for logged-in users
+    if (session?.user?.id) {
+      fetchUsage();
+    }
+  }, [session, isGuest, isRegular]);
+
+  // Enhanced guest limit detection
   useEffect(() => {
     if ((isGuest || isRegular) && messagesUsed >= messagesLimit) {
-      setShowSignupModal(true);
+      onGuestLimit?.(messagesLimit, messagesUsed);
     }
-  }, [isGuest, isRegular, messagesUsed, messagesLimit]);
+  }, [isGuest, isRegular, messagesUsed, messagesLimit, onGuestLimit]);
 
   useDataStream();
 
-  // Check for network errors in messages
-  useEffect(() => {
-    const hasNetworkError = messages.some(
-      (msg) =>
-        msg.role === 'assistant' &&
-        (!msg.parts ||
-          msg.parts.length === 0 ||
-          (msg.parts.length === 1 &&
-            msg.parts[0].type === 'text' &&
-            (!msg.parts[0].text || msg.parts[0].text.trim() === ''))),
-    );
-    setNetworkError(hasNetworkError);
-  }, [messages]);
-
-  // Additional timeout-based error detection for when AI doesn't respond
-  useEffect(() => {
-    if (status === 'submitted' || status === 'streaming') {
-      const timeoutId = setTimeout(() => {
-        // If we're still in submitted/streaming state after 30 seconds, show error
-        if (status === 'submitted' || status === 'streaming') {
-          setNetworkError(true);
-        }
-      }, 30000); // 30 seconds timeout
-
-      return () => clearTimeout(timeoutId);
-    }
-  }, [status]);
-
-  const handleRetry = () => {
+  // Enhanced retry handler
+  const handleRetry = useCallback(() => {
+    console.log('Handling retry...');
     setNetworkError(false);
+    setIsWaitingForResponse(false);
+    
+    if (errorTimeout) {
+      clearTimeout(errorTimeout);
+      setErrorTimeout(null);
+    }
+    
     // Remove the last assistant message if it's empty/broken
     setMessages((prev) => {
       const lastAssistantIndex = prev.findLastIndex(
         (msg) => msg.role === 'assistant',
       );
+      
       if (lastAssistantIndex !== -1) {
         const lastAssistant = prev[lastAssistantIndex];
-        if (
-          !lastAssistant.parts ||
-          lastAssistant.parts.length === 0 ||
-          (lastAssistant.parts.length === 1 &&
-            lastAssistant.parts[0].type === 'text' &&
-            (!lastAssistant.parts[0].text ||
-              lastAssistant.parts[0].text.trim() === ''))
-        ) {
+        if (isMessageEmpty(lastAssistant)) {
+          console.log('Removing empty assistant message');
           return prev.slice(0, lastAssistantIndex);
         }
       }
       return prev;
     });
-    // Regenerate the response
-    regenerate();
-  };
+    
+    // Small delay before regenerating to ensure state is clean
+    setTimeout(() => {
+      regenerate();
+    }, 100);
+  }, [setMessages, regenerate, isMessageEmpty, errorTimeout]);
+
+  // Scroll detection for show/hide scroll button
+  useEffect(() => {
+    const container = chatContainerRef.current;
+    if (!container) return;
+
+    const handleScroll = () => {
+      const { scrollTop, scrollHeight, clientHeight } = container;
+      const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
+      setShowScrollButton(!isNearBottom && scrollHeight > clientHeight);
+    };
+
+    container.addEventListener('scroll', handleScroll);
+    handleScroll(); // Initial check
+
+    return () => container.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // Auto-scroll to bottom for new messages
+  useLayoutEffect(() => {
+    const container = chatContainerRef.current;
+    if (container && !showScrollButton) {
+      container.scrollTop = container.scrollHeight;
+    }
+  }, [messages, showScrollButton]);
 
   return (
     <div
@@ -270,62 +333,17 @@ function PureMessages({
 
       {/* Enhanced Network Error Display */}
       {networkError && (
-        <div className="flex justify-center p-4">
+        <div className="flex justify-center p-4 sticky top-0 z-10">
           <NetworkError
             onRetry={handleRetry}
-            message="Failed to get response from AI"
+            message={
+              isWaitingForResponse 
+                ? "AI is taking too long to respond" 
+                : "Failed to get response from AI"
+            }
           />
         </div>
       )}
-
-      {/* Enhanced Signup Modal */}
-      <AlertDialog open={showSignupModal} onOpenChange={setShowSignupModal}>
-        <AlertDialogContent className="max-w-md border-0 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl shadow-2xl">
-          <AlertDialogHeader>
-            <div className="flex items-center justify-center size-12 mx-auto mb-4 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full">
-              <Sparkles className="size-6 text-white" />
-            </div>
-            <AlertDialogTitle className="text-center text-xl">
-              Message Limit Reached
-            </AlertDialogTitle>
-            <AlertDialogDescription className="text-center text-zinc-600 dark:text-zinc-400">
-              You&apos;ve reached your daily limit of{' '}
-              <strong>{messagesLimit}</strong> messages as a{' '}
-              {isGuest ? 'guest' : 'registered user'}.
-              {isGuest
-                ? ' Sign up for a free account to continue chatting and unlock more features!'
-                : ' Upgrade to Pro for unlimited messages and advanced features!'}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
-            <AlertDialogAction asChild className="w-full">
-              <Button
-                asChild
-                className="bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white"
-                size="lg"
-              >
-                <a
-                  href={isGuest ? '/auth' : '/billing'}
-                  className="flex items-center gap-2"
-                >
-                  {isGuest ? 'Sign Up Free' : 'Upgrade to Pro'}
-                  <Sparkles className="size-4" />
-                </a>
-              </Button>
-            </AlertDialogAction>
-            <AlertDialogCancel asChild className="w-full">
-              <Button
-                variant="ghost"
-                size="lg"
-                onClick={() => setShowSignupModal(false)}
-                className="text-zinc-600 dark:text-zinc-400"
-              >
-                Maybe Later
-              </Button>
-            </AlertDialogCancel>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
 
       {/* Messages */}
       {messages.map((message, index) => (
@@ -333,82 +351,55 @@ function PureMessages({
           key={message.id}
           chatId={chatId}
           message={message}
-          isLoading={status === 'streaming' && messages.length - 1 === index}
+          isLoading={
+            status === 'submitted' ||
+            (status === 'streaming' && index === messages.length - 1)
+          }
           vote={
             votes
               ? votes.find((vote) => vote.messageId === message.id)
               : undefined
           }
-          setMessages={setMessages}
-          regenerate={regenerate}
           isReadonly={isReadonly}
-          requiresScrollPadding={
-            hasSentMessage && index === messages.length - 1
-          }
-          isStreaming={status === 'streaming' && index === messages.length - 1}
-          style={index === 0 ? { marginTop: '1.2rem' } : {}}
+          isArtifactVisible={isArtifactVisible}
         />
       ))}
 
-      {/* Glassmorphism typing animation */}
-      {(status === 'streaming' || status === 'submitted') && (
-        <div className="w-full mx-auto max-w-3xl px-4 group/message my-6">
-          <div className="flex gap-4 w-full">
-            <div className="flex flex-col gap-4 w-full">
-              <div className="flex flex-row gap-2 items-start">
-                <div
-                  data-testid="message-content"
-                  className="flex flex-col gap-4 w-full"
-                >
-                  {/* Simple animated dots - no full width container */}
-                  <div className="flex items-center gap-1 md:gap-1.5">
-                    <div
-                      className="w-2 h-2 md:w-2.5 md:h-2.5 bg-zinc-600 dark:bg-zinc-300 rounded-full animate-bounce"
-                      style={{
-                        animationDelay: '0ms',
-                        animationDuration: '1.4s',
-                      }}
-                    />
-                    <div
-                      className="w-2 h-2 md:w-2.5 md:h-2.5 bg-zinc-600 dark:bg-zinc-300 rounded-full animate-bounce"
-                      style={{
-                        animationDelay: '200ms',
-                        animationDuration: '1.4s',
-                      }}
-                    />
-                    <div
-                      className="w-2 h-2 md:w-2.5 md:h-2.5 bg-zinc-600 dark:bg-zinc-300 rounded-full animate-bounce"
-                      style={{
-                        animationDelay: '400ms',
-                        animationDuration: '1.4s',
-                      }}
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
+      {/* Guest Message Limit Display */}
+      {(isGuest || isRegular) && messages.length > 0 && (
+        <div className="flex justify-center w-full px-3 mb-4">
+          <div className="flex items-center gap-2 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl border border-zinc-200/80 dark:border-zinc-700/60 shadow-xl rounded-xl text-sm font-medium px-4 py-3 transition-all duration-200 hover:bg-white dark:hover:bg-zinc-900">
+            <span className="text-zinc-700 dark:text-zinc-300">
+              You&apos;ve used{' '}
+              <strong className="text-blue-600 dark:text-blue-400">
+                {messagesUsed}
+              </strong>{' '}
+              of{' '}
+              <strong className="text-blue-600 dark:text-blue-400">
+                {messagesLimit}
+              </strong>{' '}
+              messages as a{' '}
+              <strong>{isGuest ? 'guest' : 'free'}</strong> user today
+            </span>
+            <a
+              href={isGuest ? '/auth' : '/account'}
+              className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white text-xs rounded-lg transition-colors duration-200 font-medium ml-2"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {isGuest ? 'Sign up free' : 'Upgrade'}
+              <Sparkles className="w-3 h-3" />
+            </a>
           </div>
         </div>
       )}
 
-      <div ref={messagesEndRef} />
-
-      {/* Enhanced Scroll to Bottom Button */}
       <ScrollToBottomButton
         chatContainerRef={chatContainerRef}
-        className="fixed bottom-32 right-6 z-[1001]"
+        isVisible={showScrollButton}
       />
     </div>
   );
-}
+}, equal);
 
-export const Messages = memo(PureMessages, (prevProps, nextProps) => {
-  if (prevProps.isArtifactVisible && nextProps.isArtifactVisible) return true;
-
-  if (prevProps.status !== nextProps.status) return false;
-  if (prevProps.messages.length !== nextProps.messages.length) return false;
-  if (!equal(prevProps.messages, nextProps.messages)) return false;
-  if (!equal(prevProps.votes, nextProps.votes)) return false;
-
-  return false;
-});
+Messages.displayName = 'Messages';

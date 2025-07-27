@@ -413,7 +413,7 @@ export function Chat({
     setIsRetrying(false);
   };
 
-  // Clear error when user sends a new message
+  // Enhanced message sending with better error handling
   const handleNewMessage = async (message: any) => {
     setLastError(null); // Clear any previous errors
     try {
@@ -421,6 +421,24 @@ export function Chat({
     } catch (error: any) {
       console.error('Failed to send message:', error);
       setLastError(error);
+      
+      // Enhanced error handling for different scenarios
+      if (error?.status === 429) {
+        console.log('Rate limit error detected');
+      } else if (error?.status >= 500) {
+        console.log('Server error detected');
+      } else if (error?.message?.includes('network') || error?.message?.includes('fetch')) {
+        console.log('Network error detected');
+      } else if (!error?.status && !error?.message) {
+        console.log('Unknown error - possibly AI non-responsive');
+        // For unknown errors, treat as network/AI issue
+        setLastError({
+          ...error,
+          message: 'Failed to get response from AI',
+          isNetworkError: true
+        });
+      }
+      
       handleApiError(error);
       // Don't throw the error further to prevent unhandled promise rejections
     }
@@ -472,7 +490,7 @@ export function Chat({
               <div className="w-full max-w-2xl">
                 <SuggestedActions
                   chatId={id}
-                  sendMessage={sendMessageHook}
+                  sendMessage={handleNewMessage}
                   selectedVisibilityType={initialVisibilityType}
                   setInput={setInput}
                 />
