@@ -13,7 +13,7 @@ A modern AI chat application built with Next.js, featuring real-time streaming, 
 - 🔄 **Conversation History**: Persistent chat history with smart organization
 - 🎨 **Modern UI**: Beautiful, responsive interface with dark/light themes
 - 🔐 **Authentication**: Guest and registered user support
-- 📱 **Mobile Optimized**: Works seamlessly on all devices
+- 📱 **Mobile Optimized**: Works on all devices* ( Mobile is in beta testing use at own risk.) 
 
 ## Quick Start
 
