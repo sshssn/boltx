@@ -1,4 +1,4 @@
-import { GoogleGenAI } from '@google/genai';
+import { geminiProvider } from '@/lib/ai/providers';
 import { auth } from '@/app/(auth)/auth';
 import {
   saveMessages,
@@ -213,11 +213,22 @@ export async function POST(request: Request) {
     // Generate streaming response with better error handling
     let response: any;
     try {
-      response = await geminiProvider.generateContentStream(
+      const model = geminiProvider.languageModel(
         selectedChatModel || 'gemini-2.0-flash-exp',
-        config,
-        contents,
       );
+      response = await model.doStream({
+        inputFormat: 'messages',
+        mode: { type: 'regular' },
+        prompt: contents.map((msg) => ({
+          role: msg.role,
+          content: msg.parts.map((p: any) => ({
+            type: 'text',
+            text: p.text || '',
+          })),
+        })),
+        temperature: config.generationConfig.temperature,
+        maxTokens: config.generationConfig.maxOutputTokens,
+      });
     } catch (error: any) {
       console.error('Chat API error:', error);
 

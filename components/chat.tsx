@@ -235,7 +235,7 @@ export function Chat({
 }: ChatProps) {
   const isMobile = useIsMobile();
   const router = useRouter();
-  const [copyToClipboard] = useCopyToClipboard();
+  const [_, copyToClipboard] = useCopyToClipboard();
   const [isArtifactVisible, setIsArtifactVisible] = useState(false);
   const [lastError, setLastError] = useState<any>(null);
   const [isRetrying, setIsRetrying] = useState(false);
@@ -407,7 +407,7 @@ export function Chat({
       const messageText =
         lastUserMessage.parts?.find((part) => part.type === 'text')?.text || '';
       if (messageText) {
-        sendMessageHook(messageText);
+        sendMessage(messageText);
       }
     }
     setIsRetrying(false);
@@ -472,7 +472,7 @@ export function Chat({
               <div className="w-full max-w-2xl">
                 <SuggestedActions
                   chatId={id}
-                  sendMessage={sendMessage}
+                  sendMessage={sendMessageHook}
                   selectedVisibilityType={initialVisibilityType}
                   setInput={setInput}
                 />

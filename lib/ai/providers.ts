@@ -1,4 +1,4 @@
-import { GoogleGenAI } from '@google/genai';
+import { createGoogleGenerativeAI } from '@ai-sdk/google';
 
 // Multiple API keys for fallback
 const API_KEYS = [
@@ -7,92 +7,107 @@ const API_KEYS = [
   process.env.GEMINI_API_KEY_3,
 ].filter(Boolean) as string[];
 
-let currentKeyIndex = 0;
-const rateLimitMap = new Map<string, number>();
+// Create the provider with the first available API key
+const provider = createGoogleGenerativeAI({
+  apiKey: API_KEYS[0] || '',
+});
 
-export class GeminiProvider {
-  private ai: GoogleGenAI;
-  private currentKey: string;
+// Export the v1 provider for chat routes
+export const geminiProvider = provider;
 
-  constructor() {
-    this.currentKey = API_KEYS[currentKeyIndex] || '';
-    this.ai = new GoogleGenAI({ apiKey: this.currentKey });
-  }
-
-  private switchToNextKey() {
-    currentKeyIndex = (currentKeyIndex + 1) % API_KEYS.length;
-    this.currentKey = API_KEYS[currentKeyIndex] || '';
-    this.ai = new GoogleGenAI({ apiKey: this.currentKey });
-    console.log(`Switched to API key ${currentKeyIndex + 1}`);
-  }
-
-  private isRateLimited(key: string): boolean {
-    const lastRateLimit = rateLimitMap.get(key);
-    if (!lastRateLimit) return false;
-
-    // Check if 40 seconds have passed since last rate limit
-    return Date.now() - lastRateLimit < 40000;
-  }
-
-  async generateContentStream(model: string, config: any, contents: any[]) {
-    const maxRetries = API_KEYS.length;
-
-    for (let attempt = 0; attempt < maxRetries; attempt++) {
-      const currentKey = API_KEYS[currentKeyIndex];
-
-      if (!currentKey) {
-        throw new Error('No valid API keys available');
-      }
-
-      if (this.isRateLimited(currentKey)) {
-        this.switchToNextKey();
-        continue;
-      }
-
-      try {
-        return await this.ai.models.generateContentStream({
-          model,
-          config,
-          contents,
-        });
-      } catch (error: any) {
-        if (error.status === 429) {
-          // Rate limited - mark this key and try the next one
-          rateLimitMap.set(currentKey, Date.now());
-          this.switchToNextKey();
-          continue;
-        }
-
-        // For other errors, throw immediately
-        throw error;
-      }
-    }
-
-    // All keys are rate limited
-    throw new Error(
-      'All API keys are currently rate limited. Please try again later.',
-    );
-  }
-
-  getCurrentKeyIndex() {
-    return currentKeyIndex;
-  }
-
-  getAvailableKeys() {
-    return API_KEYS.length;
-  }
-
+// Create a simple v2-compatible wrapper for streamObject
+export const myProvider = {
   languageModel(modelName: string) {
-    // Return a model configuration for the AI SDK
+    // For streamObject compatibility, we'll use a simple object
+    // that matches the expected interface
     return {
-      model: modelName,
-      provider: this,
-    };
-  }
-}
+      modelId: modelName,
+      specificationVersion: 'v2' as const,
+      supportedUrls: { '*': [/.*/] }, // Support all URLs
+      provider: 'google',
+      doGenerate: async (params: any) => {
+        const v1Model = provider.languageModel(modelName);
+        const result = await v1Model.doGenerate({
+          inputFormat: 'prompt',
+          mode: { type: 'regular' },
+          prompt: params.prompt,
+          temperature: params.temperature,
+          maxTokens: params.maxTokens,
+        });
 
-// Export a singleton instance
-export const geminiProvider = new GeminiProvider();
+        return {
+          content: result.text ? [{ type: 'text', text: result.text }] : [],
+          finishReason: 'stop',
+          usage: {
+            inputTokens: 0,
+            outputTokens: 0,
+          },
+          warnings: [],
+        };
+      },
+      doStream: async (params: any) => {
+        const v1Model = provider.languageModel(modelName);
+        const result = await v1Model.doStream({
+          inputFormat: 'prompt',
+          mode: { type: 'regular' },
+          prompt: params.prompt,
+          temperature: params.temperature,
+          maxTokens: params.maxTokens,
+        });
 
-// Export as myProvider for backward compatibility
-export const myProvider = geminiProvider;
+        return {
+          stream: new ReadableStream({
+            async start(controller) {
+              const reader = result.stream.getReader();
+              try {
+                while (true) {
+                  const { done, value } = await reader.read();
+                  if (done) break;
+
+                  if (value.type === 'text-delta') {
+                    controller.enqueue({
+                      type: 'text-delta',
+                      delta: value.textDelta,
+                    });
+                  }
+                }
+                controller.close();
+              } catch (error) {
+                controller.error(error);
+              }
+            },
+          }),
+        };
+      },
+    } as any; // Add type assertion to bypass strict type checking
+  },
+  imageModel(modelName: string) {
+    // For image generation compatibility
+    return {
+      modelId: modelName,
+      specificationVersion: 'v2' as const,
+      supportedUrls: { '*': [/.*/] },
+      provider: 'google',
+      doGenerate: async (params: any) => {
+        const v1Model = provider.languageModel(modelName);
+        const result = await v1Model.doGenerate({
+          inputFormat: 'prompt',
+          mode: { type: 'regular' },
+          prompt: params.prompt,
+          temperature: params.temperature,
+          maxTokens: params.maxTokens,
+        });
+
+        return {
+          content: result.text ? [{ type: 'text', text: result.text }] : [],
+          finishReason: 'stop',
+          usage: {
+            inputTokens: 0,
+            outputTokens: 0,
+          },
+          warnings: [],
+        };
+      },
+    } as any;
+  },
+};
