@@ -331,7 +331,7 @@ export default function ClientAccountDashboard({ session }: { session: any }) {
           <Card className="bg-zinc-900/80 border border-white/10 shadow-xl flex flex-col items-center gap-2 p-4 md:p-8">
             <Avatar className="size-16 md:size-24 mb-2">
               <AvatarFallback>
-                <User size={24} className="md:w-8 md:h-8" />
+                <User size={24}                 className="md:size-8" />
               </AvatarFallback>
             </Avatar>
             <span className="text-lg md:text-xl font-bold text-white text-center">

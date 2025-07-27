@@ -367,15 +367,15 @@ export const ThinkingMessage = () => {
         <div className="flex items-center justify-center w-full py-8">
           <div className="flex items-center gap-1.5">
             <div
-              className="w-2 h-2 bg-primary rounded-full animate-bounce"
+              className="size-2 bg-primary rounded-full animate-bounce"
               style={{ animationDelay: '0ms', animationDuration: '1.4s' }}
             />
             <div
-              className="w-2 h-2 bg-primary rounded-full animate-bounce"
+              className="size-2 bg-primary rounded-full animate-bounce"
               style={{ animationDelay: '160ms', animationDuration: '1.4s' }}
             />
             <div
-              className="w-2 h-2 bg-primary rounded-full animate-bounce"
+              className="size-2 bg-primary rounded-full animate-bounce"
               style={{ animationDelay: '320ms', animationDuration: '1.4s' }}
             />
           </div>

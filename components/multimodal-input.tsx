@@ -40,6 +40,7 @@ import { useMessageLimit } from './message-limit-provider';
 // Enhanced file type detection
 const getFileIcon = (contentType: string, fileName: string) => {
   // Images
+  // eslint-disable-next-line jsx-a11y/alt-text
   if (contentType.startsWith('image/')) return <Image className="size-4" />;
 
   // Documents
@@ -90,7 +91,7 @@ const PasteIndicator = ({
   if (!show) return null;
 
   return (
-    <div className="absolute top-2 left-1/2 transform -translate-x-1/2 z-10">
+            <div className="absolute top-2 left-1/2 -translate-x-1/2 z-10">
       <div className="flex items-center gap-2 px-3 py-2 bg-blue-500/90 text-white text-sm rounded-lg backdrop-blur-sm shadow-lg animate-in slide-in-from-top-2 duration-300">
         <Copy className="size-4" />
         <span>Content pasted</span>
@@ -144,12 +145,6 @@ function PureMultimodalInput({
   const { incrementMessageCount, remaining, hasReachedLimit } =
     useMessageLimit();
 
-  useEffect(() => {
-    if (textareaRef.current) {
-      adjustHeight();
-    }
-  }, []);
-
   const adjustHeight = useCallback(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
@@ -157,6 +152,12 @@ function PureMultimodalInput({
       textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight + 2, maxHeight)}px`;
     }
   }, [width]);
+
+  useEffect(() => {
+    if (textareaRef.current) {
+      adjustHeight();
+    }
+  }, [adjustHeight]);
 
   const resetHeight = useCallback(() => {
     if (textareaRef.current) {
@@ -189,6 +190,16 @@ function PureMultimodalInput({
     adjustHeight();
   };
 
+  // Forward declaration for handleFileUpload
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const handleFileUpload = useCallback(
+    async (file: File) => {
+      // Implementation will be defined below
+      await handleFileUploadImpl(file);
+    },
+    [],
+  );
+
   // Enhanced paste handling
   const handlePaste = useCallback((event: React.ClipboardEvent) => {
     const items = event.clipboardData?.items;
@@ -212,7 +223,7 @@ function PureMultimodalInput({
       setShowPasteIndicator(true);
       setTimeout(() => setShowPasteIndicator(false), 3000);
     }
-  }, []);
+  }, [handleFileUpload]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadQueue, setUploadQueue] = useState<Array<string>>([]);
@@ -304,7 +315,7 @@ function PureMultimodalInput({
     }
   };
 
-  const handleFileUpload = useCallback(
+  const handleFileUploadImpl = useCallback(
     async (file: File) => {
       // Validate file type and size
       const maxSize = 50 * 1024 * 1024; // 50MB for larger documents and videos
@@ -424,7 +435,7 @@ function PureMultimodalInput({
       const files = Array.from(event.target.files || []);
 
       for (const file of files) {
-        await handleFileUpload(file);
+        await handleFileUploadImpl(file);
       }
 
       // Reset input
@@ -432,7 +443,7 @@ function PureMultimodalInput({
         fileInputRef.current.value = '';
       }
     },
-    [setAttachments, handleFileUpload],
+    [handleFileUploadImpl],
   );
 
   // Drag and drop handling
@@ -464,9 +475,9 @@ function PureMultimodalInput({
       setIsDragging(false);
 
       const files = Array.from(e.dataTransfer.files);
-      files.forEach(handleFileUpload);
+      files.forEach(handleFileUploadImpl);
     },
-    [handleFileUpload],
+    [handleFileUploadImpl],
   );
 
   const { isAtBottom, scrollToBottom } = useScrollToBottom();

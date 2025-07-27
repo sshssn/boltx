@@ -69,7 +69,7 @@ function ErrorDisplay({
     <div className="flex justify-center w-full px-4 mb-4">
       <div className="flex items-center gap-3 bg-red-50 dark:bg-red-950/20 backdrop-blur-xl border border-red-200/80 dark:border-red-800/60 shadow-lg rounded-xl px-4 py-3 max-w-md">
         <div className="flex items-center gap-2 flex-1">
-          <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400 flex-shrink-0" />
+          <AlertTriangle className="size-5 text-red-600 dark:text-red-400 shrink-0" />
           <div className="flex flex-col gap-1">
             <p className="text-sm font-medium text-red-900 dark:text-red-100">
               Failed to get response from AI
@@ -80,24 +80,15 @@ function ErrorDisplay({
           </div>
         </div>
         <Button
-          onClick={onRetry}
-          disabled={isRetrying}
-          size="sm"
           variant="outline"
-          className="flex items-center gap-1 bg-white dark:bg-red-900/50 border-red-300 dark:border-red-700 text-red-700 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/70 text-xs px-3 py-1.5 h-auto disabled:opacity-50"
+          size="sm"
+          onClick={onRetry}
+          className="shrink-0 border-red-500/30 text-red-700 dark:text-red-300 hover:bg-red-500/10 hover:border-red-500/50"
         >
-          {isRetrying ? (
-            <>
-              <RefreshCw className="h-3 w-3 animate-spin" />
-              Retrying...
-            </>
-          ) : (
-            <>
-              <RefreshCw className="h-3 w-3" />
-              Retry
-            </>
-          )}
+          <RefreshCw className="size-3 mr-1" />
+          Retry
         </Button>
+
       </div>
     </div>
   );
@@ -159,7 +150,7 @@ function GuestMessageLimit({ messages }: { messages: ChatMessage[] }) {
               >
                 <span className="hidden sm:inline">Sign up free</span>
                 <span className="sm:hidden">Sign up</span>
-                <Sparkles className="w-3 h-3" />
+                <Sparkles className="size-3" />
               </a>
             </div>
           ) : (
@@ -178,7 +169,7 @@ function GuestMessageLimit({ messages }: { messages: ChatMessage[] }) {
                 rel="noopener noreferrer"
               >
                 Upgrade
-                <Sparkles className="w-3 h-3" />
+                <Sparkles className="size-3" />
               </a>
             </div>
           )}

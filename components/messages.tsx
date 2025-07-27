@@ -42,8 +42,6 @@ interface MessagesProps {
   onGuestLimit?: (limit: number, used: number) => void;
 }
 
-// Simple Thinking Dots Component
-
 // Enhanced ScrollToBottomButton component
 function ScrollToBottomButton({
   chatContainerRef,
@@ -70,9 +68,9 @@ function ScrollToBottomButton({
       onClick={scrollToBottom}
       size="sm"
       variant="outline"
-      className={`fixed bottom-20 left-1/2 transform -translate-x-1/2 z-10 rounded-full shadow-lg bg-white/90 dark:bg-zinc-800/90 backdrop-blur-sm border-zinc-200/50 dark:border-zinc-700/50 hover:bg-white dark:hover:bg-zinc-800 transition-all duration-200 ${className}`}
+      className={`fixed bottom-20 left-1/2 -translate-x-1/2 z-10 rounded-full shadow-lg bg-white/90 dark:bg-zinc-800/90 backdrop-blur-sm border-zinc-200/50 dark:border-zinc-700/50 hover:bg-white dark:hover:bg-zinc-800 transition-all duration-200 ${className}`}
     >
-      <ChevronDown className="h-4 w-4" />
+      <ChevronDown className="size-4" />
     </Button>
   );
 }
@@ -202,7 +200,7 @@ export const Messages = memo((props: MessagesProps) => {
         clearTimeout(errorTimeout);
       }
     };
-  }, [status]);
+  }, [status, errorTimeout]);
 
   // Monitor for stuck streaming states
   useEffect(() => {
@@ -360,8 +358,11 @@ export const Messages = memo((props: MessagesProps) => {
               ? votes.find((vote) => vote.messageId === message.id)
               : undefined
           }
+          setMessages={setMessages}
+          regenerate={regenerate}
           isReadonly={isReadonly}
-          isArtifactVisible={isArtifactVisible}
+          requiresScrollPadding={false}
+          isStreaming={status === 'streaming' && index === messages.length - 1}
         />
       ))}
 
@@ -388,7 +389,7 @@ export const Messages = memo((props: MessagesProps) => {
               rel="noopener noreferrer"
             >
               {isGuest ? 'Sign up free' : 'Upgrade'}
-              <Sparkles className="w-3 h-3" />
+              <Sparkles className="size-3" />
             </a>
           </div>
         </div>
