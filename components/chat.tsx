@@ -465,6 +465,7 @@ export function Chat({
         flex flex-col min-w-0 h-dvh chat-container
         bg-white dark:bg-zinc-950
         transition-all duration-300
+        ${isMobile ? 'pb-20' : ''}
       `}
       >
         <div className="flex-1 flex flex-col relative" style={{ minHeight: 0 }}>
@@ -478,7 +479,9 @@ export function Chat({
               <div className="w-full max-w-2xl">
                 <SuggestedActions
                   chatId={id}
-                  sendMessage={sendMessageHook}
+                  sendMessage={(message: string) =>
+                    sendMessageHook({ text: message })
+                  }
                   selectedVisibilityType={initialVisibilityType}
                   setInput={setInput}
                 />
@@ -587,7 +590,7 @@ export function Chat({
               className={`
               flex mx-auto gap-2 w-full
               ${isMobile ? 'px-3 sm:px-4' : 'px-6 md:max-w-4xl'}
-              pb-4
+              ${isMobile ? 'pb-6' : 'pb-4'}
             `}
             >
               {!isReadonly && (

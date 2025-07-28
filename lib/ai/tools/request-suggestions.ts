@@ -7,6 +7,13 @@ import { generateUUID } from '@/lib/utils';
 import { geminiProvider } from '../providers';
 import type { ChatMessage } from '@/lib/types';
 
+// Create a V2-compatible wrapper for the V1 provider
+const createV2CompatibleModel = (v1Model: any) => ({
+  ...v1Model,
+  specificationVersion: 'v2' as const,
+  supportedUrls: { '*': [/.*/] },
+});
+
 interface RequestSuggestionsProps {
   session: Session;
   dataStream: UIMessageStreamWriter<ChatMessage>;
@@ -37,7 +44,9 @@ export const requestSuggestions = ({
       > = [];
 
       const { elementStream } = streamObject({
-        model: geminiProvider.languageModel('gemini-2.5-flash'),
+        model: createV2CompatibleModel(
+          geminiProvider.languageModel('gemini-2.5-flash'),
+        ),
         system:
           'Suggest writing improvements. Use full sentences. Max 5 suggestions.',
         prompt: document.content,

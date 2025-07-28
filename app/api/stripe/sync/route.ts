@@ -1,90 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/app/(auth)/auth';
-import { stripe } from '@/lib/stripe';
+import { stripe, syncStripeDataToDB } from '@/lib/stripe';
 import { db } from '@/lib/db/queries';
 import { user } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
-
-export async function syncStripeDataToDB(userId: string) {
-  try {
-    // Get user from database
-    const userRecord = await db
-      .select()
-      .from(user)
-      .where(eq(user.id, userId))
-      .limit(1);
-    if (!userRecord.length) {
-      throw new Error('User not found');
-    }
-
-    const currentUser = userRecord[0];
-    const stripeCustomerId = currentUser.stripeCustomerId;
-
-    if (!stripeCustomerId) {
-      // Update user to Pro plan
-      await db
-        .update(user)
-        .set({
-          plan: 'pro',
-        })
-        .where(eq(user.id, userId));
-      return { status: 'pro' };
-    }
-
-    // Fetch latest subscription data from Stripe
-    const subscriptions = await stripe.subscriptions.list({
-      customer: stripeCustomerId,
-      limit: 1,
-      status: 'all',
-      expand: ['data.default_payment_method'],
-    });
-
-    if (subscriptions.data.length === 0) {
-      // No active subscription, revert to free plan
-      await db
-        .update(user)
-        .set({
-          plan: 'free',
-        })
-        .where(eq(user.id, userId));
-      return { status: 'free' };
-    }
-
-    const subscription = subscriptions.data[0];
-
-    // Check if subscription is active
-    if (
-      subscription.status === 'active' ||
-      subscription.status === 'trialing'
-    ) {
-      // Update user to Pro plan
-      await db
-        .update(user)
-        .set({
-          plan: 'pro',
-        })
-        .where(eq(user.id, userId));
-      return {
-        status: 'pro',
-        subscriptionId: subscription.id,
-        currentPeriodEnd: (subscription as any).current_period_end,
-        cancelAtPeriodEnd: (subscription as any).cancel_at_period_end,
-      };
-    } else {
-      // Subscription is not active, revert to free plan
-      await db
-        .update(user)
-        .set({
-          plan: 'free',
-        })
-        .where(eq(user.id, userId));
-      return { status: 'free' };
-    }
-  } catch (error) {
-    console.error('Error syncing Stripe data:', error);
-    throw error;
-  }
-}
 
 export async function POST(req: NextRequest) {
   try {

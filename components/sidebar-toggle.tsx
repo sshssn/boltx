@@ -57,7 +57,7 @@ export function SidebarToggle({
             }}
             className="relative z-10"
           >
-            <SidebarLeftIcon size={isMobile ? 14 : 16} />
+            <SidebarLeftIcon size={isMobile ? 13 : 14} />
           </motion.div>
 
           {/* Ripple effect on click */}

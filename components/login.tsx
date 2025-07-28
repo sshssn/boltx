@@ -14,16 +14,28 @@ export default function LoginPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     setLoading(true);
     setError('');
-    const res = await signIn('credentials', {
-      email,
-      password,
-      redirect: true,
-      callbackUrl: '/chat',
-    });
-    if (res?.error) setError('Invalid credentials');
-    setLoading(false);
+
+    try {
+      const res = await signIn('credentials', {
+        email,
+        password,
+        redirect: false,
+        callbackUrl: '/chat',
+      });
+
+      if (res?.error) {
+        setError('Invalid credentials');
+      } else if (res?.ok) {
+        window.location.href = '/chat';
+      }
+    } catch (error) {
+      setError('An error occurred. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -137,14 +149,8 @@ export default function LoginPage() {
               >
                 <path fill="#f1511b" d="M121.666 121.666H0V0h121.666z" />
                 <path fill="#80cc28" d="M256 121.666H134.335V0H256z" />
-                <path
-                  fill="#00adef"
-                  d="M121.663 256.002H0V134.336h121.663z"
-                />
-                <path
-                  fill="#fbbc09"
-                  d="M256 256.002H134.335V134.336H256z"
-                />
+                <path fill="#00adef" d="M121.663 256.002H0V134.336h121.663z" />
+                <path fill="#fbbc09" d="M256 256.002H134.335V134.336H256z" />
               </svg>
               <span>Microsoft</span>
             </Button>

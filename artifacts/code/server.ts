@@ -1,8 +1,15 @@
 import { z } from 'zod';
 import { streamObject } from 'ai';
-import { myProvider } from '@/lib/ai/providers';
+import { geminiProvider } from '@/lib/ai/providers';
 import { codePrompt, updateDocumentPrompt } from '@/lib/ai/prompts';
 import { createDocumentHandler } from '@/lib/artifacts/server';
+
+// Create a V2-compatible wrapper for the V1 provider
+const createV2CompatibleModel = (v1Model: any) => ({
+  ...v1Model,
+  specificationVersion: 'v2' as const,
+  supportedUrls: { '*': [/.*/] },
+});
 
 export const codeDocumentHandler = createDocumentHandler<'code'>({
   kind: 'code',
@@ -10,7 +17,9 @@ export const codeDocumentHandler = createDocumentHandler<'code'>({
     let draftContent = '';
 
     const { fullStream } = streamObject({
-      model: myProvider.languageModel('artifact-model'),
+      model: createV2CompatibleModel(
+        geminiProvider.languageModel('gemini-1.5-pro'),
+      ),
       system: codePrompt,
       prompt: title,
       schema: z.object({
@@ -43,7 +52,9 @@ export const codeDocumentHandler = createDocumentHandler<'code'>({
     let draftContent = '';
 
     const { fullStream } = streamObject({
-      model: myProvider.languageModel('artifact-model'),
+      model: createV2CompatibleModel(
+        geminiProvider.languageModel('gemini-1.5-pro'),
+      ),
       system: updateDocumentPrompt(document.content, 'code'),
       prompt: description,
       schema: z.object({

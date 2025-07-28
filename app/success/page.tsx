@@ -1,11 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { CheckCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
-export default function SuccessPage() {
+function SuccessPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isLoading, setIsLoading] = useState(true);
@@ -53,7 +53,7 @@ export default function SuccessPage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center space-y-4">
-          <Loader2 className="w-12 h-12 animate-spin mx-auto text-primary" />
+          <Loader2 className="size-12 animate-spin mx-auto text-primary" />
           <h1 className="text-2xl font-bold">Setting up your Pro plan...</h1>
           <p className="text-muted-foreground">
             Please wait while we configure your subscription.
@@ -67,7 +67,7 @@ export default function SuccessPage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center space-y-4">
-          <div className="w-12 h-12 bg-destructive/20 rounded-full flex items-center justify-center mx-auto">
+          <div className="size-12 bg-destructive/20 rounded-full flex items-center justify-center mx-auto">
             <span className="text-destructive text-xl">!</span>
           </div>
           <h1 className="text-2xl font-bold">Something went wrong</h1>
@@ -81,8 +81,8 @@ export default function SuccessPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-background">
       <div className="text-center space-y-6 max-w-md mx-auto p-6">
-        <div className="w-16 h-16 bg-green-100 dark:bg-green-900/20 rounded-full flex items-center justify-center mx-auto">
-          <CheckCircle className="w-8 h-8 text-green-600 dark:text-green-400" />
+        <div className="size-16 bg-green-100 dark:bg-green-900/20 rounded-full flex items-center justify-center mx-auto">
+          <CheckCircle className="size-8 text-green-600 dark:text-green-400" />
         </div>
 
         <div className="space-y-2">
@@ -119,5 +119,24 @@ export default function SuccessPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+function LoadingFallback() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="text-center space-y-4">
+        <Loader2 className="size-12 animate-spin mx-auto text-primary" />
+        <h1 className="text-2xl font-bold">Loading...</h1>
+      </div>
+    </div>
+  );
+}
+
+export default function SuccessPage() {
+  return (
+    <Suspense fallback={<LoadingFallback />}>
+      <SuccessPageContent />
+    </Suspense>
   );
 }

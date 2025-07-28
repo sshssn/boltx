@@ -7,6 +7,7 @@ import './globals.css';
 import { SessionProvider } from 'next-auth/react';
 import { DashboardOverlay } from '@/components/dashboard-overlay';
 import { Analytics } from '@vercel/analytics/next';
+import { MobileWarning } from '@/components/mobile-warning';
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://chat.vercel.ai'),
@@ -91,6 +92,7 @@ export default async function RootLayout({
               <main className="w-full min-h-screen flex flex-col">
                 {children}
               </main>
+              <MobileWarning />
               <Analytics />
             </ChatTitleUpdatesProvider>
           </SessionProvider>

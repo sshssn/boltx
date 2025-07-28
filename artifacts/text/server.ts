@@ -1,7 +1,14 @@
 import { smoothStream, streamText } from 'ai';
-import { myProvider } from '@/lib/ai/providers';
+import { geminiProvider } from '@/lib/ai/providers';
 import { createDocumentHandler } from '@/lib/artifacts/server';
 import { updateDocumentPrompt } from '@/lib/ai/prompts';
+
+// Create a V2-compatible wrapper for the V1 provider
+const createV2CompatibleModel = (v1Model: any) => ({
+  ...v1Model,
+  specificationVersion: 'v2' as const,
+  supportedUrls: { '*': [/.*/] },
+});
 
 export const textDocumentHandler = createDocumentHandler<'text'>({
   kind: 'text',
@@ -9,7 +16,9 @@ export const textDocumentHandler = createDocumentHandler<'text'>({
     let draftContent = '';
 
     const { fullStream } = streamText({
-      model: myProvider.languageModel('artifact-model'),
+      model: createV2CompatibleModel(
+        geminiProvider.languageModel('gemini-1.5-pro'),
+      ),
       system: 'Write about the topic. Use markdown and headings.',
       experimental_transform: smoothStream({ chunking: 'word' }),
       prompt: title,
@@ -37,7 +46,9 @@ export const textDocumentHandler = createDocumentHandler<'text'>({
     let draftContent = '';
 
     const { fullStream } = streamText({
-      model: myProvider.languageModel('artifact-model'),
+      model: createV2CompatibleModel(
+        geminiProvider.languageModel('gemini-1.5-pro'),
+      ),
       system: updateDocumentPrompt(document.content, 'text'),
       experimental_transform: smoothStream({ chunking: 'word' }),
       prompt: description,

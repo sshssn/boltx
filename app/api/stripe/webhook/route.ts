@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { headers } from 'next/headers';
 import { stripe, allowedEvents } from '@/lib/stripe';
-import { syncStripeDataToDB } from '../sync/route';
 
 export async function POST(req: NextRequest) {
   const body = await req.text();
