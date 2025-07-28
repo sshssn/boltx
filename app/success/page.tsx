@@ -95,7 +95,7 @@ export default function SuccessPage() {
 
         <div className="space-y-4">
           <div className="p-4 bg-muted/50 rounded-lg">
-            <h3 className="font-semibold mb-2">What's included:</h3>
+            <h3 className="font-semibold mb-2">What&apos;s included:</h3>
             <ul className="text-sm text-muted-foreground space-y-1">
               <li>• 500 messages per day</li>
               <li>• Advanced AI models</li>

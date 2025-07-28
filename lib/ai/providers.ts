@@ -11,9 +11,7 @@ const API_KEYS = [
 );
 
 // OpenRouter API key for fallback
-const OPENROUTER_API_KEY =
-  process.env.OPENROUTER_API_KEY ||
-  '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';
+const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 
 if (API_KEYS.length === 0 && !OPENROUTER_API_KEY) {
   throw new Error('No valid API keys found in environment variables');

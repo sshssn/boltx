@@ -230,9 +230,7 @@ async function generateAITitleWithPrompt(
   const opts = { ...DEFAULT_OPTIONS, ...options };
 
   try {
-    const OPENROUTER_API_KEY =
-      process.env.OPENROUTER_API_KEY ||
-      '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';
+    const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 
     const response = await fetch(
       'https://openrouter.ai/api/v1/chat/completions',
