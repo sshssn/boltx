@@ -25,6 +25,8 @@ import { useRouter } from 'next/navigation';
 import { toast } from './toast';
 import { LoaderIcon } from './icons';
 import { guestRegex } from '@/lib/constants';
+import { useUsername } from '@/hooks/use-username';
+import { UserAvatar } from './user-avatar';
 
 export function SidebarUserNav({ user }: { user: UserType }) {
   const router = useRouter();
@@ -33,9 +35,10 @@ export function SidebarUserNav({ user }: { user: UserType }) {
   const { isMobile, setOpenMobile } = useSidebar();
   const [isSigningOut, setIsSigningOut] = useState(false);
 
+  const { username } = useUsername();
   const isGuest = guestRegex.test(data?.user?.email ?? '');
-  const displayName = user?.email?.split('@')[0] || 'User';
-  const fullEmail = user?.email || 'guest@example.com';
+  const displayName = username || user?.email?.split('@')[0] || 'User';
+  const userEmail = data?.user?.email || user?.email || 'guest@example.com';
 
   const handleSignOut = async () => {
     setIsSigningOut(true);
@@ -107,19 +110,12 @@ export function SidebarUserNav({ user }: { user: UserType }) {
               whileTap={{ scale: 0.98 }}
             >
               {/* Avatar */}
-              <div className="relative">
-                <Image
-                  src={`https://avatar.vercel.sh/${fullEmail}?size=32`}
-                  alt={`${displayName}'s avatar`}
-                  width={32}
-                  height={32}
-                  className="rounded-full border-2 border-border/50 group-hover:border-border transition-colors"
-                  priority
-                />
-                {!isGuest && (
-                  <div className="absolute -bottom-0.5 -right-0.5 size-3 bg-green-500 border-2 border-background rounded-full" />
-                )}
-              </div>
+              <UserAvatar
+                email={userEmail}
+                name={displayName}
+                size={32}
+                className="border-2 border-border/50 group-hover:border-border transition-colors"
+              />
 
               {/* User info */}
               <div className="flex-1 text-left min-w-0">
@@ -127,7 +123,7 @@ export function SidebarUserNav({ user }: { user: UserType }) {
                   {isGuest ? 'Guest User' : displayName}
                 </div>
                 <div className="text-xs text-muted-foreground truncate">
-                  {isGuest ? 'Limited access' : fullEmail}
+                  {isGuest ? 'Limited access' : userEmail}
                 </div>
               </div>
 
@@ -153,7 +149,7 @@ export function SidebarUserNav({ user }: { user: UserType }) {
                 {isGuest ? 'Guest User' : displayName}
               </div>
               <div className="text-xs text-muted-foreground truncate">
-                {fullEmail}
+                {userEmail}
               </div>
             </div>
 

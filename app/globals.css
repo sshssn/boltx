@@ -10,17 +10,7 @@
   font-style: normal;
   font-display: swap;
 }
-@font-face {
-  font-family: 'JetBrains Mono';
-  src: url('/fonts/JetBrainsMono-Regular.woff2') format('woff2'),
-       url('/fonts/JetBrainsMono-Regular.woff') format('woff');
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-.font-jetbrains, code, pre, .cm-editor, .cm-gutters {
-  font-family: 'JetBrains Mono', monospace !important;
-}
+/* JetBrains Mono font removed - using system fonts instead */
 
 :root {
     --foreground-rgb: 0, 0, 0;

@@ -23,12 +23,16 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { KeyboardShortcuts } from './keyboard-shortcuts';
+import { ShortcutsOverlay } from './shortcuts-overlay';
 import { useCopyToClipboard } from 'usehooks-ts';
 import { toast } from 'sonner';
 import { useMessageLimit } from '@/components/message-limit-provider';
 import { X, Sparkles, AlertTriangle, RefreshCw } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { ChatTitleManager } from './chat-title-manager';
+import { GlobalMessageLimit } from '@/components/global-message-limit';
+import { CompactUsageCounter } from '@/components/compact-usage-counter';
+import { LoaderIcon } from './icons';
 
 interface ChatProps {
   id: string;
@@ -103,127 +107,6 @@ function ErrorDisplay({
   );
 }
 
-// Enhanced Guest Message Limit Component with better mobile styling
-function GuestMessageLimit({ messages }: { messages: ChatMessage[] }) {
-  const { data: session } = useSession();
-  const [showLimit, setShowLimit] = useState(true);
-  const [showSignupModal, setShowSignupModal] = useState(false);
-
-  const {
-    messagesUsed,
-    messagesLimit,
-    isLoading,
-    isGuest,
-    isRegular,
-    remaining,
-    hasReachedLimit,
-    incrementMessageCount,
-  } = useMessageLimit();
-
-  useEffect(() => {
-    const userMessages = messages.filter((msg) => msg.role === 'user');
-    if (userMessages.length > messagesUsed) {
-      const diff = userMessages.length - messagesUsed;
-      for (let i = 0; i < diff; i++) {
-        incrementMessageCount();
-      }
-    }
-  }, [messages, messagesUsed, incrementMessageCount]);
-
-  useEffect(() => {
-    if ((isGuest || isRegular) && hasReachedLimit) {
-      setShowSignupModal(true);
-    }
-  }, [isGuest, isRegular, hasReachedLimit]);
-
-  if (!showLimit || (!isGuest && !isRegular)) return null;
-
-  return (
-    <>
-      <div className="flex justify-center w-full px-3 mb-4">
-        <div className="flex items-center gap-2 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl border border-zinc-200/80 dark:border-zinc-700/60 shadow-xl rounded-xl text-sm font-medium px-4 py-3 transition-all duration-200 hover:bg-white dark:hover:bg-zinc-900 max-w-full">
-          {isGuest ? (
-            <div className="flex items-center gap-2 flex-wrap justify-center">
-              <span className="text-zinc-700 dark:text-zinc-300 whitespace-nowrap flex items-center gap-1">
-                <span className="text-blue-600 dark:text-blue-400 font-bold">
-                  {remaining}
-                </span>
-                <span className="hidden sm:inline">messages left today</span>
-                <span className="sm:hidden">left today</span>
-              </span>
-              <a
-                href="/auth"
-                className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white text-xs rounded-lg transition-colors duration-200 font-medium"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <span className="hidden sm:inline">Sign up free</span>
-                <span className="sm:hidden">Sign up</span>
-                <Sparkles className="w-3 h-3" />
-              </a>
-            </div>
-          ) : (
-            <div className="flex items-center gap-2 flex-wrap justify-center">
-              <span className="text-zinc-700 dark:text-zinc-300 whitespace-nowrap flex items-center gap-1">
-                <span className="text-blue-600 dark:text-blue-400 font-bold">
-                  {remaining}
-                </span>
-                <span className="hidden sm:inline">messages left today</span>
-                <span className="sm:hidden">left today</span>
-              </span>
-              <a
-                href="/account"
-                className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white text-xs rounded-lg transition-colors duration-200 font-medium"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Upgrade
-                <Sparkles className="w-3 h-3" />
-              </a>
-            </div>
-          )}
-        </div>
-      </div>
-
-      <AlertDialog open={showSignupModal} onOpenChange={setShowSignupModal}>
-        <AlertDialogContent className="sm:max-w-md mx-4 rounded-xl">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-lg font-semibold">
-              Message Limit Reached
-            </AlertDialogTitle>
-            <AlertDialogDescription className="text-sm text-zinc-600 dark:text-zinc-400">
-              You&apos;ve reached your daily message limit. Sign up for free to
-              get more messages or upgrade to Pro for unlimited access.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
-            <AlertDialogCancel asChild>
-              <Button
-                variant="outline"
-                className="w-full sm:w-auto order-2 sm:order-1"
-              >
-                <X className="size-4 mr-2" />
-                Close
-              </Button>
-            </AlertDialogCancel>
-            <AlertDialogAction asChild>
-              <Button
-                className="w-full sm:w-auto order-1 sm:order-2"
-                onClick={() =>
-                  window.open(isGuest ? '/auth' : '/account', '_blank')
-                }
-              >
-                <Sparkles className="size-4 mr-2" />
-                {isGuest ? 'Sign Up Free' : 'Upgrade'}
-              </Button>
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </>
-  );
-}
-
 export function Chat({
   id,
   initialMessages,
@@ -239,6 +122,7 @@ export function Chat({
   const [isArtifactVisible, setIsArtifactVisible] = useState(false);
   const [lastError, setLastError] = useState<any>(null);
   const [isRetrying, setIsRetrying] = useState(false);
+  const [isSlowResponse, setIsSlowResponse] = useState(false);
 
   const {
     messages,
@@ -260,18 +144,43 @@ export function Chat({
 
   const [input, setInput] = useState('');
   // Only disable input when actually streaming, not when there's an error
-  const inputDisabled = status === 'streaming' && !lastError;
+  const inputDisabled = status === 'streaming';
   const visibilityType = initialVisibilityType;
 
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [votes, setVotes] = useState<Vote[]>([]);
+  const [currentTitle, setCurrentTitle] = useState<string>('New Chat');
+  const [isTitleGenerating, setIsTitleGenerating] = useState<boolean>(false);
+  const [isTitleRevealing, setIsTitleRevealing] = useState<boolean>(false);
+  const [showShortcutsOverlay, setShowShortcutsOverlay] =
+    useState<boolean>(false);
+
+  // Get message limit data for the main chat component
+  const { hasReachedLimit } = useMessageLimit();
 
   // Clear error when messages change successfully
   useEffect(() => {
-    if (messages.length > 0 && lastError) {
+    if (messages.length > 0 && lastError && status !== 'error') {
       setLastError(null);
     }
-  }, [messages.length, lastError]);
+  }, [messages.length, lastError, status]);
+
+  // Monitor for slow responses - only trigger after 30 seconds
+  useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
+
+    if (status === 'streaming') {
+      timeoutId = setTimeout(() => {
+        setIsSlowResponse(true);
+      }, 30000); // Show slow response warning after 30 seconds
+    } else {
+      setIsSlowResponse(false);
+    }
+
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, [status]);
 
   // Emit new chat creation event when chat starts
   useEffect(() => {
@@ -290,6 +199,37 @@ export function Chat({
     }
   }, [id, messages.length]);
 
+  // Listen for title update events from ChatTitleManager
+  useEffect(() => {
+    const handleTitleUpdate = (event: CustomEvent) => {
+      const { chatId, title, isGenerating, isRevealing, status } = event.detail;
+
+      // Only update if this event is for our current chat
+      if (chatId === id) {
+        setCurrentTitle(title || 'New Chat');
+        setIsTitleGenerating(isGenerating || false);
+        setIsTitleRevealing(isRevealing || false);
+
+        // Update browser tab title
+        if (title && title !== 'New Chat' && title !== 'New Thread...') {
+          document.title = `${title} - boltX`;
+        } else {
+          document.title = 'boltX';
+        }
+      }
+    };
+
+    window.addEventListener(
+      'chat-title-update',
+      handleTitleUpdate as EventListener,
+    );
+    return () =>
+      window.removeEventListener(
+        'chat-title-update',
+        handleTitleUpdate as EventListener,
+      );
+  }, [id]);
+
   const handleGuestLimit = () => {};
 
   const handleNewChat = () => {
@@ -297,13 +237,23 @@ export function Chat({
   };
 
   const handleSearch = () => {
-    // Implement search functionality
-    console.log('Search triggered');
+    // Focus the input field
+    const inputElement = document.querySelector(
+      'textarea[placeholder*="message"], input[placeholder*="message"]',
+    ) as HTMLTextAreaElement | HTMLInputElement;
+    if (inputElement) {
+      inputElement.focus();
+    }
   };
 
   const handleToggleTheme = () => {
-    // Implement theme toggle
-    console.log('Theme toggle triggered');
+    // Toggle theme using next-themes
+    const themeToggle = document.querySelector(
+      '[data-theme-toggle]',
+    ) as HTMLElement;
+    if (themeToggle) {
+      themeToggle.click();
+    }
   };
 
   const handleRegenerate = () => {
@@ -343,6 +293,11 @@ export function Chat({
 
   // Handle API errors gracefully with better mobile-friendly toasts
   const handleApiError = (error: any) => {
+    // Check if error is retryable
+    const isRetryable = error?.retryable !== false;
+    const errorMessage =
+      error?.error || error?.message || 'Unknown error occurred';
+
     // Check for rate limiting in error message
     if (
       error?.status === 429 ||
@@ -363,6 +318,31 @@ export function Chat({
       toast.error('API access denied. Please check your configuration.', {
         duration: 4000,
       });
+    } else if (error?.status === 408) {
+      // Timeout error - show retry option
+      toast.error('AI response took too long. Please try again.', {
+        duration: 4000,
+        action: isRetryable
+          ? {
+              label: 'Retry',
+              onClick: () => handleRetry(),
+            }
+          : undefined,
+      });
+    } else if (error?.status === 503) {
+      // Network error - show retry option
+      toast.error(
+        'Network connection failed. Please check your internet and try again.',
+        {
+          duration: 4000,
+          action: isRetryable
+            ? {
+                label: 'Retry',
+                onClick: () => handleRetry(),
+              }
+            : undefined,
+        },
+      );
     } else if (
       error?.message?.includes('API keys') ||
       error?.details?.includes('API keys')
@@ -374,12 +354,15 @@ export function Chat({
         },
       );
     } else {
-      toast.error('AI service temporarily unavailable. Please try again.', {
+      // Generic error with smart retry
+      toast.error(errorMessage, {
         duration: 3000,
-        action: {
-          label: 'Retry',
-          onClick: () => window.location.reload(),
-        },
+        action: isRetryable
+          ? {
+              label: 'Retry',
+              onClick: () => handleRetry(),
+            }
+          : undefined,
       });
     }
   };
@@ -401,21 +384,26 @@ export function Chat({
   const handleRetry = () => {
     setLastError(null);
     setIsRetrying(true);
+
     // Get the last user message and retry it
     const lastUserMessage = messages.findLast((m) => m.role === 'user');
     if (lastUserMessage) {
-      const messageText =
-        lastUserMessage.parts?.find((part) => part.type === 'text')?.text || '';
-      if (messageText) {
-        sendMessage(messageText);
-      }
+      // Pass the entire message object, not just the text
+      setTimeout(() => {
+        sendMessageHook(lastUserMessage);
+        setIsRetrying(false);
+      }, 1000);
+    } else {
+      setIsRetrying(false);
     }
-    setIsRetrying(false);
   };
 
   // Clear error when user sends a new message
   const handleNewMessage = async (message: any) => {
-    setLastError(null); // Clear any previous errors
+    // Only clear error if we're not currently in an error state
+    if (status !== 'error') {
+      setLastError(null);
+    }
     try {
       await sendMessageHook(message);
     } catch (error: any) {
@@ -435,6 +423,12 @@ export function Chat({
         onCopyLastMessage={handleCopyLastMessage}
         onRegenerate={regenerate}
         onStopGeneration={stop}
+        onShowShortcuts={() => setShowShortcutsOverlay(true)}
+      />
+
+      <ShortcutsOverlay
+        isVisible={showShortcutsOverlay}
+        onClose={() => setShowShortcutsOverlay(false)}
       />
 
       {/* Chat Title Manager - handles real-time title generation */}
@@ -451,6 +445,18 @@ export function Chat({
               .find((m) => m.role === 'assistant')
               ?.parts?.find((part) => part.type === 'text')?.text
           }
+          isStreaming={status === 'streaming'}
+          onTitleChange={(title, isGenerating) => {
+            setCurrentTitle(title);
+            setIsTitleGenerating(isGenerating);
+
+            // Update browser tab title
+            if (title && title !== 'New Chat' && title !== 'New Thread...') {
+              document.title = `${title} - boltX`;
+            } else {
+              document.title = 'boltX';
+            }
+          }}
         />
       )}
 
@@ -480,6 +486,36 @@ export function Chat({
             </div>
           ) : (
             <>
+              {/* Title Generation Indicator */}
+              {isTitleGenerating && (
+                <div className="flex items-center justify-center gap-2 py-2 px-4 bg-blue-50 dark:bg-blue-950/20 border-b border-blue-200/50 dark:border-blue-800/50">
+                  <div className="animate-spin">
+                    <LoaderIcon size={14} />
+                  </div>
+                  <span className="text-sm text-blue-700 dark:text-blue-300 font-medium">
+                    New Thread...
+                  </span>
+                </div>
+              )}
+
+              {/* Current Title Display */}
+              {currentTitle &&
+                currentTitle !== 'New Chat' &&
+                currentTitle !== 'New Thread...' &&
+                !isTitleGenerating && (
+                  <div className="flex items-center justify-center py-2 px-4 bg-green-50 dark:bg-green-950/20 border-b border-green-200/50 dark:border-green-800/50">
+                    <span
+                      className={`
+                        text-sm text-green-700 dark:text-green-300 font-medium truncate max-w-md
+                        transition-opacity duration-500
+                        ${isTitleRevealing ? 'opacity-0' : 'opacity-100'}
+                      `}
+                    >
+                      {currentTitle}
+                    </span>
+                  </div>
+                )}
+
               <Messages
                 chatId={id}
                 status={status}
@@ -491,6 +527,7 @@ export function Chat({
                 extraPaddingBottom
                 onGuestLimit={handleGuestLimit}
                 votes={votes}
+                limitReached={hasReachedLimit}
               />
             </>
           )}
@@ -513,8 +550,38 @@ export function Chat({
               />
             )}
 
-            {/* Message Limit Display */}
-            <GuestMessageLimit messages={messages} />
+            {/* Slow Response Warning */}
+            {isSlowResponse && status === 'streaming' && (
+              <div className="flex justify-center w-full px-4 mb-4">
+                <div className="flex items-center gap-2 bg-yellow-50 dark:bg-yellow-950/20 backdrop-blur-xl border border-yellow-200/80 dark:border-yellow-800/60 shadow-lg rounded-xl px-4 py-3 max-w-md">
+                  <div className="flex items-center gap-2 flex-1">
+                    <div className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse" />
+                    <div className="flex flex-col gap-1">
+                      <p className="text-sm font-medium text-yellow-900 dark:text-yellow-100">
+                        AI is taking longer than usual
+                      </p>
+                      <p className="text-xs text-yellow-700 dark:text-yellow-300">
+                        This might be due to high demand. Please wait...
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    onClick={stop}
+                    size="sm"
+                    variant="outline"
+                    className="flex items-center gap-1 bg-white dark:bg-yellow-900/50 border-yellow-300 dark:border-yellow-700 text-yellow-700 dark:text-yellow-300 hover:bg-yellow-50 dark:hover:bg-yellow-900/70 text-xs px-3 py-1.5 h-auto"
+                  >
+                    Stop
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Compact Usage Counter */}
+            <CompactUsageCounter />
+
+            {/* Global Message Limit Display */}
+            <GlobalMessageLimit />
 
             <div
               className={`
@@ -538,7 +605,7 @@ export function Chat({
                     setMessages={setMessages}
                     selectedVisibilityType={initialVisibilityType}
                     disabled={inputDisabled}
-                    limitReached={inputDisabled}
+                    limitReached={hasReachedLimit}
                   />
                 </div>
               )}

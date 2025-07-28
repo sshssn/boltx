@@ -13,42 +13,47 @@ import {
 } from './ui/dropdown-menu';
 import { MoreHorizontalIcon, TrashIcon, LoaderIcon } from './icons';
 import { memo, useState, useEffect } from 'react';
+import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 
-// Simple, clean title processing - GPT style
+// GPT-style title cleaning - more aggressive and smart
 const getCleanTitle = (title: string): string => {
   if (!title?.trim()) return 'New Chat';
 
-  // Remove common prefixes
-  let cleaned = title
-    .replace(/^(Chat|Conversation|Thread|New|Untitled)\s*[-:]?\s*/i, '')
-    .replace(/^\d+\.\s*/, '')
-    .replace(/^[-•*]\s*/, '')
-    .trim();
-
-  if (!cleaned) return 'New Chat';
-
-  // Take first 4-5 words max (GPT style)
-  const words = cleaned.split(' ').slice(0, 4);
-  cleaned = words.join(' ');
-
-  // Truncate if still too long
-  if (cleaned.length > 35) {
-    const truncated = cleaned.substring(0, 32);
-    const lastSpace = truncated.lastIndexOf(' ');
-    cleaned = `${lastSpace > 20 ? truncated.substring(0, lastSpace) : truncated}...`;
+  // If title is already good, return as is
+  if (title.length <= 40 && !title.includes('...')) {
+    return title;
   }
 
-  return cleaned;
+  // For longer titles, just do basic truncation
+  const maxLength =
+    typeof window !== 'undefined' && window.innerWidth < 768 ? 30 : 40;
+
+  if (title.length <= maxLength) {
+    return title;
+  }
+
+  // Simple truncation at word boundary
+  const truncated = title.slice(0, maxLength - 3);
+  const lastSpaceIndex = truncated.lastIndexOf(' ');
+
+  if (lastSpaceIndex > maxLength * 0.7) {
+    // Only truncate at space if it's not too early
+    return `${truncated.slice(0, lastSpaceIndex)}...`;
+  }
+
+  return `${truncated}...`;
 };
 
 const LoadingChatItem = ({ isActive }: { isActive: boolean }) => (
   <SidebarMenuItem>
     <SidebarMenuButton asChild isActive={isActive} disabled>
-      <div className="flex items-center gap-2 py-2 px-3">
-        <div className="animate-spin text-muted-foreground">
-          <LoaderIcon size={16} />
+      <div className="flex items-center gap-3 py-2 px-3 rounded-lg">
+        <div className="animate-spin text-muted-foreground shrink-0">
+          <LoaderIcon size={14} />
         </div>
-        <span className="text-sm text-muted-foreground">New Thread</span>
+        <span className="text-sm text-muted-foreground font-medium truncate">
+          New Thread...
+        </span>
       </div>
     </SidebarMenuButton>
   </SidebarMenuItem>
@@ -72,38 +77,46 @@ const PureChatItem = ({
   const [isHovered, setIsHovered] = useState(false);
   const [currentTitle, setCurrentTitle] = useState(chat.title);
   const [isGeneratingTitle, setIsGeneratingTitle] = useState(false);
+  const [isRevealingTitle, setIsRevealingTitle] = useState(false);
 
   useEffect(() => {
-    const handleStatusUpdate = (event: CustomEvent) => {
-      const { chatId, status, title } = event.detail;
+    const handleTitleUpdate = (event: CustomEvent) => {
+      const { chatId, title, status, isRevealing } = event.detail;
 
       if (chatId === chat.id) {
         if (status === 'generating-title') {
           setIsGeneratingTitle(true);
-          setCurrentTitle('New Thread');
+          setIsRevealingTitle(false);
+          setCurrentTitle('New Thread...');
         } else if (status === 'completed') {
           setIsGeneratingTitle(false);
-          setCurrentTitle(title);
+          if (title && title !== 'New Thread...') {
+            // Start reveal animation
+            setIsRevealingTitle(true);
+
+            // Small delay for smooth transition
+            setTimeout(() => {
+              setCurrentTitle(title);
+              setIsRevealingTitle(false);
+            }, 200);
+          }
         }
       }
     };
 
     window.addEventListener(
       'chat-status-update',
-      handleStatusUpdate as EventListener,
+      handleTitleUpdate as EventListener,
     );
     return () => {
       window.removeEventListener(
         'chat-status-update',
-        handleStatusUpdate as EventListener,
+        handleTitleUpdate as EventListener,
       );
     };
   }, [chat.id]);
 
-  // Check if this is a new chat (no real title yet)
-  const isNewChat =
-    !chat.title || chat.title === 'New Chat' || isGeneratingTitle;
-
+  // Show loading state when generating title or explicitly loading
   if (loading || isGeneratingTitle) {
     return <LoadingChatItem isActive={isActive} />;
   }
@@ -117,34 +130,73 @@ const PureChatItem = ({
         setIsHovered(true);
       }}
       onMouseLeave={() => setIsHovered(false)}
-      className="group"
+      className="group relative"
     >
       <SidebarMenuButton asChild isActive={isActive}>
         <Link
           href={`/chat/${chat.id}`}
           onClick={() => setOpenMobile(false)}
-          className="flex items-center gap-2 w-full py-2 px-3 text-sm hover:bg-sidebar-accent/50 transition-colors"
+          className={`
+            flex items-center gap-3 w-full py-2.5 px-3 text-sm rounded-lg
+            transition-all duration-200 hover:bg-sidebar-accent/60
+            ${
+              isActive
+                ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium'
+                : 'text-sidebar-foreground hover:text-sidebar-accent-foreground'
+            }
+          `}
         >
-          <span className="truncate font-medium">{cleanTitle}</span>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span
+                className={`
+                  truncate font-medium text-sm leading-tight
+                  transition-opacity duration-500
+                  ${isRevealingTitle ? 'opacity-0' : 'opacity-100'}
+                `}
+              >
+                {cleanTitle}
+              </span>
+            </TooltipTrigger>
+            {currentTitle !== cleanTitle && (
+              <TooltipContent side="right" className="max-w-xs">
+                <p className="text-sm">{currentTitle}</p>
+              </TooltipContent>
+            )}
+          </Tooltip>
         </Link>
       </SidebarMenuButton>
 
-      {/* Show delete button on hover */}
-      {isHovered && (
+      {/* Show delete button on hover - improved positioning */}
+      {isHovered && !isGeneratingTitle && (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <SidebarMenuAction className="opacity-100">
-              <MoreHorizontalIcon size={16} />
-              <span className="sr-only">More</span>
+            <SidebarMenuAction
+              className={`
+                opacity-100 transition-opacity duration-200
+                hover:bg-sidebar-accent-foreground/10
+                data-[state=open]:bg-sidebar-accent-foreground/10
+              `}
+              showOnHover
+            >
+              <MoreHorizontalIcon size={14} />
+              <span className="sr-only">Chat options</span>
             </SidebarMenuAction>
           </DropdownMenuTrigger>
-          <DropdownMenuContent side="bottom" align="end">
+          <DropdownMenuContent
+            side="right"
+            align="start"
+            className="min-w-[160px]"
+          >
             <DropdownMenuItem
               className="cursor-pointer text-destructive focus:bg-destructive/15 focus:text-destructive"
-              onClick={() => onDelete(chat.id)}
+              onClick={(e) => {
+                e.preventDefault();
+                onDelete(chat.id);
+              }}
             >
               <TrashIcon size={14} />
-              <span>Delete</span>
+              <span>Delete chat</span>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

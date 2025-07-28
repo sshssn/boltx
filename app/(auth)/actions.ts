@@ -9,6 +9,15 @@ import { signIn } from './auth';
 const authFormSchema = z.object({
   email: z.string().email(),
   password: z.string().min(6),
+  username: z
+    .string()
+    .min(3)
+    .max(32)
+    .regex(
+      /^[a-zA-Z0-9_-]+$/,
+      'Username must contain only letters, numbers, underscores, and hyphens',
+    )
+    .optional(),
 });
 
 export interface LoginActionState {
@@ -59,6 +68,7 @@ export const register = async (
     const validatedData = authFormSchema.parse({
       email: formData.get('email'),
       password: formData.get('password'),
+      username: formData.get('username'),
     });
 
     const [user] = await getUser(validatedData.email);
@@ -66,7 +76,15 @@ export const register = async (
     if (user) {
       return { status: 'user_exists' } as RegisterActionState;
     }
-    await createUser(validatedData.email, validatedData.password);
+
+    // Create user with username
+    await createUser(
+      validatedData.email,
+      validatedData.password,
+      validatedData.username,
+    );
+
+    // Sign in immediately
     await signIn('credentials', {
       email: validatedData.email,
       password: validatedData.password,

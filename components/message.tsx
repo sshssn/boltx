@@ -1,7 +1,7 @@
 'use client';
 import cx from 'classnames';
 import { AnimatePresence, motion } from 'framer-motion';
-import { memo, useState } from 'react';
+import { memo, useState, useEffect } from 'react';
 import type { Vote } from '@/lib/db/schema';
 import { DocumentToolCall, DocumentToolResult } from './document';
 import { PencilEditIcon, SparklesIcon } from './icons';
@@ -19,7 +19,6 @@ import { MessageReasoning } from './message-reasoning';
 import type { UseChatHelpers } from '@ai-sdk/react';
 import type { ChatMessage } from '@/lib/types';
 import { useDataStream } from './data-stream-provider';
-import '@fontsource/jetbrains-mono';
 
 // Type narrowing is handled by TypeScript's control flow analysis
 // The AI SDK provides proper discriminated unions for tool calls
@@ -35,6 +34,7 @@ const PurePreviewMessage = ({
   requiresScrollPadding,
   isStreaming,
   style,
+  limitReached = false,
 }: {
   chatId: string;
   message: ChatMessage;
@@ -46,6 +46,7 @@ const PurePreviewMessage = ({
   requiresScrollPadding: boolean;
   isStreaming?: boolean;
   style?: React.CSSProperties;
+  limitReached?: boolean;
 }) => {
   const [mode, setMode] = useState<'view' | 'edit'>('view');
 
@@ -129,15 +130,20 @@ const PurePreviewMessage = ({
                             <Button
                               data-testid="message-edit-button"
                               variant="ghost"
-                              className="px-2 h-fit rounded-full text-indigo-500 hover:bg-indigo-50 hover:text-indigo-700 focus-visible:ring-2 focus-visible:ring-indigo-500 transition opacity-0 group-hover/message:opacity-100"
+                              className="px-2 h-fit rounded-full text-indigo-500 hover:bg-indigo-50 hover:text-indigo-700 focus-visible:ring-2 focus-visible:ring-indigo-500 transition opacity-0 group-hover/message:opacity-100 disabled:opacity-50 disabled:cursor-not-allowed"
                               onClick={() => {
                                 setMode('edit');
                               }}
+                              disabled={limitReached}
                             >
                               <PencilEditIcon />
                             </Button>
                           </TooltipTrigger>
-                          <TooltipContent>Edit message</TooltipContent>
+                          <TooltipContent>
+                            {limitReached
+                              ? 'Message limit reached'
+                              : 'Edit message'}
+                          </TooltipContent>
                         </Tooltip>
                       )}
 
@@ -170,6 +176,7 @@ const PurePreviewMessage = ({
                         setMode={setMode}
                         setMessages={setMessages}
                         regenerate={regenerate}
+                        limitReached={limitReached}
                       />
                     </div>
                   );
@@ -351,6 +358,16 @@ export const PreviewMessage = memo(
 );
 
 export const ThinkingMessage = () => {
+  const [showSlowMessage, setShowSlowMessage] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setShowSlowMessage(true);
+    }, 30000); // Show "taking longer than usual" after 30 seconds
+
+    return () => clearTimeout(timer);
+  }, []);
+
   return (
     <motion.div
       data-testid="message-assistant-loading"
@@ -364,8 +381,8 @@ export const ThinkingMessage = () => {
           <SparklesIcon size={14} />
         </div>
 
-        <div className="flex items-center justify-center w-full py-8">
-          <div className="flex items-center gap-1.5">
+        <div className="flex flex-col items-center justify-center w-full py-8">
+          <div className="flex items-center gap-1.5 mb-2">
             <div
               className="w-2 h-2 bg-primary rounded-full animate-bounce"
               style={{ animationDelay: '0ms', animationDuration: '1.4s' }}
@@ -379,6 +396,15 @@ export const ThinkingMessage = () => {
               style={{ animationDelay: '320ms', animationDuration: '1.4s' }}
             />
           </div>
+          {showSlowMessage && (
+            <motion.p
+              initial={{ opacity: 0, y: 5 }}
+              animate={{ opacity: 0.7, y: 0 }}
+              className="text-sm text-muted-foreground text-center"
+            >
+              Taking longer than usual...
+            </motion.p>
+          )}
         </div>
       </div>
     </motion.div>

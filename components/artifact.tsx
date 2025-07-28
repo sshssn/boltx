@@ -28,6 +28,7 @@ import equal from 'fast-deep-equal';
 import type { UseChatHelpers } from '@ai-sdk/react';
 import type { VisibilityType } from './visibility-selector';
 import type { Attachment, ChatMessage } from '@/lib/types';
+import { useMessageLimit } from './message-limit-provider';
 
 export const artifactDefinitions = [
   textArtifact,
@@ -84,6 +85,7 @@ function PureArtifact({
   selectedVisibilityType: VisibilityType;
 }) {
   const { artifact, setArtifact, metadata, setMetadata } = useArtifact();
+  const { hasReachedLimit } = useMessageLimit();
 
   const {
     data: documents,
@@ -320,6 +322,7 @@ function PureArtifact({
                   regenerate={regenerate}
                   isReadonly={isReadonly}
                   artifactStatus={artifact.status}
+                  limitReached={hasReachedLimit}
                 />
 
                 <form className="flex flex-row gap-2 relative items-end w-full px-4 pb-4">

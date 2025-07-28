@@ -25,14 +25,7 @@ import type { UseChatHelpers } from '@ai-sdk/react';
 import { useScrollToBottom } from '@/hooks/use-scroll-to-bottom';
 import type { VisibilityType } from './visibility-selector';
 import type { Attachment, ChatMessage } from '@/lib/types';
-import {
-  AlertDialog,
-  AlertDialogContent,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogDescription,
-  AlertDialogAction,
-} from '@/components/ui/alert-dialog';
+
 import { X, Upload, FileText, Image, File, Copy } from 'lucide-react';
 import { useSidebar } from './ui/sidebar';
 import { useMessageLimit } from './message-limit-provider';
@@ -220,12 +213,6 @@ function PureMultimodalInput({
   const submitForm = useCallback(() => {
     if (!input.trim() && attachments.length === 0) {
       toast.error('Please enter a message or attach a file');
-      return;
-    }
-
-    // Check message limit
-    if (hasReachedLimit) {
-      toast.error('Daily message limit reached. Please upgrade to continue.');
       return;
     }
 
@@ -477,16 +464,6 @@ function PureMultimodalInput({
     }
   }, [status, scrollToBottom]);
 
-  const [open, setOpen] = useState(false);
-  const [limitReachedState, setLimitReachedState] = useState(limitReached);
-
-  useEffect(() => {
-    setLimitReachedState(limitReached);
-    if (limitReached) {
-      setOpen(true);
-    }
-  }, [limitReached]);
-
   const removeAttachment = (urlToRemove: string) => {
     setAttachments((current) =>
       current.filter((att) => att.url !== urlToRemove),
@@ -514,41 +491,6 @@ function PureMultimodalInput({
         show={showPasteIndicator}
         onDismiss={() => setShowPasteIndicator(false)}
       />
-
-      <AlertDialog open={open && limitReachedState} onOpenChange={setOpen}>
-        <AlertDialogContent className="border-0 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl">
-          <button
-            type="button"
-            className="absolute top-3 right-3 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 transition"
-            onClick={() => setOpen(false)}
-            aria-label="Dismiss"
-          >
-            <X className="size-5" />
-          </button>
-          <AlertDialogHeader>
-            <div className="text-5xl mb-2 text-center">💬</div>
-            <AlertDialogTitle className="text-center text-2xl">
-              You&apos;re out of messages!
-            </AlertDialogTitle>
-            <AlertDialogDescription className="text-center">
-              You&apos;ve hit your daily limit of 20 messages as a guest.
-              <br />
-              <span className="my-2 block">
-                Sign up for a free account to keep the conversation going and
-                unlock more features!
-              </span>
-              <span className="text-xs text-zinc-400">
-                No spam, no credit card required 🚀
-              </span>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <a href="/auth?mode=signup" className="w-full block">
-            <AlertDialogAction asChild>
-              <span className="w-full block text-center">Sign Up Free</span>
-            </AlertDialogAction>
-          </a>
-        </AlertDialogContent>
-      </AlertDialog>
 
       {/* Attachments preview */}
       {(attachments.length > 0 || uploadQueue.length > 0) && (
@@ -588,11 +530,7 @@ function PureMultimodalInput({
 
       {/* Main input container */}
       <div
-        className={cx(
-          'relative',
-          limitReached && 'opacity-60',
-          disabled && 'pointer-events-none',
-        )}
+        className={cx('relative', disabled && 'pointer-events-none')}
         onDragEnter={handleDragEnter}
         onDragLeave={handleDragLeave}
         onDragOver={handleDragOver}
@@ -654,10 +592,6 @@ function PureMultimodalInput({
                 event.preventDefault();
                 if (status === 'streaming') {
                   toast.error('Please wait for AI to finish responding...');
-                } else if (limitReached) {
-                  toast.error(
-                    'Daily message limit reached. Please upgrade to continue.',
-                  );
                 } else {
                   submitForm();
                 }

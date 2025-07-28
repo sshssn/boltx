@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import type { User } from 'next-auth';
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { toast } from 'sonner';
-import { motion } from 'framer-motion';
+
 import {
   AlertDialog,
   AlertDialogAction,
@@ -32,47 +32,29 @@ import { useChatCache } from './chat-cache-provider';
 export function getShortTitle(title: string) {
   if (!title?.trim()) return 'Untitled';
 
-  // If title is already short and meaningful (like "AI Tech 2025"), return as is
-  if (title.length <= 40 && !title.includes('...')) {
-    return title.charAt(0).toUpperCase() + title.slice(1);
+  // If title is already good (short and meaningful), return as is
+  if (title.length <= 50 && !title.includes('...')) {
+    return title;
   }
 
-  let short = '';
-  const questionIdx = title.indexOf('?');
-
-  if (questionIdx !== -1) {
-    short = title.slice(0, questionIdx + 1);
-  } else {
-    const periodIdx = title.indexOf('.');
-    if (periodIdx !== -1) {
-      short = title.slice(0, periodIdx + 1);
-    } else {
-      const words = title
-        .replace(/[.?!,:;\-]/g, '')
-        .split(' ')
-        .filter(Boolean);
-      short = words.slice(0, 6).join(' '); // Reduced from 8 to 6 words
-    }
-  }
-
-  short = short.trim();
-  if (!short) short = 'Untitled';
-
-  // Mobile-friendly length limits
+  // For longer titles, just do basic truncation
   const maxLength =
-    typeof window !== 'undefined' && window.innerWidth < 768 ? 28 : 32;
-  if (short.length > maxLength) {
-    // Find the last complete word to avoid cutting words
-    const truncated = short.slice(0, maxLength - 3);
-    const lastSpaceIndex = truncated.lastIndexOf(' ');
-    if (lastSpaceIndex > 0) {
-      short = truncated.slice(0, lastSpaceIndex);
-    } else {
-      short = truncated;
-    }
+    typeof window !== 'undefined' && window.innerWidth < 768 ? 35 : 45;
+
+  if (title.length <= maxLength) {
+    return title;
   }
 
-  return short.charAt(0).toUpperCase() + short.slice(1);
+  // Simple truncation at word boundary
+  const truncated = title.slice(0, maxLength - 3);
+  const lastSpaceIndex = truncated.lastIndexOf(' ');
+
+  if (lastSpaceIndex > maxLength * 0.7) {
+    // Only truncate at space if it's not too early
+    return `${truncated.slice(0, lastSpaceIndex)}...`;
+  }
+
+  return `${truncated}...`;
 }
 
 type GroupedChats = {
@@ -194,18 +176,14 @@ const SectionHeader = ({ children }: { children: React.ReactNode }) => (
 
 // New Thread Loading Component
 const NewThreadLoading = ({ chatId }: { chatId: string }) => (
-  <motion.div
-    initial={{ opacity: 0, y: -10 }}
-    animate={{ opacity: 1, y: 0 }}
-    className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-sidebar-accent-foreground/5 border border-sidebar-accent-foreground/10 hover:bg-sidebar-accent-foreground/10 transition-all duration-200"
-  >
+  <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-sidebar-accent-foreground/5 border border-sidebar-accent-foreground/10 hover:bg-sidebar-accent-foreground/10 transition-all duration-200">
     <div className="flex items-center justify-center size-4 animate-spin">
       <LoaderIcon size={16} />
     </div>
     <span className="text-sm font-medium text-sidebar-foreground/80 truncate">
       New Thread
     </span>
-  </motion.div>
+  </div>
 );
 
 export function SidebarHistory({
@@ -274,13 +252,28 @@ export function SidebarHistory({
       }
 
       // Update the cache
-      await mutate((chatHistories) => {
-        if (chatHistories) {
-          return chatHistories.map((chatHistory) => ({
+      await mutate((chatHistories: any) => {
+        if (!chatHistories) return chatHistories;
+
+        // Handle different data structures
+        if (Array.isArray(chatHistories)) {
+          return chatHistories.map((chatHistory: any) => ({
             ...chatHistory,
-            chats: chatHistory.chats.filter((chat) => chat.id !== deleteId),
+            chats:
+              chatHistory.chats?.filter((chat: any) => chat.id !== deleteId) ||
+              [],
           }));
+        } else if (chatHistories.chats && Array.isArray(chatHistories.chats)) {
+          // Handle single page structure
+          return {
+            ...chatHistories,
+            chats: chatHistories.chats.filter(
+              (chat: any) => chat.id !== deleteId,
+            ),
+          };
         }
+
+        return chatHistories;
       }, false);
 
       toast.success('Chat deleted');

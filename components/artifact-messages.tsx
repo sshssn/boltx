@@ -17,6 +17,7 @@ interface ArtifactMessagesProps {
   regenerate: UseChatHelpers<ChatMessage>['regenerate'];
   isReadonly: boolean;
   artifactStatus: UIArtifact['status'];
+  limitReached?: boolean;
 }
 
 function PureArtifactMessages({
@@ -27,6 +28,7 @@ function PureArtifactMessages({
   setMessages,
   regenerate,
   isReadonly,
+  limitReached = false,
 }: ArtifactMessagesProps) {
   const {
     containerRef: messagesContainerRef,
@@ -61,6 +63,7 @@ function PureArtifactMessages({
           requiresScrollPadding={
             hasSentMessage && index === messages.length - 1
           }
+          limitReached={limitReached}
         />
       ))}
 

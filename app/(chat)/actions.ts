@@ -1,6 +1,6 @@
 'use server';
 
-import { generateText, type UIMessage } from 'ai';
+import { generateText } from 'ai';
 import { cookies } from 'next/headers';
 import {
   deleteMessagesByChatIdAfterTimestamp,
@@ -10,7 +10,11 @@ import {
 } from '@/lib/db/queries';
 import type { VisibilityType } from '@/components/visibility-selector';
 import { myProvider } from '@/lib/ai/providers';
-import { generateModelBasedTitle } from '@/lib/ai/title-generation';
+import {
+  generateTitleFromUserMessage as generateTitle,
+  updateThreadTitle,
+} from '@/lib/ai/title-generation';
+import type { ChatMessage } from '@/lib/types';
 
 export async function saveChatModelAsCookie(model: string) {
   const cookieStore = await cookies();
@@ -20,12 +24,20 @@ export async function saveChatModelAsCookie(model: string) {
 export async function generateTitleFromUserMessage({
   message,
 }: {
-  message: UIMessage;
+  message: ChatMessage;
 }) {
   const cookieStore = await cookies();
-  const selectedModelId = cookieStore.get('chat-model')?.value || 'chat-model';
+  const selectedModelId =
+    cookieStore.get('chat-model')?.value || 'gemini-2.5-flash';
 
-  return generateModelBasedTitle(selectedModelId);
+  // Extract the text content from the message
+  const userText =
+    (message.parts?.[0] as any)?.text || (message as any)?.content || '';
+
+  // Generate title using the AI-based function
+  return generateTitle(userText, {
+    selectedModelId,
+  });
 }
 
 export async function deleteTrailingMessages({ id }: { id: string }) {
@@ -61,4 +73,6 @@ export async function updateChatTitle({
   title: string;
 }) {
   await updateChatTitleById({ chatId, title });
+  // Note: updateThreadTitle is client-side only, so we don't call it here
+  // The UI should listen for database changes or use the event system
 }

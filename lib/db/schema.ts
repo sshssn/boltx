@@ -9,6 +9,8 @@ import {
   primaryKey,
   foreignKey,
   boolean,
+  date,
+  integer,
 } from 'drizzle-orm/pg-core';
 
 export const user = pgTable('User', {
@@ -16,6 +18,15 @@ export const user = pgTable('User', {
   email: varchar('email', { length: 64 }).notNull(),
   password: varchar('password', { length: 64 }),
   username: varchar('username', { length: 32 }).unique(),
+  // New columns for Stripe and plan management
+  stripeCustomerId: varchar('stripeCustomerId', { length: 255 }),
+  plan: varchar('plan', { length: 20 }).default('free'), // 'free' or 'pro'
+  lastUsernameChange: timestamp('lastUsernameChange'),
+  // Legacy columns (keeping for backward compatibility)
+  userType: text('user_type').default('free'),
+  dailyLimit: integer('daily_limit').default(20),
+  messagesSentToday: integer('messages_sent_today').default(0),
+  lastReset: date('last_reset'),
   deletedAt: timestamp('deletedAt'),
 });
 
@@ -193,3 +204,16 @@ export const passwordResetToken = pgTable('password_reset_tokens', {
 });
 
 export type PasswordResetToken = InferSelectModel<typeof passwordResetToken>;
+
+export const messageUsage = pgTable('MessageUsage', {
+  id: uuid('id').primaryKey().notNull().defaultRandom(),
+  userId: uuid('userId').references(() => user.id), // null for guests
+  ipAddress: varchar('ipAddress', { length: 45 }), // IPv6 compatible
+  userAgent: text('userAgent'),
+  date: date('date').notNull(), // YYYY-MM-DD format
+  messageCount: integer('messageCount').notNull().default(0),
+  createdAt: timestamp('createdAt').notNull().defaultNow(),
+  updatedAt: timestamp('updatedAt').notNull().defaultNow(),
+});
+
+export type MessageUsage = InferSelectModel<typeof messageUsage>;

@@ -25,6 +25,7 @@ export function LoginForm({
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [username, setUsername] = useState('');
 
   // Handle URL parameters for mode
   useEffect(() => {
@@ -48,7 +49,8 @@ export function LoginForm({
       setLoading(false);
       if (res.status === 'success') {
         toast({ type: 'success', description: 'Logged in successfully!' });
-        router.push('/');
+        // Force a hard refresh to update the session
+        window.location.href = '/';
       } else if (res.status === 'invalid_data') {
         toast({ type: 'error', description: 'Invalid credentials.' });
       } else {
@@ -68,9 +70,29 @@ export function LoginForm({
         setLoading(false);
         return;
       }
+      if (username.length < 3) {
+        toast({
+          type: 'error',
+          description: 'Username must be at least 3 characters.',
+        });
+        setLoading(false);
+        return;
+      }
+      if (!/^[a-zA-Z0-9_-]+$/.test(username)) {
+        toast({
+          type: 'error',
+          description:
+            'Username can only contain letters, numbers, underscores, and hyphens.',
+        });
+        setLoading(false);
+        return;
+      }
       const formData = new FormData();
       formData.append('email', email);
       formData.append('password', password);
+      if (username) {
+        formData.append('username', username);
+      }
       const res = await import('@/app/(auth)/actions').then((m) =>
         m.register({ status: 'idle' }, formData),
       );
@@ -80,7 +102,8 @@ export function LoginForm({
           type: 'success',
           description: 'Account created successfully!',
         });
-        router.push('/');
+        // Force a hard refresh to update the session
+        window.location.href = '/';
       } else if (res.status === 'user_exists') {
         toast({ type: 'error', description: 'Account already exists.' });
       } else if (res.status === 'invalid_data') {
@@ -120,10 +143,7 @@ export function LoginForm({
   }
 
   return (
-    <div
-      className={cn('flex flex-col gap-6 font-jetbrains', className)}
-      {...props}
-    >
+    <div className={cn('flex flex-col gap-6', className)} {...props}>
       <Card className="overflow-hidden p-0 max-w-4xl w-full mx-auto shadow-2xl border border-primary/30 bg-[#4B5DFE]/30 dark:bg-zinc-900/90 backdrop-blur-xl">
         <CardContent className="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] p-0 min-h-[420px] items-center">
           {/* Form Section */}
@@ -190,6 +210,22 @@ export function LoginForm({
                     onChange={(e) => setEmail(e.target.value)}
                   />
                 </div>
+                {mode === 'register' && (
+                  <div className="grid gap-4">
+                    <Label htmlFor="username" className="text-lg font-medium">
+                      Username
+                    </Label>
+                    <Input
+                      id="username"
+                      type="text"
+                      placeholder="your_username"
+                      required
+                      className="rounded-lg border border-primary/20 bg-[#4B5DFE]/20 dark:bg-zinc-900/70"
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                    />
+                  </div>
+                )}
                 {mode !== 'forgot' && (
                   <div className="grid gap-4">
                     <div className="flex items-center">
@@ -235,6 +271,7 @@ export function LoginForm({
                         onClick={() => {
                           setMode('register');
                           setPassword('');
+                          setUsername('');
                         }}
                       >
                         Sign up
@@ -250,6 +287,7 @@ export function LoginForm({
                         onClick={() => {
                           setMode('login');
                           setPassword('');
+                          setUsername('');
                         }}
                       >
                         Sign in

@@ -28,6 +28,8 @@ import {
   type Chat,
   stream,
   memory,
+  messageUsage,
+  type MessageUsage,
 } from './schema';
 import type { ArtifactKind } from '@/components/artifact';
 import { generateUUID } from '../utils';
@@ -55,11 +57,19 @@ export async function getUser(email: string): Promise<Array<User>> {
   }
 }
 
-export async function createUser(email: string, password: string) {
+export async function createUser(
+  email: string,
+  password: string,
+  username?: string,
+) {
   const hashedPassword = generateHashedPassword(password);
 
   try {
-    return await db.insert(user).values({ email, password: hashedPassword });
+    return await db.insert(user).values({
+      email,
+      password: hashedPassword,
+      username: username || null,
+    });
   } catch (error) {
     throw new ChatSDKError('bad_request:database', 'Failed to create user');
   }
@@ -219,6 +229,7 @@ export async function saveMessages({
   try {
     return await db.insert(message).values(messages);
   } catch (error) {
+    console.error('Database error in saveMessages:', error);
     throw new ChatSDKError('bad_request:database', 'Failed to save messages');
   }
 }
@@ -484,8 +495,27 @@ export async function updateChatTitleById({
   } catch (error) {
     throw new ChatSDKError(
       'bad_request:database',
-      'Failed to update chat title by id',
+      'Failed to update chat title',
     );
+  }
+}
+
+export async function updateMessageById({
+  messageId,
+  content,
+}: {
+  messageId: string;
+  content: string;
+}) {
+  try {
+    return await db
+      .update(message)
+      .set({
+        parts: [{ type: 'text', text: content }],
+      })
+      .where(eq(message.id, messageId));
+  } catch (error) {
+    throw new ChatSDKError('bad_request:database', 'Failed to update message');
   }
 }
 
@@ -643,6 +673,113 @@ export async function getDocumentsByUserId({
     throw new ChatSDKError(
       'bad_request:database',
       'Failed to get documents by user id',
+    );
+  }
+}
+
+// Message usage tracking functions
+export async function getMessageUsage({
+  userId,
+  ipAddress,
+  date,
+}: {
+  userId?: string;
+  ipAddress?: string;
+  date: string; // YYYY-MM-DD format
+}): Promise<MessageUsage | null> {
+  try {
+    const whereConditions = [eq(messageUsage.date, date)];
+
+    if (userId) {
+      whereConditions.push(eq(messageUsage.userId, userId));
+    } else if (ipAddress) {
+      whereConditions.push(eq(messageUsage.ipAddress, ipAddress));
+    } else {
+      throw new Error('Either userId or ipAddress must be provided');
+    }
+
+    const [usage] = await db
+      .select()
+      .from(messageUsage)
+      .where(and(...whereConditions))
+      .limit(1);
+
+    return usage || null;
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get message usage',
+    );
+  }
+}
+
+export async function createOrUpdateMessageUsage({
+  userId,
+  ipAddress,
+  userAgent,
+  date,
+  increment = 1,
+}: {
+  userId?: string;
+  ipAddress?: string;
+  userAgent?: string;
+  date: string; // YYYY-MM-DD format
+  increment?: number;
+}): Promise<MessageUsage> {
+  try {
+    const existingUsage = await getMessageUsage({ userId, ipAddress, date });
+
+    if (existingUsage) {
+      // Update existing record
+      const [updated] = await db
+        .update(messageUsage)
+        .set({
+          messageCount: existingUsage.messageCount + increment,
+          updatedAt: new Date(),
+        })
+        .where(eq(messageUsage.id, existingUsage.id))
+        .returning();
+
+      return updated;
+    } else {
+      // Create new record
+      const [created] = await db
+        .insert(messageUsage)
+        .values({
+          userId: userId || null,
+          ipAddress: ipAddress || null,
+          userAgent: userAgent || null,
+          date,
+          messageCount: increment,
+        })
+        .returning();
+
+      return created;
+    }
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to create or update message usage',
+    );
+  }
+}
+
+export async function getMessageUsageCount({
+  userId,
+  ipAddress,
+  date,
+}: {
+  userId?: string;
+  ipAddress?: string;
+  date: string; // YYYY-MM-DD format
+}): Promise<number> {
+  try {
+    const usage = await getMessageUsage({ userId, ipAddress, date });
+    return usage?.messageCount || 0;
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get message usage count',
     );
   }
 }

@@ -11,6 +11,7 @@ interface KeyboardShortcutsProps {
   onCopyLastMessage?: () => void;
   onRegenerate?: () => void;
   onStopGeneration?: () => void;
+  onShowShortcuts?: () => void;
 }
 
 export function KeyboardShortcuts({
@@ -20,6 +21,7 @@ export function KeyboardShortcuts({
   onCopyLastMessage,
   onRegenerate,
   onStopGeneration,
+  onShowShortcuts,
 }: KeyboardShortcutsProps) {
   const router = useRouter();
   const { toggleSidebar } = useSidebar();
@@ -35,13 +37,13 @@ export function KeyboardShortcuts({
         return;
       }
 
-      // Cmd/Ctrl + K: Search
+      // Cmd/Ctrl + K: Focus Input
       if ((event.metaKey || event.ctrlKey) && event.key === 'k') {
         event.preventDefault();
         onSearch?.();
       }
 
-      // Cmd/Ctrl + N: New Chat
+      // Cmd/Ctrl + N: New Thread
       if ((event.metaKey || event.ctrlKey) && event.key === 'n') {
         event.preventDefault();
         onNewChat?.();
@@ -53,10 +55,30 @@ export function KeyboardShortcuts({
         toggleSidebar();
       }
 
-      // Cmd/Ctrl + T: Toggle Theme
-      if ((event.metaKey || event.ctrlKey) && event.key === 't') {
+      // Cmd/Ctrl + J: Toggle Theme
+      if ((event.metaKey || event.ctrlKey) && event.key === 'j') {
         event.preventDefault();
         onToggleTheme?.();
+      }
+
+      // Cmd/Ctrl + P: Previous Chat
+      if ((event.metaKey || event.ctrlKey) && event.key === 'p') {
+        event.preventDefault();
+        // TODO: Implement previous chat navigation
+        console.log('Previous chat');
+      }
+
+      // Cmd/Ctrl + L: Next Chat
+      if ((event.metaKey || event.ctrlKey) && event.key === 'l') {
+        event.preventDefault();
+        // TODO: Implement next chat navigation
+        console.log('Next chat');
+      }
+
+      // Cmd/Ctrl + ?: Show Shortcuts
+      if ((event.metaKey || event.ctrlKey) && event.key === '?') {
+        event.preventDefault();
+        onShowShortcuts?.();
       }
 
       // Cmd/Ctrl + C: Copy last message
@@ -101,6 +123,7 @@ export function KeyboardShortcuts({
     onCopyLastMessage,
     onRegenerate,
     onStopGeneration,
+    onShowShortcuts,
     toggleSidebar,
   ]);
 

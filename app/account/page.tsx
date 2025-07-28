@@ -7,5 +7,5 @@ export default async function AccountPage() {
   if (!session?.user || session.user.type !== 'regular') {
     redirect('/auth');
   }
-  return <ClientAccountDashboard session={session} />;
+  return <ClientAccountDashboard />;
 }

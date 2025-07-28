@@ -18,12 +18,14 @@ declare module 'next-auth' {
     user: {
       id: string;
       type: UserType;
+      username?: string | null;
     } & DefaultSession['user'];
   }
 
   interface User {
     id?: string;
     email?: string | null;
+    username?: string | null;
     type: UserType;
   }
 }
@@ -32,6 +34,7 @@ declare module 'next-auth/jwt' {
   interface JWT extends DefaultJWT {
     id: string;
     type: UserType;
+    username?: string | null;
   }
 }
 
@@ -42,6 +45,13 @@ export const {
   signOut,
 } = NextAuth({
   ...authConfig,
+  session: {
+    strategy: 'jwt',
+    maxAge: 30 * 24 * 60 * 60, // 30 days
+  },
+  jwt: {
+    maxAge: 30 * 24 * 60 * 60, // 30 days
+  },
   providers: [
     GitHubProvider({
       clientId: process.env.GITHUB_CLIENT_ID || '', // Set in .env.local
@@ -85,6 +95,7 @@ export const {
       if (user) {
         token.id = user.id as string;
         token.type = user.type;
+        token.username = user.username;
       }
 
       return token;
@@ -93,6 +104,7 @@ export const {
       if (session.user) {
         session.user.id = token.id;
         session.user.type = token.type;
+        session.user.username = token.username;
       }
 
       return session;

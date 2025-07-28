@@ -8,7 +8,6 @@ import React, {
 } from 'react';
 import ReactMarkdown, { type Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import '@fontsource/jetbrains-mono';
 
 // CopyButton component
 function CopyButton({
@@ -18,7 +17,7 @@ function CopyButton({
   const [copied, setCopied] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
   return (
-    <div className="relative inline-block">
+    <span className="relative inline-block">
       {!showFeedback && (
         <button
           type="button"
@@ -62,7 +61,7 @@ function CopyButton({
           ✓ Copied to clipboard
         </span>
       )}
-    </div>
+    </span>
   );
 }
 
@@ -83,32 +82,60 @@ const components: Partial<Components> = {
     }
     // Block code: copy button only on hover
     return (
-      <div className="relative group">
-        <CopyButton
-          getContent={() => String(children).replace(/\n$/, '')}
-          className="absolute right-4 top-4 z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-        />
+      <pre className="relative group">
         <code
-          className={`block w-full overflow-x-auto rounded-xl bg-zinc-900 text-zinc-100 p-4 font-['JetBrains_Mono'] text-sm border border-zinc-700 ${className}`}
+          className={`block w-full overflow-x-auto rounded-xl bg-zinc-900 text-zinc-100 p-4 font-mono text-sm border border-zinc-700 ${className}`}
           {...rest}
         >
           {children}
         </code>
-      </div>
+        <CopyButton
+          getContent={() => String(children).replace(/\n$/, '')}
+          className="absolute right-4 top-4 z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+        />
+      </pre>
     );
   },
 
   p({ children, ...props }) {
     // If any child is a block element, render all children directly (no <p>)
-    const blockTags = ['pre', 'ul', 'ol'];
-    if (
-      Children.toArray(children).some(
-        (child) =>
-          isValidElement(child) && blockTags.includes((child as any).type),
-      )
-    ) {
+    const blockTags = ['pre', 'ul', 'ol', 'div', 'code'];
+    const hasBlockElement = Children.toArray(children).some((child) => {
+      if (!isValidElement(child)) return false;
+
+      const childType = (child as any).type;
+      const childProps = (child as any).props;
+
+      // Check if it's a known block tag
+      if (blockTags.includes(childType)) return true;
+
+      // Check if it's a pre element
+      if (childType === 'pre') return true;
+
+      // Check if it has the relative group class (our code block wrapper)
+      if (childProps?.className?.includes('relative group')) return true;
+
+      // Check if it's a React Fragment containing block elements
+      if (childType === React.Fragment) {
+        return Children.toArray(childProps?.children).some((fragmentChild) => {
+          if (!isValidElement(fragmentChild)) return false;
+          const fragmentChildType = (fragmentChild as any).type;
+          const fragmentChildProps = (fragmentChild as any).props;
+          return (
+            blockTags.includes(fragmentChildType) ||
+            fragmentChildType === 'pre' ||
+            fragmentChildProps?.className?.includes('relative group')
+          );
+        });
+      }
+
+      return false;
+    });
+
+    if (hasBlockElement) {
       return <>{children}</>;
     }
+
     return (
       <p className="leading-relaxed my-2 text-base" {...props}>
         {children}
@@ -151,6 +178,14 @@ const components: Partial<Components> = {
       <strong className="font-semibold" {...props}>
         {children}
       </strong>
+    );
+  },
+
+  pre({ children, ...props }) {
+    return (
+      <pre className="relative group" {...props}>
+        {children}
+      </pre>
     );
   },
 
@@ -270,7 +305,7 @@ export const Markdown = memo(
 
 export function MarkdownTypewriter({
   children,
-  speed = 40,
+  speed = 15, // Blazing fast default speed
   isStreaming = false,
 }: {
   children: string;
@@ -303,7 +338,7 @@ export function MarkdownTypewriter({
   }, [fullText, speed]);
 
   return (
-    <div className="font-['JetBrains_Mono'] text-base leading-relaxed">
+    <div className="font-mono text-base leading-relaxed">
       {!done && isStreaming ? (
         <span>
           {displayedText}

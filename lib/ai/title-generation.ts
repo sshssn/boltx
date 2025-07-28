@@ -1,19 +1,131 @@
-import { chatModels } from './models';
-
 export interface TitleGenerationOptions {
   maxLength?: number;
   includeQuestionMark?: boolean;
   style?: 'concise' | 'descriptive' | 'question';
   useModelName?: boolean;
   selectedModelId?: string;
+  prioritizeContent?: boolean;
 }
 
 const DEFAULT_OPTIONS: TitleGenerationOptions = {
-  maxLength: 40, // Reduced from 60 to 40 for shorter titles
-  includeQuestionMark: true,
+  maxLength: 35, // Slightly reduced for better display
+  includeQuestionMark: false, // Usually not needed
   style: 'concise',
-  useModelName: true,
+  useModelName: false,
+  prioritizeContent: true,
 };
+
+// Enhanced lowercase words set
+const LOWERCASE_WORDS = new Set([
+  'a',
+  'an',
+  'and',
+  'as',
+  'at',
+  'but',
+  'by',
+  'for',
+  'if',
+  'in',
+  'is',
+  'it',
+  'nor',
+  'on',
+  'or',
+  'so',
+  'the',
+  'to',
+  'up',
+  'yet',
+  'with',
+  'from',
+  'into',
+  'onto',
+  'upon',
+  'over',
+  'under',
+  'above',
+  'below',
+  'across',
+  'through',
+  'during',
+  'before',
+  'after',
+  'until',
+  'while',
+  'within',
+  'of',
+  'about',
+  'vs',
+  'via',
+]);
+
+function toTitleCase(str: string): string {
+  if (!str) return '';
+
+  return str
+    .toLowerCase()
+    .split(' ')
+    .map((word, index) => {
+      // Always capitalize first word, last word, or if it's not in the lowercase set
+      if (index === 0 || !LOWERCASE_WORDS.has(word)) {
+        return word.charAt(0).toUpperCase() + word.slice(1);
+      }
+      return word;
+    })
+    .join(' ');
+}
+
+function truncateTitle(title: string, maxLength?: number): string {
+  if (!maxLength || title.length <= maxLength) {
+    return title;
+  }
+
+  // Find the last complete word within the limit
+  const truncated = title.substring(0, maxLength - 1);
+  const lastSpaceIndex = truncated.lastIndexOf(' ');
+
+  if (lastSpaceIndex > 0 && lastSpaceIndex > maxLength * 0.6) {
+    return truncated.substring(0, lastSpaceIndex);
+  }
+
+  return `${truncated}…`;
+}
+
+// Improved fallback title generation
+function generateFallbackTitle(
+  userMessage: string,
+  maxLength: number = 35,
+): string {
+  if (!userMessage || userMessage.trim().length === 0) {
+    return 'New Chat';
+  }
+
+  let message = userMessage.trim();
+
+  // Remove common prefixes that make titles verbose
+  const prefixesToRemove = [
+    /^(please\s+)?(can you\s+)?(help me\s+)?(tell me\s+)?(explain\s+)?(show me\s+)?/i,
+    /^(how\s+(do|can)\s+(i|you)\s+)/i,
+    /^(what\s+(is|are)\s+)/i,
+    /^(create\s+(a|an)\s+)/i,
+  ];
+
+  for (const prefix of prefixesToRemove) {
+    message = message.replace(prefix, '');
+  }
+
+  // Take first meaningful words
+  const words = message.split(' ').filter((word) => word.length > 0);
+  let title = words.slice(0, 4).join(' ');
+
+  // Clean up and format
+  title = title.replace(/[.!?]+$/, '');
+  title = toTitleCase(title);
+  title = truncateTitle(title, maxLength);
+
+  return title || 'New Chat';
+}
 
 export async function generateTitleFromUserMessage(
   userMessage: string,
@@ -21,18 +133,25 @@ export async function generateTitleFromUserMessage(
 ): Promise<string> {
   const opts = { ...DEFAULT_OPTIONS, ...options };
 
-  // If useModelName is true and we have a selectedModelId, use the model short name
-  if (opts.useModelName && opts.selectedModelId) {
-    const selectedModel = chatModels.find(
-      (model) => model.id === opts.selectedModelId,
-    );
-    if (selectedModel) {
-      return selectedModel.shortName;
-    }
+  if (!userMessage || userMessage.trim().length === 0) {
+    return 'New Chat';
   }
 
-  // Fallback to a simple title based on the message
-  return generateFallbackTitle(userMessage, opts);
+  // Try AI generation first
+  try {
+    const aiTitle = await generateAITitle(userMessage, opts);
+    if (aiTitle && aiTitle !== 'New Chat' && aiTitle.length >= 3) {
+      console.log('AI title generation succeeded:', aiTitle);
+      return aiTitle;
+    }
+  } catch (error) {
+    console.error('AI title generation failed:', error);
+  }
+
+  // Use improved fallback
+  const fallbackTitle = generateFallbackTitle(userMessage, opts.maxLength);
+  console.log('Using fallback title:', fallbackTitle);
+  return fallbackTitle;
 }
 
 export async function generateTitleFromAIResponse(
@@ -42,487 +161,163 @@ export async function generateTitleFromAIResponse(
 ): Promise<string> {
   const opts = { ...DEFAULT_OPTIONS, ...options };
 
-  // If useModelName is true and we have a selectedModelId, use the model short name
-  if (opts.useModelName && opts.selectedModelId) {
-    const selectedModel = chatModels.find(
-      (model) => model.id === opts.selectedModelId,
-    );
-    if (selectedModel) {
-      return selectedModel.shortName;
+  // Try to generate from AI response context if it's substantial
+  if (aiResponse && aiResponse.length > 100) {
+    try {
+      const contextualTitle = await generateContextualTitle(
+        userMessage,
+        aiResponse,
+        opts,
+      );
+      if (contextualTitle && contextualTitle !== 'New Chat') {
+        return contextualTitle;
+      }
+    } catch (error) {
+      console.error('Contextual title generation failed:', error);
     }
   }
 
-  // Fallback to user message based title
-  return generateTitleFromUserMessage(userMessage, opts);
+  // Fall back to user message generation
+  return generateTitleFromUserMessage(userMessage, options);
 }
 
-// New function to generate title using model name
-export function generateModelBasedTitle(selectedModelId: string): string {
-  const selectedModel = chatModels.find(
-    (model) => model.id === selectedModelId,
-  );
-  return selectedModel?.shortName || 'New Chat';
-}
-
-function generateFallbackTitle(
-  message: string,
+async function generateContextualTitle(
+  userMessage: string,
+  aiResponse: string,
   options: TitleGenerationOptions,
-): string {
+): Promise<string> {
+  const context = `User: ${userMessage.substring(0, 200)}${userMessage.length > 200 ? '...' : ''}
+AI: ${aiResponse.substring(0, 300)}${aiResponse.length > 300 ? '...' : ''}`;
+
+  const titlePrompt = `Based on this conversation, create a short, specific title (2-4 words max). Focus on the main topic or task. Avoid generic words like "help", "question", "discussion".
+
+Examples of good titles:
+- "Python Data Analysis"
+- "React Component Debug"
+- "SQL Query Optimization"
+- "Marketing Strategy"
+
+${context}
+
+Title:`;
+
+  return generateAITitleWithPrompt(titlePrompt, options);
+}
+
+async function generateAITitle(
+  userMessage: string,
+  options: TitleGenerationOptions,
+): Promise<string> {
+  const cleanMessage = userMessage.trim().substring(0, 500); // Limit input length
+
+  // Much more specific prompt for better results
+  const titlePrompt = `Create a concise title (2-4 words) that captures the main topic or task. Be specific, not generic.
+
+Bad examples: "Help with Code", "Question About", "Tell Me About"
+Good examples: "React Authentication", "SQL Performance", "CSS Grid Layout", "Python Pandas"
+
+User request: "${cleanMessage}"
+
+Title:`;
+
+  return generateAITitleWithPrompt(titlePrompt, options);
+}
+
+async function generateAITitleWithPrompt(
+  prompt: string,
+  options: TitleGenerationOptions,
+): Promise<string> {
   const opts = { ...DEFAULT_OPTIONS, ...options };
 
-  // Remove common prefixes
-  let title = message
-    .replace(
-      /^(i want to|can you|please|help me|how do i|what is|explain|tell me about)\s+/i,
-      '',
-    )
-    .trim();
+  try {
+    const OPENROUTER_API_KEY =
+      process.env.OPENROUTER_API_KEY ||
+      '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';
 
-  // Extract key terms for shorter, more meaningful titles
-  const keyTerms = extractKeyTerms(title);
+    const response = await fetch(
+      'https://openrouter.ai/api/v1/chat/completions',
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+          'HTTP-Referer':
+            process.env.NEXT_PUBLIC_SITE_URL || 'https://boltX.com',
+          'X-Title': 'boltX',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'google/gemini-2.5-flash',
+          messages: [{ role: 'user', content: prompt }],
+          temperature: 0.9, // Higher temperature for faster title generation
+          max_tokens: 20, // Very short for concise titles
+          stream: false,
+        }),
+      },
+    );
 
-  if (keyTerms.length > 0) {
-    // Combine key terms with year if present
-    const yearMatch = title.match(/\b(20\d{2}|19\d{2})\b/);
-    const year = yearMatch ? yearMatch[0] : '';
-
-    if (year && keyTerms.length > 0) {
-      // Format: "Key Term Year" (e.g., "AI Tech 2025")
-      const mainTerm = keyTerms[0];
-      return `${mainTerm} ${year}`;
-    } else if (keyTerms.length >= 2) {
-      // Format: "Term1 Term2" (e.g., "AI Technology")
-      return keyTerms.slice(0, 2).join(' ');
-    } else if (keyTerms.length === 1) {
-      // Single key term
-      return keyTerms[0];
+    if (!response.ok) {
+      throw new Error(
+        `OpenRouter API error: ${response.status} ${response.statusText}`,
+      );
     }
-  }
 
-  // Fallback: Take first sentence or first 6 words (reduced from 8)
-  const sentences = title.split(/[.!?]/);
-  title = sentences[0] || title;
+    const data = await response.json();
+    let title = data.choices?.[0]?.message?.content?.trim() || '';
 
-  const words = title.split(' ').slice(0, 6);
-  title = words.join(' ');
+    // Clean up the generated title
+    title = title.replace(/^["']|["']$/g, ''); // Remove quotes
+    title = title.replace(/[.!;:,]+$/, ''); // Remove trailing punctuation
+    title = title.replace(/^(title:|title\s*:?\s*)/i, ''); // Remove "title:" prefix
 
-  // Ensure it doesn't exceed max length and doesn't end with incomplete words
-  if (title.length > (opts.maxLength ?? 40)) {
-    const truncated = title.substring(0, (opts.maxLength ?? 40) - 3);
-    // Find the last complete word
-    const lastSpaceIndex = truncated.lastIndexOf(' ');
-    if (lastSpaceIndex > 0) {
-      title = truncated.substring(0, lastSpaceIndex);
-    } else {
-      title = truncated;
+    // Apply title case
+    title = toTitleCase(title);
+
+    // Truncate if needed
+    title = truncateTitle(title, opts.maxLength);
+
+    // Validate the result
+    if (
+      !title ||
+      title.length < 2 ||
+      /^(title|chat|conversation|new)$/i.test(title)
+    ) {
+      throw new Error('Generated title is too generic or empty');
     }
-  }
 
-  // Add question mark if it's a question and option is enabled
-  if (
-    opts.includeQuestionMark &&
-    /^(what|how|why|when|where|which|who|is|are|can|could|would|will|do|does|did)/i.test(
-      title,
-    )
-  ) {
-    title = `${title.replace(/[.!?]$/, '')}?`;
+    return title;
+  } catch (error) {
+    console.error('Error generating AI title:', error);
+    throw error;
   }
-
-  return title || 'New Chat';
 }
 
-function extractKeyTerms(text: string): string[] {
-  // Common important terms that should be prioritized
-  const importantTerms = [
-    'AI',
-    'artificial intelligence',
-    'machine learning',
-    'ML',
-    'deep learning',
-    'technology',
-    'tech',
-    'programming',
-    'code',
-    'software',
-    'app',
-    'application',
-    'data',
-    'database',
-    'API',
-    'web',
-    'mobile',
-    'cloud',
-    'security',
-    'cybersecurity',
-    'blockchain',
-    'crypto',
-    'bitcoin',
-    'ethereum',
-    'NFT',
-    'metaverse',
-    'VR',
-    'AR',
-    'robotics',
-    'automation',
-    'IoT',
-    'internet of things',
-    '5G',
-    'quantum',
-    'algorithm',
-    'neural network',
-    'GPT',
-    'chatbot',
-    'automation',
-    'analytics',
-    'business',
-    'startup',
-    'entrepreneurship',
-    'marketing',
-    'finance',
-    'healthcare',
-    'education',
-    'research',
-    'science',
-    'medicine',
-    'climate',
-    'environment',
-    'sustainability',
-    'renewable',
-    'energy',
-    'solar',
-    'wind',
-    'electric',
-    'EV',
-    'autonomous',
-    'self-driving',
-    'drone',
-    'satellite',
-    'space',
-    'NASA',
-    'spacex',
-    'CRISPR',
-    'gene editing',
-    'biotechnology',
-    'genetics',
-    'DNA',
-    'RNA',
-    'quantum computing',
-    'quantum',
-    'computing',
-    'cryptography',
-    'encryption',
-    'neural networks',
-    'computer vision',
-    'natural language processing',
-    'NLP',
-    'big data',
-    'analytics',
-    'machine learning',
-    'deep learning',
-    'reinforcement learning',
-    'computer science',
-    'software engineering',
-    'web development',
-    'mobile development',
-    'game development',
-    'data science',
-    'statistics',
-    'mathematics',
-    'physics',
-    'chemistry',
-    'biology',
-    'medicine',
-    'healthcare',
-    'pharmaceuticals',
-    'drugs',
-    'climate change',
-    'global warming',
-    'environmental science',
-    'ecology',
-    'renewable energy',
-    'solar power',
-    'wind power',
-    'nuclear energy',
-    'fossil fuels',
-    'electric vehicles',
-    'autonomous vehicles',
-    'self-driving cars',
-    'transportation',
-    'aerospace',
-    'aviation',
-    'space exploration',
-    'satellite technology',
-    'internet',
-    'social media',
-    'digital marketing',
-    'e-commerce',
-    'online business',
-    'cybersecurity',
-    'privacy',
-    'data protection',
-    'information security',
-    'artificial intelligence',
-    'robotics',
-    'automation',
-    'industrial automation',
-    'smart cities',
-    'IoT',
-    'internet of things',
-    'smart home',
-    'wearable technology',
-    'virtual reality',
-    'augmented reality',
-    'mixed reality',
-    'gaming',
-    'entertainment',
-    'music',
-    'art',
-    'design',
-    'architecture',
-    'engineering',
-    'construction',
-    'agriculture',
-    'farming',
-    'food technology',
-    'nutrition',
-    'diet',
-    'fitness',
-    'sports',
-    'exercise',
-    'health',
-    'wellness',
-    'mental health',
-    'psychology',
-    'sociology',
-    'anthropology',
-    'history',
-    'geography',
-    'economics',
-    'finance',
-    'banking',
-    'investment',
-    'cryptocurrency',
-    'blockchain technology',
-    'DeFi',
-    'education',
-    'learning',
-    'teaching',
-    'academic',
-    'university',
-    'college',
-    'research',
-    'scientific method',
-    'experiments',
-    'laboratory',
-    'discovery',
-    'innovation',
-    'invention',
-    'patent',
-    'intellectual property',
-    'copyright',
-    'legal',
-    'law',
-    'politics',
-    'government',
-    'democracy',
-    'elections',
-    'voting',
-    'human rights',
-    'civil rights',
-    'social justice',
-    'equality',
-    'diversity',
-    'inclusion',
-    'discrimination',
-    'racism',
-    'sexism',
-    'prejudice',
-    'bias',
-    'ethics',
-    'morality',
-    'philosophy',
-    'religion',
-    'spirituality',
-    'beliefs',
-    'culture',
-    'society',
-    'community',
-    'family',
-    'relationships',
-    'marriage',
-    'parenting',
-    'children',
-    'youth',
-    'elderly',
-    'aging',
-    'retirement',
-    'pension',
-    'insurance',
-    'healthcare',
-    'medical',
-    'hospital',
-    'doctor',
-    'nurse',
-    'patient',
-    'treatment',
-    'therapy',
-    'medication',
-    'drugs',
-    'pharmaceuticals',
-    'vaccine',
-    'immunization',
-    'disease',
-    'infection',
-    'virus',
-    'bacteria',
-    'pathogen',
-    'epidemic',
-    'pandemic',
-    'outbreak',
-    'contagion',
-    'quarantine',
-    'isolation',
-    'social distancing',
-    'mask',
-    'sanitizer',
-    'hygiene',
-    'cleanliness',
-    'sanitation',
-  ];
+// Utility function for UI integration - call this after title generation
+export function updateThreadTitle(threadId: string, title: string): void {
+  // Dispatch custom event for UI to listen to
+  const event = new CustomEvent('threadTitleUpdated', {
+    detail: { threadId, title },
+  });
+  window.dispatchEvent(event);
+}
 
-  const words = text.toLowerCase().split(/\s+/);
-  const keyTerms: string[] = [];
+// Usage example for your app:
+export async function handleNewThread(
+  userMessage: string,
+  threadId: string,
+): Promise<string> {
+  try {
+    // Generate title
+    const title = await generateTitleFromUserMessage(userMessage);
 
-  // First, look for important multi-word terms (longer terms first)
-  const sortedTerms = importantTerms.sort((a, b) => b.length - a.length);
+    // Update your thread storage/state here
+    // updateThreadInDatabase(threadId, { title });
 
-  for (const term of sortedTerms) {
-    if (text.toLowerCase().includes(term.toLowerCase())) {
-      // Extract the term with proper capitalization
-      const termRegex = new RegExp(term, 'i');
-      const match = text.match(termRegex);
-      if (
-        match &&
-        !keyTerms.some((existing) =>
-          existing.toLowerCase().includes(term.toLowerCase()),
-        )
-      ) {
-        keyTerms.push(match[0]);
-      }
-    }
+    // Notify UI components
+    updateThreadTitle(threadId, title);
+
+    return title;
+  } catch (error) {
+    console.error('Failed to handle new thread:', error);
+    return 'New Chat';
   }
-
-  // Then add single important words that aren't already included
-  const singleImportantWords = [
-    'ai',
-    'ml',
-    'tech',
-    'app',
-    'api',
-    'web',
-    'data',
-    'code',
-    'vr',
-    'ar',
-    'iot',
-    'gpt',
-    'crypto',
-    'nft',
-    'ev',
-    '5g',
-    'quantum',
-    'blockchain',
-    'automation',
-    'crispr',
-    'gene',
-    'dna',
-    'rna',
-    'quantum',
-    'computing',
-    'neural',
-    'network',
-    'vision',
-    'nlp',
-    'analytics',
-    'learning',
-    'science',
-    'engineering',
-    'development',
-    'statistics',
-    'mathematics',
-    'physics',
-    'chemistry',
-    'biology',
-    'medicine',
-    'climate',
-    'energy',
-    'solar',
-    'wind',
-    'nuclear',
-    'electric',
-    'autonomous',
-    'space',
-    'satellite',
-    'internet',
-    'social',
-    'digital',
-    'cybersecurity',
-    'privacy',
-    'robotics',
-    'smart',
-    'iot',
-    'virtual',
-    'augmented',
-    'gaming',
-    'music',
-    'art',
-    'design',
-    'architecture',
-    'agriculture',
-    'farming',
-    'food',
-    'nutrition',
-    'fitness',
-    'health',
-    'psychology',
-    'sociology',
-    'history',
-    'economics',
-    'finance',
-    'banking',
-    'education',
-    'research',
-    'innovation',
-    'legal',
-    'politics',
-    'government',
-    'rights',
-    'justice',
-    'ethics',
-    'culture',
-    'family',
-    'children',
-    'elderly',
-    'insurance',
-    'medical',
-    'treatment',
-    'disease',
-    'virus',
-    'pandemic',
-    'hygiene',
-  ];
-
-  for (const word of words) {
-    if (
-      singleImportantWords.includes(word) &&
-      !keyTerms.some((term) => term.toLowerCase().includes(word))
-    ) {
-      keyTerms.push(word.charAt(0).toUpperCase() + word.slice(1));
-    }
-  }
-
-  // Remove duplicates and limit to 3 terms
-  const uniqueTerms = [...new Set(keyTerms)].slice(0, 3);
-
-  return uniqueTerms;
 }

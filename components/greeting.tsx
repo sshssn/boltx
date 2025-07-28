@@ -1,12 +1,22 @@
-import { useSession } from 'next-auth/react';
+import { useUsername } from '@/hooks/use-username';
 
 export const Greeting = () => {
-  const { data: session } = useSession();
-  const firstName = session?.user?.name?.split(' ')[0] || '';
-  const isLoggedIn = !!firstName;
+  const { username, isLoading } = useUsername();
+  const isLoggedIn = !!username;
+
   return (
     <h2 className="text-3xl font-semibold mb-4">
-      {isLoggedIn ? `How can I help you, ${firstName}?` : 'How can I help you?'}
+      {isLoggedIn ? (
+        <>
+          How can I help you,{' '}
+          <span className="bg-gradient-to-r from-yellow-400 to-indigo-600 bg-clip-text text-transparent">
+            {username}
+          </span>
+          ?
+        </>
+      ) : (
+        'How can I help you?'
+      )}
     </h2>
   );
 };

@@ -9,14 +9,14 @@ interface Entitlements {
 export const entitlementsByUserType: Record<UserType, Entitlements> = {
   guest: {
     maxMessagesPerDay: 20,
-    availableChatModelIds: ['chat-model', 'chat-model-reasoning'],
+    availableChatModelIds: ['gemini-2.5-flash'],
   },
   regular: {
     maxMessagesPerDay: 50,
-    availableChatModelIds: ['chat-model', 'chat-model-reasoning'],
+    availableChatModelIds: ['gemini-2.5-flash'],
   },
   pro: {
     maxMessagesPerDay: 500,
-    availableChatModelIds: ['chat-model', 'chat-model-reasoning'],
+    availableChatModelIds: ['gemini-2.5-flash'],
   },
 };

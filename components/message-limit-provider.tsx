@@ -34,11 +34,11 @@ export function MessageLimitProvider({
   children,
 }: { children: React.ReactNode }) {
   const { data: session } = useSession();
-  const isGuest = session?.user?.type === 'guest';
+  const isGuest = !session?.user?.id; // Consider user guest if no session
   const isRegular = session?.user?.type === 'regular';
 
   const [messagesUsed, setMessagesUsed] = useState(0);
-  const [messagesLimit, setMessagesLimit] = useState(isGuest ? 20 : 50);
+  const [messagesLimit, setMessagesLimit] = useState(20); // Default guest limit
   const [isLoading, setIsLoading] = useState(true);
 
   // Get default limit based on user type
@@ -77,8 +77,8 @@ export function MessageLimitProvider({
 
         // Retry on server errors
         if (response.status >= 500 && retryCount < 2) {
-          await new Promise((resolve) =>
-            setTimeout(resolve, 1000 * (retryCount + 1)),
+          await new Promise(
+            (resolve) => setTimeout(resolve, 500 * (retryCount + 1)), // Reduced from 1000ms to 500ms
           );
           return fetchFromAPI(retryCount + 1);
         }
@@ -86,8 +86,8 @@ export function MessageLimitProvider({
         console.error('Error fetching from API:', error);
         // Retry on network errors
         if (retryCount < 2) {
-          await new Promise((resolve) =>
-            setTimeout(resolve, 1000 * (retryCount + 1)),
+          await new Promise(
+            (resolve) => setTimeout(resolve, 500 * (retryCount + 1)), // Reduced from 1000ms to 500ms
           );
           return fetchFromAPI(retryCount + 1);
         }
@@ -97,12 +97,13 @@ export function MessageLimitProvider({
     [getDefaultLimit],
   );
 
-  // Load from cookies with validation
+  // Load from cookies with validation and anti-tampering check
   const loadFromCookies = useCallback(() => {
     try {
       const limitCookie = Cookies.get(MESSAGE_LIMIT_COOKIE);
       const usedCookie = Cookies.get(MESSAGE_USED_COOKIE);
       const dateCookie = Cookies.get(MESSAGE_DATE_COOKIE);
+      const hashCookie = Cookies.get('boltX_message_hash');
 
       const today = new Date().toDateString();
 
@@ -111,7 +112,20 @@ export function MessageLimitProvider({
         const used = Number.parseInt(usedCookie, 10);
 
         if (!Number.isNaN(limit) && !Number.isNaN(used) && used >= 0) {
-          return { limit, used };
+          // Validate hash to prevent tampering
+          const expectedHash = btoa(`${limit}-${used}-${today}`).slice(0, 8);
+          if (hashCookie === expectedHash) {
+            return { limit, used };
+          } else {
+            console.warn(
+              'Message limit cookie hash mismatch - possible tampering detected',
+            );
+            // Clear tampered cookies
+            Cookies.remove(MESSAGE_LIMIT_COOKIE);
+            Cookies.remove(MESSAGE_USED_COOKIE);
+            Cookies.remove(MESSAGE_DATE_COOKIE);
+            Cookies.remove('boltX_message_hash');
+          }
         }
       }
     } catch (error) {
@@ -120,11 +134,14 @@ export function MessageLimitProvider({
     return null;
   }, []);
 
-  // Save to cookies with better error handling
+  // Save to cookies with better error handling and anti-tampering
   const saveToCookies = useCallback((limit: number, used: number) => {
     try {
       const today = new Date().toDateString();
       const lastSync = new Date().toISOString();
+
+      // Add hash to prevent tampering
+      const hash = btoa(`${limit}-${used}-${today}`).slice(0, 8);
 
       Cookies.set(MESSAGE_LIMIT_COOKIE, limit.toString(), {
         expires: 1,
@@ -142,6 +159,12 @@ export function MessageLimitProvider({
         sameSite: 'strict',
       });
       Cookies.set(MESSAGE_LAST_SYNC_COOKIE, lastSync, {
+        expires: 1,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+      });
+      // Add integrity hash
+      Cookies.set('boltX_message_hash', hash, {
         expires: 1,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'strict',
@@ -167,48 +190,24 @@ export function MessageLimitProvider({
       setIsLoading(true);
 
       try {
-        // For logged-in users, always try API first
-        if (session?.user?.id) {
-          const apiData = await fetchFromAPI();
-          if (apiData) {
-            setMessagesUsed(apiData.used);
-            setMessagesLimit(apiData.limit);
-            saveToCookies(apiData.limit, apiData.used);
-          } else {
-            // Fallback to cookies for logged-in users
-            const cookieData = loadFromCookies();
-            if (cookieData) {
-              setMessagesUsed(cookieData.used);
-              setMessagesLimit(cookieData.limit);
-            } else {
-              // Final fallback to defaults
-              const defaultLimit = getDefaultLimit();
-              setMessagesUsed(0);
-              setMessagesLimit(defaultLimit);
-              saveToCookies(defaultLimit, 0);
-            }
-          }
+        // Always try API first for both logged-in and guest users
+        const apiData = await fetchFromAPI();
+        if (apiData) {
+          setMessagesUsed(apiData.used);
+          setMessagesLimit(apiData.limit);
+          saveToCookies(apiData.limit, apiData.used);
         } else {
-          // For guests, check if it's a new day first
-          if (isNewDay()) {
-            // Reset for new day
+          // Fallback to cookies
+          const cookieData = loadFromCookies();
+          if (cookieData) {
+            setMessagesUsed(cookieData.used);
+            setMessagesLimit(cookieData.limit);
+          } else {
+            // Final fallback to defaults
             const defaultLimit = getDefaultLimit();
             setMessagesUsed(0);
             setMessagesLimit(defaultLimit);
             saveToCookies(defaultLimit, 0);
-          } else {
-            // Load from cookies
-            const cookieData = loadFromCookies();
-            if (cookieData) {
-              setMessagesUsed(cookieData.used);
-              setMessagesLimit(cookieData.limit);
-            } else {
-              // Fallback to defaults
-              const defaultLimit = getDefaultLimit();
-              setMessagesUsed(0);
-              setMessagesLimit(defaultLimit);
-              saveToCookies(defaultLimit, 0);
-            }
           }
         }
       } catch (error) {
@@ -223,19 +222,9 @@ export function MessageLimitProvider({
       }
     };
 
-    // Only initialize if we have session data or are guest
-    if (session?.user?.id || isGuest) {
-      initialize();
-    }
-  }, [
-    session?.user?.id,
-    isGuest,
-    loadFromCookies,
-    fetchFromAPI,
-    saveToCookies,
-    getDefaultLimit,
-    isNewDay,
-  ]);
+    // Initialize for all users (both logged-in and guests)
+    initialize();
+  }, [loadFromCookies, fetchFromAPI, saveToCookies, getDefaultLimit]);
 
   // Update limit when user type changes
   useEffect(() => {
@@ -244,40 +233,49 @@ export function MessageLimitProvider({
     saveToCookies(defaultLimit, messagesUsed);
   }, [isGuest, isRegular, getDefaultLimit, messagesUsed, saveToCookies]);
 
-  // Periodic sync for logged-in users
+  // Periodic sync for all users - further reduced frequency
   useEffect(() => {
-    if (!session?.user?.id) return;
-
     const syncInterval = setInterval(async () => {
       try {
         await refreshUsage();
       } catch (error) {
         console.error('Periodic sync failed:', error);
       }
-    }, 30000); // Sync every 30 seconds
+    }, 300000); // Sync every 5 minutes instead of 2 minutes
 
     return () => clearInterval(syncInterval);
-  }, [session?.user?.id, refreshUsage]);
+  }, [refreshUsage]);
 
   const incrementMessageCount = useCallback(() => {
     setMessagesUsed((prev) => {
       const newUsed = prev + 1;
       saveToCookies(messagesLimit, newUsed);
 
-      // For logged-in users, sync with API in background
-      if (session?.user?.id) {
-        fetch('/api/profile/tokens', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ increment: true }),
-        }).catch((error) => {
-          console.error('Failed to sync message count:', error);
-        });
+      // For guests, trigger usage display immediately after first message
+      if (isGuest && prev === 0) {
+        // Force a re-render to show usage counter
+        setTimeout(() => {
+          window.dispatchEvent(new CustomEvent('message-sent'));
+        }, 50); // Reduced from 100ms to 50ms for faster response
+      }
+
+      // Only sync with API for logged-in users, and debounce the calls
+      if (!isGuest) {
+        // Debounce API calls to prevent spam
+        setTimeout(() => {
+          fetch('/api/profile/tokens', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ increment: true }),
+          }).catch((error) => {
+            console.error('Failed to sync message count:', error);
+          });
+        }, 2000); // 2 second debounce
       }
 
       return newUsed;
     });
-  }, [messagesLimit, saveToCookies, session?.user?.id]);
+  }, [messagesLimit, saveToCookies, isGuest]);
 
   const resetForNewDay = useCallback(() => {
     const defaultLimit = getDefaultLimit();

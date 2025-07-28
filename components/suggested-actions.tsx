@@ -1,82 +1,241 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import type { UseChatHelpers } from '@ai-sdk/react';
-import type { VisibilityType } from './visibility-selector';
-import type { ChatMessage } from '@/lib/types';
-import { useState } from 'react';
-import { SparklesIcon, GlobeIcon, CodeIcon, InfoIcon } from './icons';
-import { cn } from '@/lib/utils';
-import { Greeting } from './greeting';
+import { useState, useEffect } from 'react';
+import { useSession } from 'next-auth/react';
+import { useUsername } from '@/hooks/use-username';
+
+// Type definitions
+interface ChatMessage {
+  id: string;
+  content: string;
+  role: 'user' | 'assistant';
+}
+
+interface UseChatHelpers {
+  sendMessage: (message: string) => void;
+}
+
+type VisibilityType = 'public' | 'private' | 'unlisted';
+
+// Utility function to combine class names
+const cn = (...classes: (string | undefined | null | false)[]): string => {
+  return classes.filter(Boolean).join(' ');
+};
+
+// Icon components - moved to top before usage
+const PaintbrushIcon = ({ size = 20 }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+  >
+    <path d="m9.06 11.9 8.07-8.06a2.85 2.85 0 1 1 4.03 4.03l-8.06 8.08" />
+    <path d="m7.07 14.94-1.13 1.13a3.984 3.984 0 0 1-5.657 0 3.984 3.984 0 0 1 0-5.657l1.13-1.13" />
+    <path d="m12 15 3.5 3.5a2.121 2.121 0 0 1-3 3L9 18" />
+  </svg>
+);
+
+const CompassIcon = ({ size = 20 }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+  >
+    <circle cx="12" cy="12" r="10" />
+    <polygon points="16.24,7.76 14.12,14.12 7.76,16.24 9.88,9.88" />
+  </svg>
+);
+
+const TerminalIcon = ({ size = 20 }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+  >
+    <polyline points="4,17 10,11 4,5" />
+    <line x1="12" x2="20" y1="19" y2="19" />
+  </svg>
+);
+
+const LightbulbIcon = ({ size = 20 }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+  >
+    <path d="M9 21h6" />
+    <path d="M12 17c0 0 0-4.5 0-6a5 5 0 1 0-10 0c0 1.5 0 6 0 6 h10Z" />
+    <path d="M12 1v2" />
+    <path d="M22 12h-2" />
+    <path d="M4 12H2" />
+    <path d="m19.07 4.93-1.41 1.41" />
+    <path d="m6.34 6.34-1.41-1.41" />
+  </svg>
+);
 
 interface SuggestedActionsProps {
   chatId: string;
-  sendMessage: UseChatHelpers<ChatMessage>['sendMessage'];
+  sendMessage: (message: string) => void;
   selectedVisibilityType: VisibilityType;
   setInput?: (value: string) => void;
 }
 
+// Fun, engaging prompts for each category
 const PRE_PROMPTS = {
-  Learn: [
-    'Explain the latest breakthroughs in quantum computing (2025).',
-    'What are the most important AI trends of 2025?',
-    'How does CRISPR gene editing impact health in 2025?',
-    'Summarize the global climate initiatives for 2025.',
-  ],
   Create: [
-    'Write a short story about a robot and a human in 2025.',
-    'Compose a poem about Mars colonization.',
-    'Draft a professional email for a remote-first company.',
-    'Generate a creative ad slogan for a wearable AI assistant.',
+    'Design a logo for a time travel agency',
+    'Write a haiku about digital dreams',
+    'Invent a superhero for the metaverse',
+    'Create a tagline for invisible socks',
   ],
   Explore: [
-    'What are the top travel destinations for digital nomads in 2025?',
-    'Tell me about the latest tech gadgets of 2025.',
-    'What are some unique AI-powered hobbies to try?',
-    'Explore the benefits of virtual reality fitness.',
+    'Find a hidden gem city for 2025',
+    'What hobby will be trending next year?',
+    'Coolest underwater discovery recently?',
+    'Most mind-blowing tech gadget under $50?',
   ],
   Code: [
-    'Show me how to use Python 3.13 pattern matching.',
-    'Explain the difference between REST, GraphQL, and gRPC in 2025.',
-    'Write a SQL query to analyze time-series data.',
-    'How do I build a serverless API with edge functions?',
+    'One-liner to reverse a string in Python',
+    'Best React pattern for state management?',
+    'Debug: Why is my API call failing?',
+    'Fastest way to deploy a simple app?',
+  ],
+  Learn: [
+    'ELI5: How does quantum computing work?',
+    'Latest breakthrough in renewable energy?',
+    'Most exciting space discovery this year?',
+    'What skill will be most valuable in 2030?',
   ],
 };
 
+// More unique and fun icons for each category
 const CATEGORY_ICONS = {
-  Create: <SparklesIcon size={20} />,
-  Explore: <GlobeIcon size={20} />,
-  Code: <CodeIcon size={20} />,
-  Learn: <InfoIcon size={20} />,
+  Create: <PaintbrushIcon size={20} />,
+  Explore: <CompassIcon size={20} />,
+  Code: <TerminalIcon size={20} />,
+  Learn: <LightbulbIcon size={20} />,
 };
 
-// Subtle, elegant color schemes
 const CATEGORY_COLORS = {
   Create: {
     active:
-      'bg-purple-500/10 border-purple-300/40 text-purple-700 dark:text-purple-300',
-    icon: 'text-purple-600 dark:text-purple-400',
-    accent: 'bg-purple-400/30',
+      'bg-gradient-to-br from-purple-500/30 via-pink-500/20 to-fuchsia-500/30 border-purple-300/60 text-purple-800 dark:text-purple-200 shadow-purple-500/20',
+    icon: 'text-purple-700 dark:text-purple-300',
+    accent: 'bg-gradient-to-r from-purple-400/50 to-pink-400/50',
+    frost: 'bg-purple-500/15 backdrop-blur-xl border-purple-300/40',
   },
   Explore: {
     active:
-      'bg-blue-500/10 border-blue-300/40 text-blue-700 dark:text-blue-300',
-    icon: 'text-blue-600 dark:text-blue-400',
-    accent: 'bg-blue-400/30',
+      'bg-gradient-to-br from-blue-500/30 via-cyan-500/20 to-sky-500/30 border-blue-300/60 text-blue-800 dark:text-blue-200 shadow-blue-500/20',
+    icon: 'text-blue-700 dark:text-blue-300',
+    accent: 'bg-gradient-to-r from-blue-400/50 to-cyan-400/50',
+    frost: 'bg-blue-500/15 backdrop-blur-xl border-blue-300/40',
   },
   Code: {
     active:
-      'bg-emerald-500/10 border-emerald-300/40 text-emerald-700 dark:text-emerald-300',
-    icon: 'text-emerald-600 dark:text-emerald-400',
-    accent: 'bg-emerald-400/30',
+      'bg-gradient-to-br from-emerald-500/30 via-green-500/20 to-teal-500/30 border-emerald-300/60 text-emerald-800 dark:text-emerald-200 shadow-emerald-500/20',
+    icon: 'text-emerald-700 dark:text-emerald-300',
+    accent: 'bg-gradient-to-r from-emerald-400/50 to-teal-400/50',
+    frost: 'bg-emerald-500/15 backdrop-blur-xl border-emerald-300/40',
   },
   Learn: {
     active:
-      'bg-amber-500/10 border-amber-300/40 text-amber-700 dark:text-amber-300',
-    icon: 'text-amber-600 dark:text-amber-400',
-    accent: 'bg-amber-400/30',
+      'bg-gradient-to-br from-amber-500/30 via-yellow-500/20 to-orange-500/30 border-amber-300/60 text-amber-800 dark:text-amber-200 shadow-amber-500/20',
+    icon: 'text-amber-700 dark:text-amber-300',
+    accent: 'bg-gradient-to-r from-amber-400/50 to-orange-400/50',
+    frost: 'bg-amber-500/15 backdrop-blur-xl border-amber-300/40',
   },
 };
+
+// Dynamic greeting component (no loading animations)
+function DynamicGreeting() {
+  const [greeting, setGreeting] = useState('');
+  const { data: session, status } = useSession();
+  const { username } = useUsername();
+
+  // Get username from session
+  const displayUsername = username || session?.user?.name || 'there';
+
+  useEffect(() => {
+    if (!displayUsername || status === 'loading') return;
+
+    // Time-based greeting
+    const hour = new Date().getHours();
+    let timeGreeting = '';
+
+    if (hour < 5) timeGreeting = 'Working late';
+    else if (hour < 12) timeGreeting = 'Good morning';
+    else if (hour < 17) timeGreeting = 'Good afternoon';
+    else if (hour < 21) timeGreeting = 'Good evening';
+    else timeGreeting = 'Good night';
+
+    // Variety of greeting styles
+    const greetingStyles = [
+      `${timeGreeting}, ${displayUsername}!`,
+      `Hey there, ${displayUsername}!`,
+      `Welcome back, ${displayUsername}`,
+      `Hi ${displayUsername}! Ready to explore?`,
+      `${timeGreeting}! What's on your mind, ${displayUsername}?`,
+      `Great to see you, ${displayUsername}!`,
+    ];
+
+    const randomGreeting =
+      greetingStyles[Math.floor(Math.random() * greetingStyles.length)];
+    setGreeting(randomGreeting);
+  }, [displayUsername, status]);
+
+  // Show loading state while session is loading
+  if (status === 'loading') {
+    return (
+      <div className="text-center space-y-4">
+        <div className="space-y-2">
+          <h1 className="text-4xl sm:text-5xl font-bold">
+            <span className="bg-gradient-to-r from-zinc-900 via-zinc-700 to-zinc-900 dark:from-zinc-100 dark:via-zinc-300 dark:to-zinc-100 bg-clip-text text-transparent">
+              Welcome back
+            </span>
+          </h1>
+          <p className="text-lg text-zinc-600 dark:text-zinc-400 font-medium">
+            What would you like to explore today?
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="text-center space-y-4">
+      <div className="space-y-2">
+        <h1 className="text-4xl sm:text-5xl font-bold">
+          <span className="bg-gradient-to-r from-zinc-900 via-zinc-700 to-zinc-900 dark:from-zinc-100 dark:via-zinc-300 dark:to-zinc-100 bg-clip-text text-transparent">
+            {greeting.split(displayUsername)[0]}
+          </span>
+          <span className="bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 dark:from-blue-400 dark:via-purple-400 dark:to-indigo-400 bg-clip-text text-transparent font-extrabold">
+            {displayUsername}
+          </span>
+          <span className="bg-gradient-to-r from-zinc-900 via-zinc-700 to-zinc-900 dark:from-zinc-100 dark:via-zinc-300 dark:to-zinc-100 bg-clip-text text-transparent">
+            {greeting.split(displayUsername)[1]}
+          </span>
+        </h1>
+        <p className="text-lg text-zinc-600 dark:text-zinc-400 font-medium">
+          What would you like to explore today?
+        </p>
+      </div>
+    </div>
+  );
+}
 
 export function SuggestedActions({
   chatId,
@@ -84,99 +243,53 @@ export function SuggestedActions({
   selectedVisibilityType,
   setInput,
 }: SuggestedActionsProps) {
-  // No pill highlighted by default, but show prompts for the first category
   const categoryKeys = Object.keys(PRE_PROMPTS) as (keyof typeof PRE_PROMPTS)[];
   const [selectedCategory, setSelectedCategory] = useState<
     keyof typeof PRE_PROMPTS | undefined
   >(undefined);
-
   const [hoveredPrompt, setHoveredPrompt] = useState<string | null>(null);
 
-  const containerVariants = {
-    hidden: { opacity: 0, y: 50 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: {
-        duration: 0.6,
-        ease: 'easeOut',
-        staggerChildren: 0.1,
-      },
-    },
-  };
-
-  const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: { duration: 0.4, ease: 'easeOut' },
-    },
-  };
-
-  const promptVariants = {
-    hidden: { opacity: 0, scale: 0.95 },
-    visible: {
-      opacity: 1,
-      scale: 1,
-      transition: { duration: 0.3, ease: 'easeOut' },
-    },
-  };
-
-  // Determine which prompts to show: if no category selected, show first
   const promptsToShow = selectedCategory
     ? PRE_PROMPTS[selectedCategory]
     : PRE_PROMPTS[categoryKeys[0]];
 
   return (
-    <motion.div
-      className="w-full max-w-4xl mx-auto space-y-8 px-2 sm:px-8"
-      variants={containerVariants}
-      initial="hidden"
-      animate="visible"
-    >
-      <motion.div variants={itemVariants}>
-        <Greeting />
-      </motion.div>
+    <div className="w-full max-w-5xl mx-auto space-y-10 px-4 sm:px-8">
+      {/* Dynamic Greeting */}
+      <div>
+        <DynamicGreeting />
+      </div>
 
-      {/* Elegant Category Selector with Frosted Glass */}
-      <motion.div
-        className="flex flex-row flex-wrap gap-3 text-sm max-sm:justify-evenly"
-        variants={itemVariants}
-      >
+      {/* Modern Category Pills */}
+      <div className="flex flex-row justify-center gap-3 text-sm">
         {categoryKeys.map((cat, index) => (
-          <motion.button
+          <button
             key={cat}
             type="button"
             className={cn(
-              'group relative overflow-hidden justify-center whitespace-nowrap text-sm transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 h-12 flex items-center gap-2 rounded-2xl px-6 py-3 font-medium backdrop-blur-xl max-sm:size-20 max-sm:flex-col sm:gap-3 sm:rounded-full border',
+              'group relative overflow-hidden backdrop-blur-xl transition-all duration-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50',
+              'h-14 flex items-center gap-3 rounded-full px-8 py-4 font-semibold border-2',
+              'transform hover:scale-105 active:scale-95',
               selectedCategory === cat
-                ? `${CATEGORY_COLORS[cat].active} shadow-lg backdrop-blur-xl`
-                : 'bg-white/40 dark:bg-zinc-900/40 text-zinc-600 dark:text-zinc-400 border-white/20 dark:border-zinc-700/40 hover:bg-white/60 dark:hover:bg-zinc-800/60 hover:border-white/40 dark:hover:border-zinc-600/40 backdrop-blur-xl',
+                ? `${CATEGORY_COLORS[cat].active} shadow-2xl scale-105`
+                : 'bg-white/40 dark:bg-zinc-900/40 text-zinc-600 dark:text-zinc-400 border-white/30 dark:border-zinc-700/50 hover:bg-white/60 dark:hover:bg-zinc-800/60 hover:border-white/50 dark:hover:border-zinc-600/60 backdrop-blur-xl hover:shadow-lg',
             )}
             onClick={() => setSelectedCategory(cat)}
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.1 }}
           >
-            {/* Subtle glow effect for selected state */}
+            {/* Animated background for selected */}
             {selectedCategory === cat && (
-              <motion.div
+              <div
                 className={cn(
-                  'absolute inset-0 -z-10 rounded-2xl sm:rounded-full',
+                  'absolute inset-0 rounded-full',
                   CATEGORY_COLORS[cat].accent,
                 )}
-                layoutId="categoryBackground"
-                transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
               />
             )}
 
             {/* Icon */}
             <div
               className={cn(
-                'transition-all duration-300',
+                'transition-all duration-300 z-10',
                 selectedCategory === cat
                   ? CATEGORY_COLORS[cat].icon
                   : 'text-zinc-500 dark:text-zinc-500 group-hover:text-zinc-700 dark:group-hover:text-zinc-300',
@@ -185,75 +298,35 @@ export function SuggestedActions({
               {CATEGORY_ICONS[cat]}
             </div>
 
-            <span className="relative z-10 font-medium tracking-wide">
+            <span className="relative z-10 font-bold tracking-wider text-sm">
               {cat}
             </span>
-          </motion.button>
+          </button>
         ))}
-      </motion.div>
+      </div>
 
-      {/* Elegant Prompts Section with Frosted Glass */}
-      <motion.div className="space-y-3 pt-4" variants={itemVariants}>
-        <motion.div
-          className="grid gap-3"
-          key={selectedCategory ?? categoryKeys[0]}
-          initial="hidden"
-          animate="visible"
-          variants={{
-            hidden: {},
-            visible: {
-              transition: {
-                staggerChildren: 0.05,
-              },
-            },
-          }}
-        >
+      {/* Clean Prompt Texts - No Containers */}
+      <div className="space-y-6">
+        <div className="flex flex-col gap-4">
           {promptsToShow.map((prompt, idx) => (
-            <motion.div
-              key={`${selectedCategory}-${prompt}`}
-              variants={promptVariants}
-              whileHover={{ scale: 1.01, y: -1 }}
-              whileTap={{ scale: 0.99 }}
-            >
+            <div key={`${selectedCategory}-${prompt}`}>
               <button
                 type="button"
-                className={cn(
-                  'group w-full text-left px-6 py-4 rounded-2xl transition-all duration-300 text-base font-normal relative overflow-hidden backdrop-blur-xl',
-                  'bg-[#4B5DFE]/20 dark:bg-zinc-900/30',
-                  'border border-white/20 dark:border-zinc-700/30',
-                  'hover:bg-white/50 dark:hover:bg-zinc-800/50',
-                  'hover:border-white/40 dark:hover:border-zinc-600/40',
-                  'hover:shadow-lg hover:shadow-black/5 dark:hover:shadow-black/20',
-                  'focus:outline-none focus:ring-2 focus:ring-offset-0 focus:ring-white/30 dark:focus:ring-zinc-600/50',
-                )}
+                className="group w-full text-left px-8 py-6 transition-all duration-300 text-base font-medium hover:text-zinc-900 dark:hover:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-offset-0 focus:ring-white/40"
                 onClick={() => {
                   if (setInput) setInput(prompt);
                 }}
                 onMouseEnter={() => setHoveredPrompt(prompt)}
                 onMouseLeave={() => setHoveredPrompt(null)}
               >
-                {/* Subtle shimmer effect on hover */}
-                <motion.div
-                  className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"
-                  initial={{ x: '-100%' }}
-                  whileHover={{ x: '100%' }}
-                  transition={{ duration: 0.6, ease: 'easeInOut' }}
-                />
-
-                {/* Content */}
-                <div className="relative z-10 flex items-center justify-between">
-                  <span className="text-zinc-700 dark:text-zinc-300 group-hover:text-zinc-900 dark:group-hover:text-zinc-100 transition-colors duration-300 leading-relaxed">
+                <div className="flex items-center justify-between">
+                  <span className="text-zinc-700 dark:text-zinc-300 group-hover:text-zinc-900 dark:group-hover:text-zinc-100 transition-colors duration-300 leading-relaxed font-medium text-lg">
                     {prompt}
                   </span>
 
-                  {/* Subtle arrow indicator */}
-                  <motion.div
-                    className="ml-4 opacity-0 group-hover:opacity-70 transition-all duration-300"
-                    initial={{ x: -10, opacity: 0 }}
-                    whileHover={{ x: 0, opacity: 0.7 }}
-                  >
+                  <div className="ml-6 opacity-0 group-hover:opacity-100 transition-all duration-300 flex-shrink-0">
                     <svg
-                      className="size-4 text-zinc-400 dark:text-zinc-500"
+                      className="size-5 text-zinc-500 dark:text-zinc-400"
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
@@ -262,43 +335,30 @@ export function SuggestedActions({
                         strokeLinecap="round"
                         strokeLinejoin="round"
                         strokeWidth={2}
-                        d="M9 5l7 7-7 7"
+                        d="M7 17L17 7M17 7H7M17 7V17"
                       />
                     </svg>
-                  </motion.div>
+                  </div>
                 </div>
-
-                {/* Subtle bottom accent */}
-                <motion.div
-                  className={cn(
-                    'absolute bottom-0 left-0 h-px',
-                    CATEGORY_COLORS[selectedCategory ?? categoryKeys[0]].accent,
-                    'origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300',
-                  )}
-                  style={{ width: '100%' }}
-                />
               </button>
-            </motion.div>
+            </div>
           ))}
-        </motion.div>
+        </div>
 
-        {/* Elegant separator */}
-        <motion.div
-          className="flex items-center justify-center py-6"
-          variants={itemVariants}
-        >
+        {/* Clean separator */}
+        <div className="flex items-center justify-center py-8">
           <div className="flex items-center space-x-4">
-            <div className="h-px bg-gradient-to-r from-transparent via-zinc-300/40 dark:via-zinc-600/40 to-transparent w-16" />
+            <div className="h-px bg-gradient-to-r from-transparent via-zinc-300/60 dark:via-zinc-600/60 to-transparent w-20" />
             <div
               className={cn(
-                'w-1.5 h-1.5 rounded-full transition-colors duration-300',
+                'w-2 h-2 rounded-full',
                 CATEGORY_COLORS[selectedCategory ?? categoryKeys[0]].accent,
               )}
             />
-            <div className="h-px bg-gradient-to-r from-transparent via-zinc-300/40 dark:via-zinc-600/40 to-transparent w-16" />
+            <div className="h-px bg-gradient-to-r from-transparent via-zinc-300/60 dark:via-zinc-600/60 to-transparent w-20" />
           </div>
-        </motion.div>
-      </motion.div>
-    </motion.div>
+        </div>
+      </div>
+    </div>
   );
 }

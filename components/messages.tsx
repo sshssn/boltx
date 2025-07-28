@@ -15,19 +15,7 @@ import { useMessages } from '@/hooks/use-messages';
 import type { ChatMessage } from '@/lib/types';
 import { useDataStream } from './data-stream-provider';
 import { useSession } from 'next-auth/react';
-import {
-  AlertDialog,
-  AlertDialogContent,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogAction,
-  AlertDialogCancel,
-} from '@/components/ui/alert-dialog';
-import { Button } from '@/components/ui/button';
-import { ChevronDown, Sparkles } from 'lucide-react';
-import { NetworkError } from './network-error';
+import { ChevronDown } from 'lucide-react';
 
 interface MessagesProps {
   chatId: string;
@@ -40,6 +28,7 @@ interface MessagesProps {
   isArtifactVisible: boolean;
   extraPaddingBottom?: boolean;
   onGuestLimit?: (limit: number, used: number) => void;
+  limitReached?: boolean;
 }
 
 // Simple Thinking Dots Component
@@ -111,6 +100,7 @@ function PureMessages({
   isArtifactVisible,
   extraPaddingBottom,
   onGuestLimit,
+  limitReached = false,
 }: MessagesProps) {
   const {
     containerRef: messagesContainerRef,
@@ -133,8 +123,6 @@ function PureMessages({
   const [containerWidth, setContainerWidth] = useState<number | undefined>(
     undefined,
   );
-  const [showSignupModal, setShowSignupModal] = useState(false);
-  const [networkError, setNetworkError] = useState(false);
 
   useLayoutEffect(() => {
     if (chatContainerRef.current) {
@@ -192,68 +180,13 @@ function PureMessages({
     }
   }, [isGuest, isRegular, session, messages.length, onGuestLimit]);
 
-  // Show signup modal when limit is reached
-  useEffect(() => {
-    if ((isGuest || isRegular) && messagesUsed >= messagesLimit) {
-      setShowSignupModal(true);
-    }
-  }, [isGuest, isRegular, messagesUsed, messagesLimit]);
-
   useDataStream();
 
-  // Check for network errors in messages
-  useEffect(() => {
-    const hasNetworkError = messages.some(
-      (msg) =>
-        msg.role === 'assistant' &&
-        (!msg.parts ||
-          msg.parts.length === 0 ||
-          (msg.parts.length === 1 &&
-            msg.parts[0].type === 'text' &&
-            (!msg.parts[0].text || msg.parts[0].text.trim() === ''))),
-    );
-    setNetworkError(hasNetworkError);
-  }, [messages]);
+  // Network error detection removed - handled by chat component
 
-  // Additional timeout-based error detection for when AI doesn't respond
-  useEffect(() => {
-    if (status === 'submitted' || status === 'streaming') {
-      const timeoutId = setTimeout(() => {
-        // If we're still in submitted/streaming state after 30 seconds, show error
-        if (status === 'submitted' || status === 'streaming') {
-          setNetworkError(true);
-        }
-      }, 30000); // 30 seconds timeout
+  // Network error detection removed - handled by chat component's ErrorDisplay
 
-      return () => clearTimeout(timeoutId);
-    }
-  }, [status]);
-
-  const handleRetry = () => {
-    setNetworkError(false);
-    // Remove the last assistant message if it's empty/broken
-    setMessages((prev) => {
-      const lastAssistantIndex = prev.findLastIndex(
-        (msg) => msg.role === 'assistant',
-      );
-      if (lastAssistantIndex !== -1) {
-        const lastAssistant = prev[lastAssistantIndex];
-        if (
-          !lastAssistant.parts ||
-          lastAssistant.parts.length === 0 ||
-          (lastAssistant.parts.length === 1 &&
-            lastAssistant.parts[0].type === 'text' &&
-            (!lastAssistant.parts[0].text ||
-              lastAssistant.parts[0].text.trim() === ''))
-        ) {
-          return prev.slice(0, lastAssistantIndex);
-        }
-      }
-      return prev;
-    });
-    // Regenerate the response
-    regenerate();
-  };
+  // Retry logic removed - handled by chat component
 
   return (
     <div
@@ -268,64 +201,7 @@ function PureMessages({
     >
       {messages.length === 0 && <Greeting />}
 
-      {/* Enhanced Network Error Display */}
-      {networkError && (
-        <div className="flex justify-center p-4">
-          <NetworkError
-            onRetry={handleRetry}
-            message="Failed to get response from AI"
-          />
-        </div>
-      )}
-
-      {/* Enhanced Signup Modal */}
-      <AlertDialog open={showSignupModal} onOpenChange={setShowSignupModal}>
-        <AlertDialogContent className="max-w-md border-0 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl shadow-2xl">
-          <AlertDialogHeader>
-            <div className="flex items-center justify-center size-12 mx-auto mb-4 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full">
-              <Sparkles className="size-6 text-white" />
-            </div>
-            <AlertDialogTitle className="text-center text-xl">
-              Message Limit Reached
-            </AlertDialogTitle>
-            <AlertDialogDescription className="text-center text-zinc-600 dark:text-zinc-400">
-              You&apos;ve reached your daily limit of{' '}
-              <strong>{messagesLimit}</strong> messages as a{' '}
-              {isGuest ? 'guest' : 'registered user'}.
-              {isGuest
-                ? ' Sign up for a free account to continue chatting and unlock more features!'
-                : ' Upgrade to Pro for unlimited messages and advanced features!'}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
-            <AlertDialogAction asChild className="w-full">
-              <Button
-                asChild
-                className="bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white"
-                size="lg"
-              >
-                <a
-                  href={isGuest ? '/auth' : '/billing'}
-                  className="flex items-center gap-2"
-                >
-                  {isGuest ? 'Sign Up Free' : 'Upgrade to Pro'}
-                  <Sparkles className="size-4" />
-                </a>
-              </Button>
-            </AlertDialogAction>
-            <AlertDialogCancel asChild className="w-full">
-              <Button
-                variant="ghost"
-                size="lg"
-                onClick={() => setShowSignupModal(false)}
-                className="text-zinc-600 dark:text-zinc-400"
-              >
-                Maybe Later
-              </Button>
-            </AlertDialogCancel>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {/* Network error display removed - handled by chat component */}
 
       {/* Messages */}
       {messages.map((message, index) => (
@@ -347,11 +223,12 @@ function PureMessages({
           }
           isStreaming={status === 'streaming' && index === messages.length - 1}
           style={index === 0 ? { marginTop: '1.2rem' } : {}}
+          limitReached={limitReached}
         />
       ))}
 
-      {/* Glassmorphism typing animation */}
-      {(status === 'streaming' || status === 'submitted') && (
+      {/* Glassmorphism typing animation - only show when submitted, not when streaming */}
+      {status === 'submitted' && (
         <div className="w-full mx-auto max-w-3xl px-4 group/message my-6">
           <div className="flex gap-4 w-full">
             <div className="flex flex-col gap-4 w-full">
