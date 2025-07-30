@@ -21,7 +21,7 @@ export default function LoginPage() {
   if (status === 'loading') {
     return (
       <div className="relative min-h-screen w-full flex flex-col items-center justify-center bg-gradient-to-br from-[#181c2a] via-[#232329] to-[#181c2a]">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white" />
+        <div className="animate-spin rounded-full size-8 border-b-2 border-white" />
       </div>
     );
   }

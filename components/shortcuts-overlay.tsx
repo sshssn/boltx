@@ -96,17 +96,17 @@ const shortcuts = [
       {
         label: 'Search chats',
         shortcut: '⌘K',
-        icon: <Search className="w-3 h-3" />,
+        icon: <Search className="size-3" />,
       },
       {
         label: 'Open new chat',
         shortcut: '⇧⌘O',
-        icon: <Plus className="w-3 h-3" />,
+        icon: <Plus className="size-3" />,
       },
       {
         label: 'Toggle sidebar',
         shortcut: '⇧⌘S',
-        icon: <Sidebar className="w-3 h-3" />,
+        icon: <Sidebar className="size-3" />,
       },
     ],
   },
@@ -116,27 +116,27 @@ const shortcuts = [
       {
         label: 'Copy last code block',
         shortcut: '⇧⌘;',
-        icon: <Copy className="w-3 h-3" />,
+        icon: <Copy className="size-3" />,
       },
       {
         label: 'Next message',
         shortcut: '⇧↓',
-        icon: <ChevronDown className="w-3 h-3" />,
+        icon: <ChevronDown className="size-3" />,
       },
       {
         label: 'Previous message',
         shortcut: '⇧↑',
-        icon: <ChevronUp className="w-3 h-3" />,
+        icon: <ChevronUp className="size-3" />,
       },
       {
         label: 'Delete chat',
         shortcut: '⇧⌘⌫',
-        icon: <Trash2 className="w-3 h-3" />,
+        icon: <Trash2 className="size-3" />,
       },
       {
         label: 'Focus chat input',
         shortcut: '⇧↻',
-        icon: <RotateCcw className="w-3 h-3" />,
+        icon: <RotateCcw className="size-3" />,
       },
     ],
   },
@@ -146,12 +146,12 @@ const shortcuts = [
       {
         label: 'Show shortcuts',
         shortcut: '⌘/',
-        icon: <Keyboard className="w-3 h-3" />,
+        icon: <Keyboard className="size-3" />,
       },
       {
         label: 'Set custom instructions',
         shortcut: '⇧⌘I',
-        icon: <Settings className="w-3 h-3" />,
+        icon: <Settings className="size-3" />,
       },
     ],
   },

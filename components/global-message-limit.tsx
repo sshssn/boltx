@@ -72,22 +72,22 @@ export function GlobalMessageLimit() {
 
   const features = [
     {
-      icon: <Sparkles className="w-5 h-5" />,
+      icon: <Sparkles className="size-5" />,
       title: '50 tokens daily',
       description: 'Generous daily message allowance',
     },
     {
-      icon: <Zap className="w-5 h-5" />,
+      icon: <Zap className="size-5" />,
       title: 'Lightning-fast premium models',
       description: 'Access to cutting-edge AI',
     },
     {
-      icon: <Brain className="w-5 h-5" />,
+      icon: <Brain className="size-5" />,
       title: 'AI remembers your conversations',
       description: 'Context-aware responses',
     },
     {
-      icon: <History className="w-5 h-5" />,
+      icon: <History className="size-5" />,
       title: 'Chat history',
       description: 'Never lose your conversations',
     },
@@ -127,7 +127,7 @@ export function GlobalMessageLimit() {
                   <div className="absolute inset-0 rounded-lg sm:rounded-xl bg-gradient-to-r from-blue-500/0 via-purple-500/0 to-pink-500/0 opacity-0 transition-opacity duration-300 pointer-events-none group-hover:opacity-20" />
 
                   <div className="relative flex items-start gap-2.5 sm:gap-4">
-                    <div className="flex-shrink-0 w-7 h-7 sm:w-10 sm:h-10 bg-gradient-to-br from-blue-500/20 to-purple-500/20 dark:from-blue-400/30 dark:to-purple-400/30 rounded-lg sm:rounded-xl flex items-center justify-center text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform duration-200">
+                    <div className="shrink-0 size-7 sm:size-10 bg-gradient-to-br from-blue-500/20 to-purple-500/20 dark:from-blue-400/30 dark:to-purple-400/30 rounded-lg sm:rounded-xl flex items-center justify-center text-blue-600 dark:text-blue-400 group-hover:scale-110 transition- duration-200">
                       {feature.icon}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -164,10 +164,10 @@ export function GlobalMessageLimit() {
             <Button
               variant="ghost"
               size="sm"
-              className="absolute top-1.5 right-1.5 sm:top-4 sm:right-4 w-6 h-6 sm:w-8 sm:h-8 p-0 rounded-full bg-white/20 dark:bg-zinc-800/20 hover:bg-white/30 dark:hover:bg-zinc-800/30 backdrop-blur-sm border border-white/30 dark:border-zinc-700/30"
+              className="absolute top-1.5 right-1.5 sm:top-4 sm:right-4 size-6 sm:size-8 p-0 rounded-full bg-white/20 dark:bg-zinc-800/20 hover:bg-white/30 dark:hover:bg-zinc-800/30 backdrop-blur-sm border border-white/30 dark:border-zinc-700/30"
               onClick={handleDismiss}
             >
-              <X className="w-3 h-3 sm:w-4 sm:h-4" />
+              <X className="size-3 sm:size-4" />
             </Button>
           </div>
         </div>

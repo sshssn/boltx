@@ -72,7 +72,7 @@ function ErrorDisplay({
     <div className="flex justify-center w-full px-4 mb-4">
       <div className="flex items-center gap-3 bg-red-50 dark:bg-red-950/20 backdrop-blur-xl border border-red-200/80 dark:border-red-800/60 shadow-lg rounded-xl px-4 py-3 max-w-md">
         <div className="flex items-center gap-2 flex-1">
-          <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400 flex-shrink-0" />
+          <AlertTriangle className="size-5 text-red-600 dark:text-red-400 shrink-0" />
           <div className="flex flex-col gap-1">
             <p className="text-sm font-medium text-red-900 dark:text-red-100">
               Failed to get response from AI
@@ -91,12 +91,12 @@ function ErrorDisplay({
         >
           {isRetrying ? (
             <>
-              <RefreshCw className="h-3 w-3 animate-spin" />
+              <RefreshCw className="size-3 animate-spin" />
               Retrying...
             </>
           ) : (
             <>
-              <RefreshCw className="h-3 w-3" />
+              <RefreshCw className="size-3" />
               Retry
             </>
           )}
@@ -500,7 +500,7 @@ export function Chat({
           {messages.length === 0 ? (
             <div
               className={`
-              flex-1 flex items-center justify-center py-4 px-4
+              flex-1 flex items-center justify-center p-4
               ${isMobile ? 'pb-20' : 'pb-36'}
               overflow-y-auto
             `}
@@ -586,7 +586,7 @@ export function Chat({
               <div className="flex justify-center w-full px-4 mb-4">
                 <div className="flex items-center gap-2 bg-yellow-50 dark:bg-yellow-950/20 backdrop-blur-xl border border-yellow-200/80 dark:border-yellow-800/60 shadow-lg rounded-xl px-4 py-3 max-w-md">
                   <div className="flex items-center gap-2 flex-1">
-                    <div className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse" />
+                    <div className="size-2 bg-yellow-500 rounded-full animate-pulse" />
                     <div className="flex flex-col gap-1">
                       <p className="text-sm font-medium text-yellow-900 dark:text-yellow-100">
                         AI is taking longer than usual

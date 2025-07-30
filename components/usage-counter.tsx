@@ -62,7 +62,7 @@ export function UsageCounter() {
         <div className="flex items-center justify-between text-xs text-zinc-600 dark:text-zinc-400">
           <span>{remaining} messages remaining</span>
           <div className="flex items-center gap-1">
-            <Zap className="w-3 h-3" />
+            <Zap className="size-3" />
             <span>{isGuest ? 'Guest' : 'Regular'}</span>
           </div>
         </div>

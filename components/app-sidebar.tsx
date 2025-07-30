@@ -60,7 +60,7 @@ function CompactUsageDisplay() {
     <div className="w-full p-1.5 bg-zinc-50/60 dark:bg-zinc-900/60 backdrop-blur-sm border border-zinc-200/40 dark:border-zinc-700/40 rounded-md">
       <div className="flex items-center justify-between mb-1">
         <div className="flex items-center gap-1">
-          <MessageSquare className="w-2.5 h-2.5 text-zinc-500 dark:text-zinc-400" />
+          <MessageSquare className="size-2.5 text-zinc-500 dark:text-zinc-400" />
           <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400">
             {isGuest ? 'Guest' : 'Usage'}
           </span>
@@ -80,7 +80,7 @@ function CompactUsageDisplay() {
         <div className="flex items-center justify-between text-xs text-zinc-400 dark:text-zinc-500">
           <span>{remaining} left</span>
           <div className="flex items-center gap-0.5">
-            <Zap className="w-2 h-2" />
+            <Zap className="size-2" />
             <span className="text-xs">{isGuest ? 'Guest' : 'Regular'}</span>
           </div>
         </div>
@@ -188,7 +188,7 @@ export function AppSidebar({
     return (
       <>
         {/* Left floating pill: sidebar toggle, search, new chat */}
-        <div className="fixed left-4 top-4 z-50 flex items-center gap-1 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl border border-zinc-200/80 dark:border-zinc-700/80 rounded-xl shadow-xl px-2 py-2 transition-all duration-300 hover:shadow-2xl">
+        <div className="fixed left-4 top-4 z-50 flex items-center gap-1 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl border border-zinc-200/80 dark:border-zinc-700/80 rounded-xl shadow-xl p-2 transition-all duration-300 hover:shadow-2xl">
           <SidebarToggle className="!shadow-none !border-none !bg-transparent hover:!bg-zinc-100/60 dark:hover:!bg-zinc-800/60 transition-all duration-200 !p-2 !h-9 !w-9" />
           <Button
             variant="ghost"
@@ -198,7 +198,7 @@ export function AppSidebar({
               e.stopPropagation();
               setShowFloatingSearch(true);
             }}
-            className="h-9 w-9 hover:bg-zinc-100/60 dark:hover:bg-zinc-800/60 transition-all duration-200"
+            className="size-9 hover:bg-zinc-100/60 dark:hover:bg-zinc-800/60 transition-all duration-200"
           >
             <SearchIcon size={16} />
           </Button>
@@ -207,7 +207,7 @@ export function AppSidebar({
             size="icon"
             aria-label="New Chat"
             onClick={() => router.push?.('/')}
-            className="h-9 w-9 hover:bg-zinc-100/60 dark:hover:bg-zinc-800/60 transition-all duration-200"
+            className="size-9 hover:bg-zinc-100/60 dark:hover:bg-zinc-800/60 transition-all duration-200"
           >
             <PlusIcon size={16} />
           </Button>
@@ -220,7 +220,7 @@ export function AppSidebar({
             size="icon"
             aria-label="Account Settings"
             onClick={() => router.push?.('/account')}
-            className="h-9 w-9 hover:bg-zinc-100/60 dark:hover:bg-zinc-800/60 transition-all duration-200"
+            className="size-9 hover:bg-zinc-100/60 dark:hover:bg-zinc-800/60 transition-all duration-200"
           >
             <Cog size={16} />
           </Button>
@@ -231,7 +231,7 @@ export function AppSidebar({
             onClick={() =>
               setTheme((resolvedTheme ?? 'light') === 'dark' ? 'light' : 'dark')
             }
-            className="h-9 w-9 hover:bg-zinc-100/60 dark:hover:bg-zinc-800/60 transition-all duration-200"
+            className="size-9 hover:bg-zinc-100/60 dark:hover:bg-zinc-800/60 transition-all duration-200"
           >
             {(resolvedTheme ?? 'light') === 'dark' ? (
               <Sun size={16} />
@@ -325,14 +325,14 @@ export function AppSidebar({
         <SidebarHeader className="flex flex-col items-center gap-3 p-3 bg-white dark:bg-zinc-950">
           {/* Sidebar toggle */}
           <div className="flex items-center justify-between w-full">
-            <SidebarToggle className="!shadow-none !border-none !bg-transparent hover:!bg-zinc-100 dark:hover:!bg-zinc-800 transition-all duration-200 flex-shrink-0" />
+            <SidebarToggle className="!shadow-none !border-none !bg-transparent hover:!bg-zinc-100 dark:hover:!bg-zinc-800 transition-all duration-200 shrink-0" />
           </div>
 
           {/* Logo container - standard size */}
           <div className="flex items-center justify-center rounded-lg bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-zinc-800 dark:to-zinc-900 border border-zinc-200/50 dark:border-zinc-700/50 shadow-sm backdrop-blur-sm transition-all duration-300 hover:shadow-md h-12 px-4 w-auto">
             <Link
               href="/"
-              className="flex items-center justify-center w-full h-full"
+              className="flex items-center justify-center size-full"
               onClick={() => isMobile && toggleSidebar()}
             >
               <Image
@@ -372,7 +372,7 @@ export function AppSidebar({
 
           {/* Search bar - enhanced mobile experience */}
           <div className="flex items-center gap-2 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50/50 dark:bg-zinc-900/50 shadow-sm px-2 py-1.5 transition-all duration-200 focus-within:ring-2 focus-within:ring-blue-500/20 focus-within:border-blue-300 dark:focus-within:border-blue-600">
-            <div className="text-zinc-500 flex-shrink-0">
+            <div className="text-zinc-500 shrink-0">
               <SearchIcon size={16} />
             </div>
             <Input
@@ -440,7 +440,7 @@ export function AppSidebar({
                   <img
                     src={avatarUrl}
                     alt={displayUsername}
-                    className="w-8 h-8 rounded-full"
+                    className="size-8 rounded-full"
                   />
                 ) : (
                   <User size={20} />

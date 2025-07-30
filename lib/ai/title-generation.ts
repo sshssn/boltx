@@ -196,7 +196,7 @@ function validateTitle(title: string): boolean {
 
   const lowerTitle = title.toLowerCase();
   return !genericTitles.some(
-    (generic) => lowerTitle === generic || lowerTitle.startsWith(generic + ' '),
+    (generic) => lowerTitle === generic || lowerTitle.startsWith(`${generic} `),
   );
 }
 
@@ -307,7 +307,7 @@ async function generateTitleWithGemini(
     return cleanGeneratedTitle(title);
   } catch (error) {
     clearTimeout(timeoutId);
-    if (error.name === 'AbortError') {
+    if (error instanceof Error && error.name === 'AbortError') {
       throw new Error('Gemini API timeout - request took too long');
     }
     throw error;
@@ -385,7 +385,7 @@ async function generateTitleWithOpenRouter(
     return cleanGeneratedTitle(title);
   } catch (error) {
     clearTimeout(timeoutId);
-    if (error.name === 'AbortError') {
+    if (error instanceof Error && error.name === 'AbortError') {
       throw new Error('Groq API timeout - request took too long');
     }
     throw error;
@@ -469,7 +469,7 @@ async function generateTitleWithGroqFallback(
     return cleanGeneratedTitle(title);
   } catch (error) {
     clearTimeout(timeoutId);
-    if (error.name === 'AbortError') {
+    if (error instanceof Error && error.name === 'AbortError') {
       throw new Error('Groq Fallback API timeout - request took too long');
     }
     throw error;
@@ -516,10 +516,11 @@ Title (2-4 words only):`;
         return truncatedTitle;
       }
     } catch (error) {
-      console.warn(`Title generation failed:`, error.message);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.warn(`Title generation failed:`, errorMessage);
 
       // Skip to next provider immediately on rate limit
-      if (error.message.includes('rate limited')) {
+      if (errorMessage.includes('rate limited')) {
         continue;
       }
     }
@@ -569,7 +570,8 @@ export async function generateTitleFromUserMessage(
       return aiTitle;
     }
   } catch (error) {
-    console.error('AI title generation failed, using fallback:', error.message);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error('AI title generation failed, using fallback:', errorMessage);
   }
 
   // Use improved fallback
@@ -597,7 +599,8 @@ export async function generateTitleFromAIResponse(
         return contextualTitle;
       }
     } catch (error) {
-      console.error('Contextual title generation failed:', error.message);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error('Contextual title generation failed:', errorMessage);
     }
   }
 

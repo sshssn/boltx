@@ -27,13 +27,12 @@ export function KeyboardShortcuts({
 }: KeyboardShortcutsProps) {
   const router = useRouter();
 
-  // Try to use sidebar if available, otherwise provide a fallback
+  // Use sidebar hook with fallback
   let toggleSidebar: (() => void) | undefined;
   try {
     const { toggleSidebar: sidebarToggle } = useSidebar();
     toggleSidebar = sidebarToggle;
-  } catch (error) {
-    // Sidebar not available, provide a no-op function
+  } catch {
     toggleSidebar = () => {
       console.log('Sidebar not available - toggle ignored');
     };

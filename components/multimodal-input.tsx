@@ -89,7 +89,7 @@ const PasteIndicator = ({
   if (!show) return null;
 
   return (
-    <div className="absolute top-2 left-1/2 transform -translate-x-1/2 z-10">
+    <div className="absolute top-2 left-1/2  -translate-x-1/2 z-10">
       <div className="flex items-center gap-2 px-3 py-2 bg-blue-500/90 text-white text-sm rounded-lg backdrop-blur-sm shadow-lg animate-in slide-in-from-top-2 duration-300">
         <Copy className="size-4" />
         <span>Content pasted</span>

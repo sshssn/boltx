@@ -58,6 +58,8 @@ export async function GET(
 
   const emptyDataStream = createUIMessageStream<ChatMessage>({
     execute: () => {},
+    id: 'empty',
+    experimental_streamData: true,
   });
 
   // FIX: streamContext is undefined, so return emptyDataStream directly for now
@@ -94,6 +96,8 @@ export async function GET(
           transient: true,
         });
       },
+      id: 'restored',
+      experimental_streamData: true,
     });
 
     return new Response(

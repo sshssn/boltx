@@ -78,7 +78,7 @@ function HamburgerMenu({ children }: { children: React.ReactNode }) {
             'touch-manipulation',
           )}
         >
-          <Menu className="h-4 w-4 text-zinc-700 dark:text-zinc-300" />
+          <Menu className="size-4 text-zinc-700 dark:text-zinc-300" />
           <span className="sr-only">Toggle sidebar</span>
         </Button>
       </SheetTrigger>
@@ -592,7 +592,7 @@ const SidebarGroupAction = React.forwardRef<
       className={cn(
         'absolute right-3 top-3.5 flex aspect-square w-5 items-center justify-center rounded-md p-0',
         'text-zinc-600 dark:text-zinc-400',
-        'outline-none ring-blue-500 dark:ring-blue-400 transition-transform',
+        'outline-none ring-blue-500 dark:ring-blue-400 transition-',
         'hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100',
         'focus-visible:ring-2 [&>svg]:size-4 [&>svg]:shrink-0',
         // Increases the hit area of the button on mobile.
@@ -756,7 +756,7 @@ const SidebarMenuAction = React.forwardRef<
       className={cn(
         'absolute right-1 top-1.5 flex aspect-square w-5 items-center justify-center rounded-md p-0',
         'text-zinc-600 dark:text-zinc-400',
-        'outline-none ring-blue-500 dark:ring-blue-400 transition-transform',
+        'outline-none ring-blue-500 dark:ring-blue-400 transition-',
         'hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100',
         'focus-visible:ring-2 peer-hover/menu-button:text-zinc-900 dark:peer-hover/menu-button:text-zinc-100',
         '[&>svg]:size-4 [&>svg]:shrink-0',

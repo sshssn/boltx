@@ -20,7 +20,7 @@ export const textDocumentHandler = createDocumentHandler<'text'>({
         geminiProvider.languageModel('gemini-1.5-pro'),
       ),
       system: 'Write about the topic. Use markdown and headings.',
-      experimental_transform: smoothStream({ chunking: 'word' }),
+      experimental_: smoothStream({ chunking: 'word' }),
       prompt: title,
     });
 
@@ -50,7 +50,7 @@ export const textDocumentHandler = createDocumentHandler<'text'>({
         geminiProvider.languageModel('gemini-1.5-pro'),
       ),
       system: updateDocumentPrompt(document.content, 'text'),
-      experimental_transform: smoothStream({ chunking: 'word' }),
+      experimental_: smoothStream({ chunking: 'word' }),
       prompt: description,
       providerOptions: {
         openai: {

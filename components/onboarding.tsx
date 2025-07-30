@@ -40,7 +40,7 @@ const onboardingSteps: OnboardingStep[] = [
     subtitle: 'Your AI Chat Companion',
     description:
       'Ready to chat with the smartest AI? BoltX makes conversations feel natural, helpful, and fun.',
-    icon: <Sparkles className="w-8 h-8" />,
+    icon: <Sparkles className="size-8" />,
     features: [
       'Chat with advanced AI',
       'Upload images & files',
@@ -56,7 +56,7 @@ const onboardingSteps: OnboardingStep[] = [
     subtitle: 'Images, Documents, Code',
     description:
       'Just drag and drop! Upload photos, PDFs, or code files and watch the AI understand everything.',
-    icon: <FileText className="w-8 h-8" />,
+    icon: <FileText className="size-8" />,
     features: [
       'Drop images for analysis',
       'Upload PDFs & documents',
@@ -72,7 +72,7 @@ const onboardingSteps: OnboardingStep[] = [
     subtitle: 'Make AI Work for You',
     description:
       'Use keyboard shortcuts, save conversations, and let AI remember your preferences.',
-    icon: <Zap className="w-8 h-8" />,
+    icon: <Zap className="size-8" />,
     features: [
       'Keyboard shortcuts (⌘K)',
       'Save chat history',
@@ -88,7 +88,7 @@ const onboardingSteps: OnboardingStep[] = [
     subtitle: 'Start Chatting Now',
     description:
       'Everything is ready! Start your first conversation and discover what AI can do for you.',
-    icon: <MessageSquare className="w-8 h-8" />,
+    icon: <MessageSquare className="size-8" />,
     features: [
       'Try the suggested prompts',
       'Ask anything you want',
@@ -138,8 +138,8 @@ export function Onboarding() {
         >
           {/* Background Pattern */}
           <div className="absolute inset-0 overflow-hidden">
-            <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-violet-500/10 to-purple-600/10 rounded-full blur-3xl" />
-            <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-br from-blue-500/10 to-cyan-600/10 rounded-full blur-3xl" />
+            <div className="absolute -top-40 -right-40 size-80 bg-gradient-to-br from-violet-500/10 to-purple-600/10 rounded-full blur-3xl" />
+            <div className="absolute -bottom-40 -left-40 size-80 bg-gradient-to-br from-blue-500/10 to-cyan-600/10 rounded-full blur-3xl" />
           </div>
 
           <div className="relative w-full max-w-4xl">
@@ -170,7 +170,7 @@ export function Onboarding() {
                   variant="secondary"
                   className="bg-white/10 text-white border-white/20"
                 >
-                  <Rocket className="w-3 h-3 mr-1" />
+                  <Rocket className="size-3 mr-1" />
                   Welcome aboard!
                 </Badge>
               </motion.div>
@@ -206,7 +206,7 @@ export function Onboarding() {
                         initial={{ scale: 0.8, opacity: 0 }}
                         animate={{ scale: 1, opacity: 1 }}
                         transition={{ delay: 0.5 }}
-                        className={`inline-flex items-center justify-center w-16 h-16 rounded-2xl ${currentStepData.gradient} ${currentStepData.color.replace('from-', 'text-').replace(' to-', '')}`}
+                        className={`inline-flex items-center justify-center size-16 rounded-2xl ${currentStepData.gradient} ${currentStepData.color.replace('from-', 'text-').replace(' to-', '')}`}
                       >
                         {currentStepData.icon}
                       </motion.div>
@@ -250,7 +250,7 @@ export function Onboarding() {
                               transition={{ delay: 0.8 + index * 0.1 }}
                               className="flex items-center gap-3 text-sm text-zinc-600 dark:text-zinc-400"
                             >
-                              <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
+                              <CheckCircle className="w-4 h-4 text-green-500 shrink-0" />
                               {feature}
                             </motion.div>
                           ))}
@@ -290,7 +290,7 @@ export function Onboarding() {
                           repeat: Number.POSITIVE_INFINITY,
                           ease: 'easeInOut',
                         }}
-                        className="absolute -top-4 -right-4 w-8 h-8 bg-white/20 rounded-full flex items-center justify-center"
+                        className="absolute -top-4 -right-4 size-8 bg-white/20 rounded-full flex items-center justify-center"
                       >
                         <Shield className="w-4 h-4 text-white" />
                       </motion.div>
@@ -302,7 +302,7 @@ export function Onboarding() {
                           repeat: Number.POSITIVE_INFINITY,
                           ease: 'easeInOut',
                         }}
-                        className="absolute -bottom-4 -left-4 w-8 h-8 bg-white/20 rounded-full flex items-center justify-center"
+                        className="absolute -bottom-4 -left-4 size-8 bg-white/20 rounded-full flex items-center justify-center"
                       >
                         <ZapIcon className="w-4 h-4 text-white" />
                       </motion.div>
@@ -333,7 +333,7 @@ export function Onboarding() {
                     <motion.button
                       key={step.id}
                       onClick={() => setCurrentStep(index)}
-                      className={`w-2 h-2 rounded-full transition-all ${
+                      className={`size-2 rounded-full transition-all ${
                         index === currentStep
                           ? 'bg-white scale-125'
                           : 'bg-white/30 hover:bg-white/50'

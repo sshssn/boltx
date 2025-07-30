@@ -1,6 +1,18 @@
 import { simulateReadableStream } from 'ai';
 import { MockLanguageModelV2 } from 'ai/test';
-import { getResponseChunksByPrompt } from '@/tests/prompts/utils';
+// Mock function since the test utils don't exist
+const getResponseChunksByPrompt = (prompt: string, isReasoning = false) => {
+  return [
+    { id: '1', type: 'text-start' },
+    { id: '1', type: 'text-delta', delta: 'Hello, world!' },
+    { id: '1', type: 'text-end' },
+    {
+      type: 'finish',
+      finishReason: 'stop',
+      usage: { inputTokens: 3, outputTokens: 10, totalTokens: 13 },
+    },
+  ];
+};
 
 export const chatModel = new MockLanguageModelV2({
   doGenerate: async () => ({

@@ -52,13 +52,13 @@ export function MobileWarning() {
           onClick={handleDismiss}
           variant="ghost"
           size="icon"
-          className="absolute top-2 right-2 h-6 w-6 text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
+          className="absolute top-2 right-2 size-6 text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
         >
-          <X className="h-3 w-3" />
+          <X className="size-3" />
         </Button>
 
         <div className="flex items-center gap-2 mb-3">
-          <Smartphone className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+          <Smartphone className="size-4 text-blue-600 dark:text-blue-400" />
           <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
             Small Screen Detected
           </h3>

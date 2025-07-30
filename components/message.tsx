@@ -189,7 +189,7 @@ const PurePreviewMessage = ({
                             <Markdown>{sanitizeText(part.text)}</Markdown>
                             {isMessageCutOff && (
                               <div className="flex items-center gap-2 mt-2 p-2 bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
-                                <div className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse" />
+                                <div className="size-2 bg-yellow-500 rounded-full animate-pulse" />
                                 <span className="text-sm text-yellow-700 dark:text-yellow-300">
                                   Response was cut off. Use the Continue button
                                   to resume.
@@ -426,15 +426,15 @@ export const ThinkingMessage = () => {
         <div className="flex flex-col items-center justify-center w-full py-8">
           <div className="flex items-center gap-1.5 mb-2">
             <div
-              className="w-2 h-2 bg-primary rounded-full animate-bounce"
+              className="size-2 bg-primary rounded-full animate-bounce"
               style={{ animationDelay: '0ms', animationDuration: '1.4s' }}
             />
             <div
-              className="w-2 h-2 bg-primary rounded-full animate-bounce"
+              className="size-2 bg-primary rounded-full animate-bounce"
               style={{ animationDelay: '160ms', animationDuration: '1.4s' }}
             />
             <div
-              className="w-2 h-2 bg-primary rounded-full animate-bounce"
+              className="size-2 bg-primary rounded-full animate-bounce"
               style={{ animationDelay: '320ms', animationDuration: '1.4s' }}
             />
           </div>

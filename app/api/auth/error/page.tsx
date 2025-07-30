@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
@@ -16,7 +16,7 @@ import {
 import Image from 'next/image';
 import Link from 'next/link';
 
-export default function AuthErrorPage() {
+function AuthErrorPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [error, setError] = useState<string>('');
@@ -102,8 +102,8 @@ export default function AuthErrorPage() {
     <div className="min-h-screen w-full flex items-center justify-center bg-gradient-to-br from-[#181c2a] via-[#232329] to-[#181c2a] p-4">
       {/* Background Pattern */}
       <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-red-500/10 to-orange-600/10 rounded-full blur-3xl" />
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-br from-blue-500/10 to-purple-600/10 rounded-full blur-3xl" />
+        <div className="absolute -top-40 -right-40 size-80 bg-gradient-to-br from-red-500/10 to-orange-600/10 rounded-full blur-3xl" />
+        <div className="absolute -bottom-40 -left-40 size-80 bg-gradient-to-br from-blue-500/10 to-purple-600/10 rounded-full blur-3xl" />
       </div>
 
       <motion.div
@@ -132,8 +132,8 @@ export default function AuthErrorPage() {
               transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
               className="flex justify-center mb-6"
             >
-              <div className="w-16 h-16 bg-gradient-to-br from-red-500 to-orange-500 rounded-full flex items-center justify-center">
-                <AlertTriangle className="w-8 h-8 text-white" />
+              <div className="size-16 bg-gradient-to-br from-red-500 to-orange-500 rounded-full flex items-center justify-center">
+                <AlertTriangle className="size-8 text-white" />
               </div>
             </motion.div>
 
@@ -177,7 +177,7 @@ export default function AuthErrorPage() {
                 onClick={handleRetry}
                 className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
               >
-                <RefreshCw className="w-4 h-4 mr-2" />
+                <RefreshCw className="size-4 mr-2" />
                 Try Again
               </Button>
 
@@ -186,7 +186,7 @@ export default function AuthErrorPage() {
                 onClick={handleGoHome}
                 className="w-full border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800"
               >
-                <Home className="w-4 h-4 mr-2" />
+                <Home className="size-4 mr-2" />
                 Go to Home
               </Button>
             </motion.div>
@@ -200,7 +200,7 @@ export default function AuthErrorPage() {
             >
               <div className="text-center space-y-3">
                 <div className="flex items-center justify-center gap-2 text-sm text-zinc-600 dark:text-zinc-400">
-                  <Shield className="w-4 h-4" />
+                  <Shield className="size-4" />
                   <span>Need help?</span>
                 </div>
                 <div className="flex justify-center gap-4 text-xs">
@@ -234,11 +234,19 @@ export default function AuthErrorPage() {
             onClick={() => router.back()}
             className="text-zinc-400 hover:text-zinc-300"
           >
-            <ArrowLeft className="w-4 h-4 mr-2" />
+            <ArrowLeft className="size-4 mr-2" />
             Go Back
           </Button>
         </motion.div>
       </motion.div>
     </div>
+  );
+}
+
+export default function AuthErrorPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <AuthErrorPageContent />
+    </Suspense>
   );
 }

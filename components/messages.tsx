@@ -243,21 +243,21 @@ function PureMessages({
                   {/* Simple animated dots - no full width container */}
                   <div className="flex items-center gap-1 md:gap-1.5">
                     <div
-                      className="w-2 h-2 md:w-2.5 md:h-2.5 bg-zinc-600 dark:bg-zinc-300 rounded-full animate-bounce"
+                      className="size-2 md:size-2.5 bg-zinc-600 dark:bg-zinc-300 rounded-full animate-bounce"
                       style={{
                         animationDelay: '0ms',
                         animationDuration: '1.4s',
                       }}
                     />
                     <div
-                      className="w-2 h-2 md:w-2.5 md:h-2.5 bg-zinc-600 dark:bg-zinc-300 rounded-full animate-bounce"
+                      className="size-2 md:size-2.5 bg-zinc-600 dark:bg-zinc-300 rounded-full animate-bounce"
                       style={{
                         animationDelay: '200ms',
                         animationDuration: '1.4s',
                       }}
                     />
                     <div
-                      className="w-2 h-2 md:w-2.5 md:h-2.5 bg-zinc-600 dark:bg-zinc-300 rounded-full animate-bounce"
+                      className="size-2 md:size-2.5 bg-zinc-600 dark:bg-zinc-300 rounded-full animate-bounce"
                       style={{
                         animationDelay: '400ms',
                         animationDuration: '1.4s',

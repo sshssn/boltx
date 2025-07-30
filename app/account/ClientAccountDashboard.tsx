@@ -400,7 +400,7 @@ export default function ClientAccountDashboard() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/20 dark:from-background dark:via-background/95 dark:to-background flex items-center justify-center">
         <div className="flex items-center gap-2 text-foreground">
-          <Loader2 className="w-6 h-6 animate-spin" />
+          <Loader2 className="size-6 animate-spin" />
           <span>Loading...</span>
         </div>
       </div>
@@ -485,7 +485,7 @@ export default function ClientAccountDashboard() {
                   localStorage.setItem('theme', newTheme);
                 }}
               >
-                <Sun className="w-4 h-4" />
+                                        <Sun className="size-4" />
               </Button>
               <Button
                 variant="ghost"
@@ -511,7 +511,7 @@ export default function ClientAccountDashboard() {
                       email={sessionData?.user?.email}
                       name={displayName}
                       size={80}
-                      className="w-20 h-20"
+                      className="size-20"
                     />
                   </div>
                   <div>
@@ -553,7 +553,7 @@ export default function ClientAccountDashboard() {
                       {messagesRemaining} messages remaining
                     </p>
                     <div className="flex items-start gap-2 p-3 rounded-lg bg-muted/30 border border-border/50">
-                      <div className="w-4 h-4 text-muted-foreground mt-0.5">
+                                              <div className="size-4 text-muted-foreground mt-0.5">
                         ℹ️
                       </div>
                       <p className="text-xs text-muted-foreground">
@@ -623,7 +623,7 @@ export default function ClientAccountDashboard() {
                         <TabsTrigger
                           key={tab.id}
                           value={tab.id}
-                          className="flex items-center gap-1.5 whitespace-nowrap flex-shrink-0 text-xs px-3 py-2 data-[state=active]:bg-primary/10 data-[state=active]:border data-[state=active]:border-primary/30 data-[state=active]:text-primary backdrop-blur-sm"
+                          className="flex items-center gap-1.5 whitespace-nowrap shrink-0 text-xs px-3 py-2 data-[state=active]:bg-primary/10 data-[state=active]:border data-[state=active]:border-primary/30 data-[state=active]:text-primary backdrop-blur-sm"
                         >
                           {tab.icon}
                           <span className="text-xs">{tab.label}</span>
@@ -688,7 +688,7 @@ export default function ClientAccountDashboard() {
                                           key={item}
                                           className="flex items-center gap-2"
                                         >
-                                          <Check className="w-3 h-3 text-green-500" />
+                                          <Check className="size-3 text-green-500" />
                                           {item}
                                         </li>
                                       ))}
@@ -720,7 +720,7 @@ export default function ClientAccountDashboard() {
                                       >
                                         {upgrading ? (
                                           <>
-                                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                            <Loader2 className="size-4 mr-2 animate-spin" />
                                             Processing...
                                           </>
                                         ) : (
@@ -750,7 +750,7 @@ export default function ClientAccountDashboard() {
                                             key={item}
                                             className="flex items-center gap-2"
                                           >
-                                            <Check className="w-3 h-3 text-green-500" />
+                                            <Check className="size-3 text-green-500" />
                                             {item}
                                           </li>
                                         ))}
@@ -811,7 +811,7 @@ export default function ClientAccountDashboard() {
                                   }
                                   className="bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 backdrop-blur-sm"
                                 >
-                                  <Receipt className="w-4 h-4 mr-2" />
+                                  <Receipt className="size-4 mr-2" />
                                   Manage Subscription
                                 </Button>
                                 <Button
@@ -821,7 +821,7 @@ export default function ClientAccountDashboard() {
                                   }
                                   className="bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 backdrop-blur-sm"
                                 >
-                                  <Calendar className="w-4 h-4 mr-2" />
+                                  <Calendar className="size-4 mr-2" />
                                   Billing History
                                 </Button>
                               </div>
@@ -1090,7 +1090,7 @@ export default function ClientAccountDashboard() {
                                 {/* Data Retention Warning */}
                                 <div className="p-4 rounded-lg bg-amber-500/10 border border-amber-500/20">
                                   <div className="flex items-start gap-3">
-                                    <div className="w-2 h-2 bg-amber-500 rounded-full mt-2" />
+                                    <div className="size-2 bg-amber-500 rounded-full mt-2" />
                                     <div>
                                       <h5 className="text-sm font-medium text-amber-600 dark:text-amber-400 mb-2">
                                         Data Retention Policy
@@ -1126,7 +1126,7 @@ export default function ClientAccountDashboard() {
                                 disabled={deleting}
                                 className="w-full bg-destructive/10 hover:bg-destructive/20 border border-destructive/30 text-destructive hover:text-destructive/80 backdrop-blur-sm"
                               >
-                                <AlertTriangle className="w-4 h-4 mr-2" />
+                                <AlertTriangle className="size-4 mr-2" />
                                 {deleting ? 'Deleting...' : 'Delete Account'}
                               </Button>
                             </AlertDialogTrigger>
@@ -1211,15 +1211,15 @@ export default function ClientAccountDashboard() {
 
                         {memoriesLoading ? (
                           <div className="flex items-center justify-center py-12">
-                            <Loader2 className="w-6 h-6 animate-spin text-zinc-400" />
+                            <Loader2 className="size-6 animate-spin text-zinc-400" />
                             <span className="ml-2 text-zinc-400">
                               Loading memories...
                             </span>
                           </div>
                         ) : memories.length === 0 ? (
                           <div className="text-center py-12">
-                            <div className="w-16 h-16 bg-muted/50 rounded-full flex items-center justify-center mx-auto mb-4">
-                              <Database className="w-8 h-8 text-muted-foreground" />
+                            <div className="size-16 bg-muted/50 rounded-full flex items-center justify-center mx-auto mb-4">
+                              <Database className="size-8 text-muted-foreground" />
                             </div>
                             <h4 className="text-lg font-medium text-foreground mb-2">
                               No memories yet
@@ -1266,7 +1266,7 @@ export default function ClientAccountDashboard() {
                                         variant="ghost"
                                         className="text-zinc-400 hover:text-red-400 hover:bg-red-500/10 ml-2"
                                       >
-                                        <Trash2 className="w-4 h-4" />
+                                        <Trash2 className="size-4" />
                                       </Button>
                                     </AlertDialogTrigger>
                                     <AlertDialogContent className="bg-background border-border">
@@ -1354,7 +1354,7 @@ export default function ClientAccountDashboard() {
                           />
                           <div className="absolute left-3 top-1/2 -translate-y-1/2">
                             <svg
-                              className="w-4 h-4 text-muted-foreground"
+                              className="size-4 text-muted-foreground"
                               fill="none"
                               stroke="currentColor"
                               viewBox="0 0 24 24"
@@ -1371,15 +1371,15 @@ export default function ClientAccountDashboard() {
 
                         {chatsLoading ? (
                           <div className="flex items-center justify-center py-12">
-                            <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+                            <Loader2 className="size-6 animate-spin text-muted-foreground" />
                             <span className="ml-2 text-muted-foreground">
                               Loading chats...
                             </span>
                           </div>
                         ) : filteredChats.length === 0 ? (
                           <div className="text-center py-12">
-                            <div className="w-16 h-16 bg-muted/50 rounded-full flex items-center justify-center mx-auto mb-4">
-                              <History className="w-8 h-8 text-muted-foreground" />
+                            <div className="size-16 bg-muted/50 rounded-full flex items-center justify-center mx-auto mb-4">
+                              <History className="size-8 text-muted-foreground" />
                             </div>
                             <h4 className="text-lg font-medium text-foreground mb-2">
                               {historySearch
@@ -1454,7 +1454,7 @@ export default function ClientAccountDashboard() {
                                       }
                                       className="text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50"
                                     >
-                                      <ExternalLink className="w-4 h-4" />
+                                      <ExternalLink className="size-4" />
                                     </Button>
                                     <AlertDialog>
                                       <AlertDialogTrigger asChild>
@@ -1463,7 +1463,7 @@ export default function ClientAccountDashboard() {
                                           variant="ghost"
                                           className="text-zinc-400 hover:text-red-400 hover:bg-red-500/10"
                                         >
-                                          <Trash2 className="w-4 h-4" />
+                                          <Trash2 className="size-4" />
                                         </Button>
                                       </AlertDialogTrigger>
                                       <AlertDialogContent className="bg-background border-border">
@@ -1595,8 +1595,8 @@ export default function ClientAccountDashboard() {
                           <div className="absolute inset-0 bg-gradient-to-br from-zinc-900/20 to-zinc-800/20" />
 
                           <div className="relative z-10 text-center space-y-6">
-                            <div className="w-20 h-20 bg-muted/50 rounded-full flex items-center justify-center mx-auto border border-border/50">
-                              <Lock className="w-10 h-10 text-muted-foreground" />
+                            <div className="size-20 bg-muted/50 rounded-full flex items-center justify-center mx-auto border border-border/50">
+                              <Lock className="size-10 text-muted-foreground" />
                             </div>
 
                             <div className="space-y-3">
@@ -1611,9 +1611,9 @@ export default function ClientAccountDashboard() {
                             </div>
 
                             <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
-                              <div className="w-2 h-2 bg-muted-foreground rounded-full" />
+                              <div className="size-2 bg-muted-foreground rounded-full" />
                               <span>Feature in development</span>
-                              <div className="w-2 h-2 bg-muted-foreground rounded-full" />
+                              <div className="size-2 bg-muted-foreground rounded-full" />
                             </div>
                           </div>
                         </div>
@@ -1627,23 +1627,23 @@ export default function ClientAccountDashboard() {
                             File Attachments
                           </h3>
                           <p className="text-sm text-muted-foreground">
-                            Manage files you've uploaded for AI analysis. These
-                            files are used to provide context in your
+                            Manage files you&apos;ve uploaded for AI analysis.
+                            These files are used to provide context in your
                             conversations.
                           </p>
                         </div>
 
                         {attachmentsLoading ? (
                           <div className="flex items-center justify-center py-12">
-                            <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+                            <Loader2 className="size-6 animate-spin text-muted-foreground" />
                             <span className="ml-2 text-muted-foreground">
                               Loading attachments...
                             </span>
                           </div>
                         ) : attachments.length === 0 ? (
                           <div className="text-center py-12">
-                            <div className="w-16 h-16 bg-muted/50 rounded-full flex items-center justify-center mx-auto mb-4">
-                              <Paperclip className="w-8 h-8 text-muted-foreground" />
+                            <div className="size-16 bg-muted/50 rounded-full flex items-center justify-center mx-auto mb-4">
+                              <Paperclip className="size-8 text-muted-foreground" />
                             </div>
                             <h4 className="text-lg font-medium text-foreground mb-2">
                               No attachments yet
@@ -1668,13 +1668,13 @@ export default function ClientAccountDashboard() {
                               >
                                 <div className="flex items-center justify-between">
                                   <div className="flex items-center gap-3 flex-1 min-w-0">
-                                    <div className="w-10 h-10 bg-muted/50 rounded-lg flex items-center justify-center shrink-0">
+                                    <div className="size-10 bg-muted/50 rounded-lg flex items-center justify-center shrink-0">
                                       {attachment.kind === 'image' ? (
-                                        <Image className="w-5 h-5 text-muted-foreground" />
+                                        <Image className="size-5 text-muted-foreground" />
                                       ) : attachment.kind === 'code' ? (
-                                        <FileText className="w-5 h-5 text-muted-foreground" />
+                                        <FileText className="size-5 text-muted-foreground" />
                                       ) : (
-                                        <File className="w-5 h-5 text-muted-foreground" />
+                                        <File className="size-5 text-muted-foreground" />
                                       )}
                                     </div>
                                     <div className="flex-1 min-w-0">
@@ -1716,7 +1716,7 @@ export default function ClientAccountDashboard() {
                                       }}
                                       className="text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50"
                                     >
-                                      <ExternalLink className="w-4 h-4" />
+                                      <ExternalLink className="size-4" />
                                     </Button>
                                     <AlertDialog>
                                       <AlertDialogTrigger asChild>
@@ -1725,7 +1725,7 @@ export default function ClientAccountDashboard() {
                                           variant="ghost"
                                           className="text-zinc-400 hover:text-red-400 hover:bg-red-500/10"
                                         >
-                                          <Trash2 className="w-4 h-4" />
+                                          <Trash2 className="size-4" />
                                         </Button>
                                       </AlertDialogTrigger>
                                       <AlertDialogContent className="bg-background border-border">
@@ -1861,7 +1861,7 @@ export default function ClientAccountDashboard() {
                                           key={item}
                                           className="flex items-center gap-2"
                                         >
-                                          <Check className="w-3 h-3 text-green-500" />
+                                          <Check className="size-3 text-green-500" />
                                           {item}
                                         </li>
                                       ))}
@@ -1893,7 +1893,7 @@ export default function ClientAccountDashboard() {
                                       >
                                         {upgrading ? (
                                           <>
-                                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                            <Loader2 className="size-4 mr-2 animate-spin" />
                                             Processing...
                                           </>
                                         ) : (
@@ -1923,7 +1923,7 @@ export default function ClientAccountDashboard() {
                                             key={item}
                                             className="flex items-center gap-2"
                                           >
-                                            <Check className="w-3 h-3 text-green-400" />
+                                            <Check className="size-3 text-green-400" />
                                             {item}
                                           </li>
                                         ))}
@@ -1984,7 +1984,7 @@ export default function ClientAccountDashboard() {
                                   }
                                   className="bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 backdrop-blur-sm"
                                 >
-                                  <Receipt className="w-4 h-4 mr-2" />
+                                  <Receipt className="size-4 mr-2" />
                                   Manage Subscription
                                 </Button>
                                 <Button
@@ -1994,7 +1994,7 @@ export default function ClientAccountDashboard() {
                                   }
                                   className="bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 backdrop-blur-sm"
                                 >
-                                  <Calendar className="w-4 h-4 mr-2" />
+                                  <Calendar className="size-4 mr-2" />
                                   Billing History
                                 </Button>
                               </div>
@@ -2058,9 +2058,9 @@ export default function ClientAccountDashboard() {
                           {/* Documentation */}
                           <div className="rounded-xl border border-border/50 bg-white/70 dark:bg-card/50 backdrop-blur-xl p-6 shadow-lg">
                             <div className="space-y-4">
-                              <div className="w-12 h-12 bg-blue-500/10 rounded-lg flex items-center justify-center">
+                              <div className="size-12 bg-blue-500/10 rounded-lg flex items-center justify-center">
                                 <svg
-                                  className="w-6 h-6 text-blue-400"
+                                  className="size-6 text-blue-400"
                                   fill="none"
                                   stroke="currentColor"
                                   viewBox="0 0 24 24"
@@ -2087,7 +2087,7 @@ export default function ClientAccountDashboard() {
                                 onClick={() => window.open('/docs', '_blank')}
                                 className="bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 text-blue-400 hover:text-blue-300 backdrop-blur-sm w-full"
                               >
-                                <ExternalLink className="w-4 h-4 mr-2" />
+                                <ExternalLink className="size-4 mr-2" />
                                 View Documentation
                               </Button>
                             </div>
@@ -2096,9 +2096,9 @@ export default function ClientAccountDashboard() {
                           {/* FAQ */}
                           <div className="rounded-xl border border-border/50 bg-white/90 dark:bg-zinc-900/50 backdrop-blur-xl p-6">
                             <div className="space-y-4">
-                              <div className="w-12 h-12 bg-green-500/10 rounded-lg flex items-center justify-center">
+                              <div className="size-12 bg-green-500/10 rounded-lg flex items-center justify-center">
                                 <svg
-                                  className="w-6 h-6 text-green-400"
+                                  className="size-6 text-green-400"
                                   fill="none"
                                   stroke="currentColor"
                                   viewBox="0 0 24 24"
@@ -2125,7 +2125,7 @@ export default function ClientAccountDashboard() {
                                 onClick={() => router.push('/faq')}
                                 className="bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 text-blue-400 hover:text-blue-300 backdrop-blur-sm w-full"
                               >
-                                <MessageCircle className="w-4 h-4 mr-2" />
+                                <MessageCircle className="size-4 mr-2" />
                                 Browse FAQ
                               </Button>
                             </div>
@@ -2157,7 +2157,7 @@ export default function ClientAccountDashboard() {
                                 className="bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 text-blue-400 hover:text-blue-300 backdrop-blur-sm"
                               >
                                 <svg
-                                  className="w-4 h-4 mr-2"
+                                  className="size-4 mr-2"
                                   fill="currentColor"
                                   viewBox="0 0 24 24"
                                 >
@@ -2175,7 +2175,7 @@ export default function ClientAccountDashboard() {
                                 }
                                 className="bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 text-blue-400 hover:text-blue-300 backdrop-blur-sm"
                               >
-                                <MessageCircle className="w-4 h-4 mr-2" />
+                                <MessageCircle className="size-4 mr-2" />
                                 Send Feedback
                               </Button>
                             </div>

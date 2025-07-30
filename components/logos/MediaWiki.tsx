@@ -264,7 +264,7 @@ export default function MediaWiki(props: SVGProps<SVGSVGElement>) {
             <g
                 id="petals"
                 fill="url(#linearGradient921)"
-                transform="matrix(.5 0 0 .5 0 .026)">
+                ="matrix(.5 0 0 .5 0 .026)">
                 <path
                     id="path13"
                     fill="url(#linearGradient873)"

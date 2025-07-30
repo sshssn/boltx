@@ -309,7 +309,7 @@ const columns: ColumnDef<z.infer<typeof schema>>[] = [
 ];
 
 function DraggableRow({ row }: { row: Row<z.infer<typeof schema>> }) {
-  const { transform, transition, setNodeRef, isDragging } = useSortable({
+  const { , transition, setNodeRef, isDragging } = useSortable({
     id: row.original.id,
   });
 
@@ -320,7 +320,7 @@ function DraggableRow({ row }: { row: Row<z.infer<typeof schema>> }) {
       ref={setNodeRef}
       className="relative z-0 data-[dragging=true]:z-10 data-[dragging=true]:opacity-80"
       style={{
-        transform: CSS.Transform.toString(transform),
+        : CSS.Transform.toString(),
         transition: transition,
       }}
     >

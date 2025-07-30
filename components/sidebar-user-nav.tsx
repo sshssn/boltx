@@ -133,7 +133,7 @@ export function SidebarUserNav({ user }: { user: UserType }) {
                 email={userEmail}
                 name={displayName}
                 size={36}
-                className="border-2 border-border/50 group-hover:border-border transition-colors flex-shrink-0"
+                className="border-2 border-border/50 group-hover:border-border transition-colors shrink-0"
               />
 
               {/* User info with better layout */}
@@ -162,7 +162,7 @@ export function SidebarUserNav({ user }: { user: UserType }) {
 
               {/* Chevron */}
               <motion.div
-                className="text-muted-foreground group-hover:text-foreground transition-colors flex-shrink-0"
+                className="text-muted-foreground group-hover:text-foreground transition-colors shrink-0"
                 whileHover={{ y: -1 }}
               >
                 <ChevronUp size={14} />

@@ -52,7 +52,7 @@ export function CompactUsageCounter() {
               window.location.href = '/account';
             }}
           >
-            <Settings className="w-3 h-3" />
+            <Settings className="size-3" />
             View usage
           </Button>
         )}
@@ -61,10 +61,10 @@ export function CompactUsageCounter() {
         <Button
           variant="ghost"
           size="sm"
-          className="absolute -top-1 -right-1 w-5 h-5 p-0 rounded-full bg-zinc-200/80 dark:bg-zinc-700/80 hover:bg-zinc-300/80 dark:hover:bg-zinc-600/80 text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200"
+          className="absolute -top-1 -right-1 size-5 p-0 rounded-full bg-zinc-200/80 dark:bg-zinc-700/80 hover:bg-zinc-300/80 dark:hover:bg-zinc-600/80 text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200"
           onClick={() => setIsDismissed(true)}
         >
-          <X className="w-3 h-3" />
+          <X className="size-3" />
         </Button>
       </div>
     </div>
