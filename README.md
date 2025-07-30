@@ -177,3 +177,6 @@ For production deployments, consider:
 - Implementing backup strategies
 - Using a CDN for static assets
 - Setting up SSL certificates
+
+Made with ❤️ by [ssh](https://github.com/sshssn) @AffinityX
+
