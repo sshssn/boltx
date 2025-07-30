@@ -23,8 +23,8 @@ export function MobileWarning() {
       setIsMobile(isMobileDevice && !isTabletDevice);
       setIsTablet(isTabletDevice);
 
-      // Show warning for mobile and tablet devices
-      if (isMobileDevice || isTabletDevice) {
+      // Only show warning for very small mobile devices
+      if (isMobileDevice && window.innerWidth < 480) {
         const dismissed = localStorage.getItem('mobile-warning-dismissed');
         if (!dismissed) {
           setIsVisible(true);
@@ -47,64 +47,43 @@ export function MobileWarning() {
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/20 backdrop-blur-sm">
-      <div className="relative max-w-md w-full bg-white/90 dark:bg-zinc-900/90 backdrop-blur-xl border border-zinc-200/50 dark:border-zinc-700/50 rounded-2xl shadow-2xl p-6 animate-in zoom-in-95 duration-200">
+      <div className="relative max-w-sm w-full bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl border border-zinc-200/50 dark:border-zinc-700/50 rounded-xl shadow-2xl p-4 animate-in zoom-in-95 duration-200">
         <Button
           onClick={handleDismiss}
           variant="ghost"
           size="icon"
-          className="absolute top-3 right-3 h-8 w-8 text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
+          className="absolute top-2 right-2 h-6 w-6 text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
         >
-          <X className="h-4 w-4" />
+          <X className="h-3 w-3" />
         </Button>
 
-        <div className="flex items-center gap-3 mb-4">
-          {isMobile ? (
-            <Smartphone className="h-6 w-6 text-blue-600 dark:text-blue-400" />
-          ) : (
-            <Tablet className="h-6 w-6 text-blue-600 dark:text-blue-400" />
-          )}
-          <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
-            {isMobile ? 'Mobile Device Detected' : 'Tablet Device Detected'}
+        <div className="flex items-center gap-2 mb-3">
+          <Smartphone className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+          <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
+            Small Screen Detected
           </h3>
         </div>
 
-        <div className="space-y-3 text-sm text-zinc-700 dark:text-zinc-300">
-          <p>
-            You&apos;re currently using a {isMobile ? 'mobile' : 'tablet'}{' '}
-            device. The boltX application is currently in beta and may not be
-            fully optimized for {isMobile ? 'mobile' : 'tablet'} screens.
-          </p>
+        <div className="space-y-2 text-xs text-zinc-700 dark:text-zinc-300">
+          <p>You&apos;re using a small screen. Some features may be limited.</p>
 
-          <div className="bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3">
-            <p className="text-yellow-800 dark:text-yellow-200 font-medium mb-1">
-              ⚠️ Use at your own risk
+          <div className="bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-2">
+            <p className="text-yellow-800 dark:text-yellow-200 font-medium mb-1 text-xs">
+              ⚠️ Limited Experience
             </p>
             <p className="text-yellow-700 dark:text-yellow-300 text-xs">
-              Some features may not work as expected on{' '}
-              {isMobile ? 'mobile' : 'tablet'} devices. For the best experience,
-              we recommend using a desktop computer.
+              For the best experience, use a larger screen or rotate your
+              device.
             </p>
           </div>
-
-          <p className="text-xs text-zinc-500 dark:text-zinc-400">
-            You can dismiss this warning and continue using the app, but please
-            be aware of potential limitations.
-          </p>
         </div>
 
-        <div className="flex gap-3 mt-6">
+        <div className="flex gap-2 mt-4">
           <Button
             onClick={handleDismiss}
-            className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
+            className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-xs py-2"
           >
-            Continue Anyway
-          </Button>
-          <Button
-            onClick={() => window.history.back()}
-            variant="outline"
-            className="flex-1"
-          >
-            Go Back
+            Continue
           </Button>
         </div>
       </div>

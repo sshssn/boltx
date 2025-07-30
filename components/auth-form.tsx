@@ -1,12 +1,14 @@
 import Form from 'next/form';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
+import { Eye, EyeOff } from 'lucide-react';
+import { useState } from 'react';
 
 export function AuthForm({
   action,
   children,
   defaultEmail = '',
-  mode = 'signin', // 'signin' or 'signup'
+  mode = 'signin',
   title,
   subtitle,
 }: {
@@ -19,8 +21,10 @@ export function AuthForm({
   title?: string;
   subtitle?: string;
 }) {
+  const [showPassword, setShowPassword] = useState(false);
+
   return (
-    <div className="w-full max-w-md mx-auto">
+    <div className="w-full max-w-md mx-auto px-4">
       {/* Header Section */}
       {(title || subtitle) && (
         <div className="text-center mb-8 space-y-2">
@@ -38,40 +42,31 @@ export function AuthForm({
       )}
 
       {/* Form Container */}
-      <div className="relative">
-        {/* Glassmorphism background */}
-        <div className="absolute inset-0 bg-gradient-to-br from-white/80 via-white/40 to-white/80 dark:from-zinc-900/80 dark:via-zinc-800/40 dark:to-zinc-900/80 backdrop-blur-xl rounded-2xl border border-white/20 dark:border-zinc-700/50 shadow-2xl" />
-
-        {/* Subtle glow effect */}
-        <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 via-purple-500/5 to-pink-500/5 dark:from-blue-400/10 dark:via-purple-400/10 dark:to-pink-400/10 rounded-2xl" />
-
-        <Form action={action} className="relative p-8 space-y-6">
+      <div className="bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl rounded-2xl border border-white/20 dark:border-zinc-700/50 shadow-2xl p-8">
+        <Form action={action} className="space-y-6">
           {/* Username field - only for signup */}
           {mode === 'signup' && (
-            <div className="space-y-3 group">
+            <div className="space-y-2">
               <Label
                 htmlFor="username"
-                className="text-sm font-medium text-zinc-700 dark:text-zinc-300 transition-colors group-focus-within:text-blue-600 dark:group-focus-within:text-blue-400"
+                className="text-sm font-medium text-zinc-700 dark:text-zinc-300"
               >
                 Username
               </Label>
-              <div className="relative">
-                <Input
-                  id="username"
-                  name="username"
-                  className="w-full px-4 py-3 bg-white/70 dark:bg-zinc-800/70 border border-zinc-200/50 dark:border-zinc-700/50 rounded-xl text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 dark:placeholder:text-zinc-400 backdrop-blur-sm transition-all duration-200 focus:border-blue-500/50 focus:ring-4 focus:ring-blue-500/20 focus:bg-white dark:focus:bg-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-600"
-                  type="text"
-                  placeholder="johndoe"
-                  autoComplete="username"
-                  required
-                  autoFocus={mode === 'signup'}
-                  minLength={3}
-                  maxLength={32}
-                  pattern="[a-zA-Z0-9_-]+"
-                  title="Username must be 3-32 characters, letters, numbers, underscores, and hyphens only"
-                />
-                <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-blue-500/0 via-purple-500/0 to-pink-500/0 opacity-0 transition-opacity duration-200 pointer-events-none group-focus-within:opacity-20" />
-              </div>
+              <Input
+                id="username"
+                name="username"
+                className="w-full"
+                type="text"
+                placeholder="johndoe"
+                autoComplete="username"
+                required
+                autoFocus={mode === 'signup'}
+                minLength={3}
+                maxLength={32}
+                pattern="[a-zA-Z0-9_-]+"
+                title="Username must be 3-32 characters, letters, numbers, underscores, and hyphens only"
+              />
               <p className="text-xs text-zinc-500 dark:text-zinc-400">
                 3-32 characters, letters, numbers, underscores, and hyphens only
               </p>
@@ -79,34 +74,31 @@ export function AuthForm({
           )}
 
           {/* Email field */}
-          <div className="space-y-3 group">
+          <div className="space-y-2">
             <Label
               htmlFor="email"
-              className="text-sm font-medium text-zinc-700 dark:text-zinc-300 transition-colors group-focus-within:text-blue-600 dark:group-focus-within:text-blue-400"
+              className="text-sm font-medium text-zinc-700 dark:text-zinc-300"
             >
               Email Address
             </Label>
-            <div className="relative">
-              <Input
-                id="email"
-                name="email"
-                className="w-full px-4 py-3 bg-white/70 dark:bg-zinc-800/70 border border-zinc-200/50 dark:border-zinc-700/50 rounded-xl text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 dark:placeholder:text-zinc-400 backdrop-blur-sm transition-all duration-200 focus:border-blue-500/50 focus:ring-4 focus:ring-blue-500/20 focus:bg-white dark:focus:bg-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-600"
-                type="email"
-                placeholder="you@example.com"
-                autoComplete="email"
-                required
-                autoFocus={mode === 'signin'}
-                defaultValue={defaultEmail}
-              />
-              <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-blue-500/0 via-purple-500/0 to-pink-500/0 opacity-0 transition-opacity duration-200 pointer-events-none group-focus-within:opacity-20" />
-            </div>
+            <Input
+              id="email"
+              name="email"
+              className="w-full"
+              type="email"
+              placeholder="you@example.com"
+              autoComplete="email"
+              required
+              autoFocus={mode === 'signin'}
+              defaultValue={defaultEmail}
+            />
           </div>
 
           {/* Password field */}
-          <div className="space-y-3 group">
+          <div className="space-y-2">
             <Label
               htmlFor="password"
-              className="text-sm font-medium text-zinc-700 dark:text-zinc-300 transition-colors group-focus-within:text-blue-600 dark:group-focus-within:text-blue-400"
+              className="text-sm font-medium text-zinc-700 dark:text-zinc-300"
             >
               Password
             </Label>
@@ -114,15 +106,26 @@ export function AuthForm({
               <Input
                 id="password"
                 name="password"
-                className="w-full px-4 py-3 bg-white/70 dark:bg-zinc-800/70 border border-zinc-200/50 dark:border-zinc-700/50 rounded-xl text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 dark:placeholder:text-zinc-400 backdrop-blur-sm transition-all duration-200 focus:border-blue-500/50 focus:ring-4 focus:ring-blue-500/20 focus:bg-white dark:focus:bg-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-600"
-                type="password"
+                className="w-full pr-10"
+                type={showPassword ? 'text' : 'password'}
                 placeholder="••••••••"
                 autoComplete={
                   mode === 'signup' ? 'new-password' : 'current-password'
                 }
                 required
               />
-              <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-blue-500/0 via-purple-500/0 to-pink-500/0 opacity-0 transition-opacity duration-200 pointer-events-none group-focus-within:opacity-20" />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors duration-200"
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+              >
+                {showPassword ? (
+                  <EyeOff className="w-4 h-4 text-zinc-500" />
+                ) : (
+                  <Eye className="w-4 h-4 text-zinc-500" />
+                )}
+              </button>
             </div>
           </div>
 

@@ -14,6 +14,7 @@ import {
 import { MoreHorizontalIcon, TrashIcon, LoaderIcon } from './icons';
 import { memo, useState, useEffect } from 'react';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
+import { toast } from 'sonner';
 
 // GPT-style title cleaning - more aggressive and smart
 const getCleanTitle = (title: string): string => {
@@ -98,9 +99,27 @@ const PureChatItem = ({
             setTimeout(() => {
               setCurrentTitle(title);
               setIsRevealingTitle(false);
-            }, 200);
+            }, 150);
           }
         }
+      }
+    };
+
+    const handleNewChat = (event: CustomEvent) => {
+      const { chatId } = event.detail;
+      if (chatId === chat.id) {
+        setIsGeneratingTitle(true);
+        setIsRevealingTitle(false);
+        setCurrentTitle('New Thread...');
+      }
+    };
+
+    const handleTitleGenerated = (event: CustomEvent) => {
+      const { chatId, title, isRevealing } = event.detail;
+      if (chatId === chat.id && title && title !== 'New Thread...') {
+        setIsGeneratingTitle(false);
+        setIsRevealingTitle(isRevealing || false);
+        setCurrentTitle(title);
       }
     };
 
@@ -108,10 +127,24 @@ const PureChatItem = ({
       'chat-status-update',
       handleTitleUpdate as EventListener,
     );
+    window.addEventListener('chat-created', handleNewChat as EventListener);
+    window.addEventListener(
+      'title-generated',
+      handleTitleGenerated as EventListener,
+    );
+
     return () => {
       window.removeEventListener(
         'chat-status-update',
         handleTitleUpdate as EventListener,
+      );
+      window.removeEventListener(
+        'chat-created',
+        handleNewChat as EventListener,
+      );
+      window.removeEventListener(
+        'title-generated',
+        handleTitleGenerated as EventListener,
       );
     };
   }, [chat.id]);
@@ -151,8 +184,8 @@ const PureChatItem = ({
               <span
                 className={`
                   truncate font-medium text-sm leading-tight
-                  transition-opacity duration-500
-                  ${isRevealingTitle ? 'opacity-0' : 'opacity-100'}
+                  transition-opacity duration-300
+                  ${isRevealingTitle ? 'opacity-70' : 'opacity-100'}
                 `}
               >
                 {cleanTitle}
@@ -173,9 +206,10 @@ const PureChatItem = ({
           <DropdownMenuTrigger asChild>
             <SidebarMenuAction
               className={`
-                opacity-100 transition-opacity duration-200
+                opacity-100 transition-all duration-200
                 hover:bg-sidebar-accent-foreground/10
                 data-[state=open]:bg-sidebar-accent-foreground/10
+                z-10
               `}
               showOnHover
             >
@@ -186,12 +220,38 @@ const PureChatItem = ({
           <DropdownMenuContent
             side="right"
             align="start"
-            className="min-w-[160px]"
+            className="min-w-[160px] z-50"
+            sideOffset={8}
           >
+            <DropdownMenuItem
+              className="cursor-pointer focus:bg-accent/50"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                // TODO: Implement rename functionality
+                toast.info('Rename functionality coming soon!');
+              }}
+            >
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                />
+              </svg>
+              <span>Rename</span>
+            </DropdownMenuItem>
             <DropdownMenuItem
               className="cursor-pointer text-destructive focus:bg-destructive/15 focus:text-destructive"
               onClick={(e) => {
                 e.preventDefault();
+                e.stopPropagation();
                 onDelete(chat.id);
               }}
             >

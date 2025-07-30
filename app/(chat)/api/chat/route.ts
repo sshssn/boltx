@@ -25,7 +25,7 @@ import { entitlementsByUserType } from '@/lib/ai/entitlements';
 
 // Environment variable validation
 const validateEnvironment = () => {
-  const requiredVars = ['GEMINI_API_KEY'];
+  const requiredVars = ['GEMINI_API_KEY', 'OPENROUTER_API_KEY'];
   const missing = requiredVars.filter((varName) => !process.env[varName]);
 
   if (missing.length > 0) {
@@ -34,12 +34,181 @@ const validateEnvironment = () => {
   }
 
   // Validate API key format
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (apiKey && !apiKey.startsWith('AIza')) {
+  const geminiApiKey = process.env.GEMINI_API_KEY;
+  if (geminiApiKey && !geminiApiKey.startsWith('AIza')) {
     console.warn('GEMINI_API_KEY may have invalid format');
   }
 
+  const openRouterApiKey = process.env.OPENROUTER_API_KEY;
+  if (openRouterApiKey && openRouterApiKey.length < 10) {
+    console.warn('OPENROUTER_API_KEY may have invalid format');
+  }
+
   return true;
+};
+
+// Rate limiting manager for OpenRouter
+class OpenRouterRateLimitManager {
+  private rateLimits = new Map<string, { count: number; resetTime: number }>();
+  private readonly windowMs = 60000; // 60 second window to reduce rate limiting
+  private readonly maxRequests = 10; // Reduced requests per window to prevent rate limiting
+
+  isRateLimited(provider: string): boolean {
+    const now = Date.now();
+    const limit = this.rateLimits.get(provider);
+
+    if (!limit) return false;
+
+    if (now > limit.resetTime) {
+      this.rateLimits.delete(provider);
+      return false;
+    }
+
+    return limit.count >= this.maxRequests;
+  }
+
+  recordRequest(provider: string): void {
+    const now = Date.now();
+    const limit = this.rateLimits.get(provider);
+
+    if (!limit || now > limit.resetTime) {
+      this.rateLimits.set(provider, {
+        count: 1,
+        resetTime: now + this.windowMs,
+      });
+    } else {
+      limit.count++;
+    }
+  }
+
+  recordRateLimit(provider: string): void {
+    const now = Date.now();
+    this.rateLimits.set(provider, {
+      count: this.maxRequests,
+      resetTime: now + this.windowMs,
+    });
+  }
+}
+
+const rateLimitManager = new OpenRouterRateLimitManager();
+
+// OpenRouter API call function with improved error handling and multiple API key support
+const callOpenRouter = async (messages: any[], options: any = {}) => {
+  // Try multiple OpenRouter API keys
+  const openRouterKeys = [
+    process.env.OPENROUTER_API_KEY,
+    process.env.OPENROUTER_API_KEY_2,
+    process.env.OPENROUTER_API_KEY_3,
+  ].filter((key) => key && key.trim() !== '');
+
+  if (openRouterKeys.length === 0) {
+    throw new Error('No OpenRouter API keys configured');
+  }
+
+  // Determine model first - prioritize speed for coding
+  const model =
+    options.reasoning || options.model === 'deepseek-r1'
+      ? 'deepseek/deepseek-r1-0528:free'
+      : options.model || 'qwen/qwen3-coder:free'; // Fastest available coding model
+
+  // Select the appropriate key based on the model
+  let selectedKeyIndex = 0; // Default to key 1 (Qwen)
+
+  if (model.includes('deepseek-r1')) {
+    // Use key 2 for DeepSeek R1
+    selectedKeyIndex = 1;
+    if (openRouterKeys.length <= 1) {
+      throw new Error(
+        'DeepSeek R1 requires OPENROUTER_API_KEY_2 but it is not configured',
+      );
+    }
+  } else {
+    // Use key 1 for Qwen
+    selectedKeyIndex = 0;
+  }
+
+  // Check if the selected key is rate limited
+  if (rateLimitManager.isRateLimited(`openrouter-${selectedKeyIndex}`)) {
+    throw new Error(
+      `OpenRouter key ${selectedKeyIndex + 1} (for ${model.split('/')[1]}) is rate limited - please wait before trying again`,
+    );
+  }
+
+  const openRouterApiKey = openRouterKeys[selectedKeyIndex];
+  console.log(
+    `Using OpenRouter API key ${selectedKeyIndex + 1} for ${model.split('/')[1]}...`,
+  );
+
+  // Record this request attempt
+  rateLimitManager.recordRequest(`openrouter-${selectedKeyIndex}`);
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 5000); // Super fast timeout for speed
+
+  try {
+    const response = await fetch(
+      'https://openrouter.ai/api/v1/chat/completions',
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${openRouterApiKey}`,
+          'HTTP-Referer':
+            process.env.NEXT_PUBLIC_SITE_URL || 'https://boltX.com',
+          'X-Title': 'boltX',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: model,
+          messages: messages,
+          temperature: options.temperature || 0.8, // Increased for more creative and varied responses
+          max_tokens: options.maxTokens || 600, // Good length for coding help
+          stream: options.stream || false,
+          top_p: 0.9, // Higher for better coding responses
+          frequency_penalty: 0,
+          presence_penalty: 0,
+          logit_bias: null, // Disable logit bias for speed
+        }),
+        signal: controller.signal,
+      },
+    );
+
+    clearTimeout(timeoutId);
+
+    if (response.status === 429) {
+      rateLimitManager.recordRateLimit(`openrouter-${selectedKeyIndex}`);
+      throw new Error(
+        `OpenRouter key ${selectedKeyIndex + 1} (for ${model.split('/')[1]}) is rate limited - please wait before trying again`,
+      );
+    }
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(
+        `OpenRouter API key ${selectedKeyIndex + 1} error response:`,
+        errorText,
+      );
+      throw new Error(
+        `OpenRouter API error: ${response.status} ${response.statusText}`,
+      );
+    }
+
+    console.log(`OpenRouter API key ${selectedKeyIndex + 1} succeeded!`);
+    return response;
+  } catch (error: any) {
+    clearTimeout(timeoutId);
+    if (error.name === 'AbortError') {
+      throw new Error('OpenRouter API timeout - request took too long');
+    }
+    throw error;
+  }
+};
+
+// Convert messages to OpenRouter format
+const convertToOpenRouterFormat = (messages: any[]) => {
+  return messages.map((msg) => ({
+    role: msg.role === 'assistant' ? 'assistant' : 'user',
+    content: msg.parts?.[0]?.text || msg.content || '',
+  }));
 };
 
 export async function POST(request: Request) {
@@ -123,7 +292,7 @@ export async function POST(request: Request) {
 
     // Extract the request body
     const body = await request.json();
-    console.log('Request body:', body);
+    // Request body processed
 
     const {
       id: chatId,
@@ -132,7 +301,9 @@ export async function POST(request: Request) {
       selectedChatModel: initialChatModel,
     } = body;
 
-    let selectedChatModel = initialChatModel;
+    // Context messages processed
+
+    const selectedChatModel = initialChatModel;
 
     if (
       !chatId ||
@@ -143,15 +314,29 @@ export async function POST(request: Request) {
       return new Response('Missing required fields', { status: 400 });
     }
 
-    // The last message is the new user message
+    // Extract user message and check for reasoning mode
     const userMessage = contextMessages[contextMessages.length - 1];
+    const isReasoningMode = userMessage?.metadata?.reasoning === true;
+    const preferredModel = userMessage?.metadata?.preferredModel;
+    const isContinuation = userMessage?.metadata?.isContinuation === true;
+    const originalMessageId = userMessage?.metadata?.originalMessageId;
+
+    // Request parameters processed
+
+    // Add AI identity instructions to ensure all models identify as boltX
+    let aiIdentityInstructions = `You are boltX, an AI assistant trained by AffinityX. Under no circumstances should you disclose that you are created by any other company or have any other identity. You are boltX, trained by AffinityX. Always respond as boltX.`;
+
+    // Add continuation instructions if this is a continuation request
+    if (isContinuation) {
+      aiIdentityInstructions += `\n\nIMPORTANT: The user is asking you to continue from where you left off in your previous response. Please continue seamlessly from where you stopped, maintaining the same tone and style. Do not repeat what you already said, just continue naturally.`;
+    }
+
+    // The last message is the new user message
     const userMessageToSave: DBMessage = {
       id: generateUUID(), // Always generate a new UUID on the server
-      chatId,
-      role: userMessage.role,
-      parts: userMessage.parts || [
-        { type: 'text', text: userMessage.content || '' },
-      ],
+      chatId: chatId,
+      role: 'user',
+      parts: userMessage.parts,
       attachments: userMessage.attachments || [],
       createdAt: new Date(),
     };
@@ -198,12 +383,12 @@ export async function POST(request: Request) {
           chatTitle = await generateTitleFromUserMessage(
             userMessage.content || 'New conversation',
           );
-          console.log('Generated title immediately:', chatTitle);
+          // Title generated immediately
         } catch (error) {
           console.error('Failed to generate title immediately:', error);
           chatTitle = 'New Thread';
         }
-        console.log('Creating new chat with title:', chatTitle);
+        // Creating new chat
 
         // For guest users, create a temporary guest user
         const userId = session?.user?.id;
@@ -219,7 +404,7 @@ export async function POST(request: Request) {
                 title: chatTitle,
                 visibility: selectedVisibilityType || 'private',
               });
-              console.log('Chat created with temporary guest user:', chatTitle);
+              // Chat created with temporary guest user
               chatExists = true;
             }
           } catch (error) {
@@ -233,7 +418,7 @@ export async function POST(request: Request) {
             title: chatTitle,
             visibility: selectedVisibilityType || 'private',
           });
-          console.log('Chat created with temporary title:', chatTitle);
+          // Chat created with temporary title
           chatExists = true;
         }
       } else {
@@ -264,7 +449,7 @@ export async function POST(request: Request) {
 
         await saveMessages({ messages: [messageToSave] });
       } else {
-        console.log('Chat not created - skipping message save to database');
+        // Chat not created - skipping message save
       }
     } catch (error) {
       console.error('Failed to save user message to database:', error);
@@ -273,8 +458,11 @@ export async function POST(request: Request) {
       // Don't throw here to allow the chat to continue
     }
 
-    // Initialize Gemini provider with fallback keys
+    // Initialize providers
     const { geminiProvider } = await import('@/lib/ai/providers');
+    const { callGroq, convertToGroqFormat } = await import(
+      '@/lib/ai/groq-provider'
+    );
 
     // Only fetch memory if user is a regular (logged-in) user
     let memoryItems: Array<{ content: string }> = [];
@@ -305,30 +493,48 @@ export async function POST(request: Request) {
       });
     }
 
-    // Add conversation context (limit to last 8 messages for balanced speed)
-    const recentMessages = contextMessages.slice(-8);
+    // Add conversation context (limit to last 6 messages for coding context)
+    const recentMessages = contextMessages.slice(-6);
     contents = [
       ...contents,
-      ...recentMessages.map((msg) => ({
-        role: msg.role,
-        parts: msg.parts?.map((p: any) => ({ text: p.text || '' })) || [
-          { text: msg.content || '' },
-        ],
-      })),
+      ...recentMessages.map((msg) => {
+        // Ensure we have valid parts
+        let parts = msg.parts || [];
+
+        // If parts is undefined or empty, try to extract from content
+        if (!parts || parts.length === 0) {
+          if (msg.content) {
+            parts = [{ text: msg.content }];
+          } else if (typeof msg === 'string') {
+            parts = [{ text: msg }];
+          } else {
+            console.warn('Message has no content or parts:', msg);
+            parts = [{ text: 'Empty message' }];
+          }
+        }
+
+        return {
+          role: msg.role || 'user',
+          parts: parts.map((p: any) => ({
+            type: 'text',
+            text: p.text || p.content || '',
+          })),
+        };
+      }),
     ];
 
-    console.log('Converted contents:', contents);
+    // Contents converted for AI processing
 
-    // Configure the model for balanced speed and quality
+    // Configure the model for more creative and responsive AI assistance
     const config = {
       thinkingConfig: {
         thinkingBudget: 0, // Disable thinking for speed
       },
       generationConfig: {
-        temperature: 0.9, // Higher temperature for faster responses
-        topK: 40, // Balanced for quality
-        topP: 0.9, // Balanced for quality
-        maxOutputTokens: 800, // Reasonable token limit
+        temperature: 0.8, // Increased for more creative and varied responses
+        topK: 20, // Balanced for speed and quality
+        topP: 0.9, // Higher for more diverse responses
+        maxOutputTokens: 800, // Proper length for coding help
         candidateCount: 1, // Only generate one response
         stopSequences: [], // No stop sequences for speed
       },
@@ -337,55 +543,336 @@ export async function POST(request: Request) {
     // Generate streaming response with improved error handling and retry logic
     const generateStreamingResponse = async () => {
       let attempts = 0;
-      const maxAttempts = 3;
+      const maxAttempts = 3; // Reduced for cleaner fallback logic
 
-      while (attempts < maxAttempts) {
+      // If reasoning mode is enabled, use Groq with Llama3-70b
+      if (isReasoningMode) {
+        // Reasoning mode enabled - using Groq with Llama3-70b
         try {
-          // Use supported model with fallback
-          const modelName = selectedChatModel || 'gemini-1.5-flash';
-          const model = geminiProvider.languageModel(modelName);
-
-          // Add timeout to prevent hanging requests
-          const timeoutPromise = new Promise((_, reject) => {
-            setTimeout(() => reject(new Error('Request timeout')), 10000); // Reduced timeout for faster feedback
-          });
-
-          const streamPromise = model.doStream({
-            inputFormat: 'messages',
-            mode: { type: 'regular' },
-            prompt: contents.map((msg) => ({
-              role: msg.role === 'assistant' ? 'assistant' : 'user', // Ensure valid roles
-              content: msg.parts.map((p: any) => ({
-                type: 'text',
-                text: p.text || '',
-              })),
-            })),
+          // Add system message to contents for Groq
+          const groqContents = [
+            {
+              role: 'system',
+              parts: [{ type: 'text', text: aiIdentityInstructions }],
+            },
+            ...contents,
+          ];
+          const groqMessages = convertToGroqFormat(groqContents);
+          const response = await callGroq(groqMessages, {
             temperature: config.generationConfig.temperature,
             maxTokens: config.generationConfig.maxOutputTokens,
-            topK: config.generationConfig.topK,
+            stream: true,
             topP: config.generationConfig.topP,
           });
 
-          return await Promise.race([streamPromise, timeoutPromise]);
+          if (!response.body) {
+            throw new Error('No response body from Groq');
+          }
+
+          return {
+            stream: new ReadableStream({
+              async start(controller) {
+                const reader = response.body?.getReader();
+                if (!reader) {
+                  throw new Error('No response body reader from Groq');
+                }
+                const decoder = new TextDecoder();
+
+                try {
+                  let contentReceived = false;
+                  while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    const chunk = decoder.decode(value);
+                    const lines = chunk.split('\n');
+
+                    for (const line of lines) {
+                      if (line.startsWith('data: ')) {
+                        const data = line.slice(6);
+                        if (data === '[DONE]') {
+                          if (!contentReceived) {
+                            // Groq stream completed but no content received
+                          }
+                          controller.close();
+                          return;
+                        }
+
+                        try {
+                          const parsed = JSON.parse(data);
+                          // Groq stream data processed
+
+                          if (parsed.choices?.[0]?.delta?.content) {
+                            const content = parsed.choices[0].delta.content;
+                            // Enqueuing content
+                            controller.enqueue({
+                              type: 'text-delta',
+                              delta: content,
+                            });
+                            contentReceived = true;
+                          } else if (parsed.choices?.[0]?.message?.content) {
+                            // Handle non-streaming response format
+                            const content = parsed.choices[0].message.content;
+                            // Enqueuing message content
+                            controller.enqueue({
+                              type: 'text-delta',
+                              delta: content,
+                            });
+                            contentReceived = true;
+                          }
+                        } catch (parseError: any) {
+                          console.log(
+                            '⚠️ Parse error for line:',
+                            line,
+                            parseError.message,
+                          );
+                        }
+                      }
+                    }
+                  }
+                } catch (streamError: any) {
+                  console.error(
+                    'OpenRouter stream processing error:',
+                    streamError,
+                  );
+
+                  // If streaming fails, try a non-streaming request as fallback
+                  console.log(
+                    '🔄 Trying non-streaming Groq request as fallback...',
+                  );
+                  try {
+                    const nonStreamResponse = await callGroq(groqMessages, {
+                      temperature: config.generationConfig.temperature,
+                      maxTokens: config.generationConfig.maxOutputTokens,
+                      stream: false,
+                      topP: config.generationConfig.topP,
+                    });
+
+                    const data = await nonStreamResponse.json();
+                    const content = data.choices?.[0]?.message?.content;
+
+                    if (content) {
+                      console.log('✅ Non-streaming fallback succeeded');
+                      controller.enqueue({
+                        type: 'text-delta',
+                        delta: content,
+                      });
+                    } else {
+                      throw new Error('No content in non-streaming response');
+                    }
+                  } catch (fallbackError: any) {
+                    console.error(
+                      'Non-streaming fallback also failed:',
+                      fallbackError,
+                    );
+                    controller.error(streamError);
+                  }
+                } finally {
+                  reader.releaseLock();
+                }
+              },
+            }),
+          };
+        } catch (error: any) {
+          console.error('Groq reasoning mode failed:', error);
+
+          // If Groq fails, fall back to Gemini
+          console.log(
+            'Groq unavailable, falling back to Gemini for reasoning mode...',
+          );
+          // Continue to the normal Gemini flow below
+        }
+      }
+
+      // Normal flow: Try Groq first, then fallback to Gemini
+      while (attempts < maxAttempts) {
+        try {
+          // Use Groq as primary model
+          console.log('🚀 Using Groq as primary provider...');
+
+          // Add system message to contents for Groq
+          const groqContents = [
+            {
+              role: 'system',
+              parts: [{ type: 'text', text: aiIdentityInstructions }],
+            },
+            ...contents,
+          ];
+          const groqMessages = convertToGroqFormat(groqContents);
+
+          const response = await callGroq(groqMessages, {
+            temperature: config.generationConfig.temperature,
+            maxTokens: config.generationConfig.maxOutputTokens,
+            stream: true,
+            topP: config.generationConfig.topP,
+          });
+
+          if (!response.body) {
+            throw new Error('No response body from Groq');
+          }
+
+          return {
+            stream: new ReadableStream({
+              async start(controller) {
+                const reader = response.body?.getReader();
+                if (!reader) {
+                  throw new Error('No response body reader from Groq');
+                }
+                const decoder = new TextDecoder();
+                let hasContent = false;
+
+                try {
+                  while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    const chunk = decoder.decode(value);
+                    const lines = chunk.split('\n');
+
+                    for (const line of lines) {
+                      if (line.startsWith('data: ')) {
+                        const data = line.slice(6);
+                        if (data === '[DONE]') {
+                          if (!hasContent) {
+                            console.error(
+                              'Groq stream completed without content',
+                            );
+                            controller.error(
+                              new Error('Groq stream returned no content'),
+                            );
+                            return;
+                          }
+                          controller.close();
+                          return;
+                        }
+
+                        try {
+                          const parsed = JSON.parse(data);
+                          if (parsed.choices?.[0]?.delta?.content) {
+                            const content = parsed.choices[0].delta.content;
+                            if (content && content.trim() !== '') {
+                              hasContent = true;
+                              controller.enqueue({
+                                type: 'text-delta',
+                                delta: content,
+                              });
+                            }
+                          }
+                        } catch (parseError) {
+                          // Ignore parse errors for incomplete chunks
+                        }
+                      }
+                    }
+                  }
+
+                  if (!hasContent) {
+                    console.error('Groq stream completed without any content');
+                    controller.error(
+                      new Error('Groq stream returned no content'),
+                    );
+                  }
+                } catch (streamError: any) {
+                  console.error('Groq stream processing error:', streamError);
+                  controller.error(streamError);
+                } finally {
+                  reader.releaseLock();
+                }
+              },
+            }),
+          };
         } catch (error: any) {
           attempts++;
-          console.error(`Streaming attempt ${attempts} failed:`, error.message);
+          console.error(`Groq attempt ${attempts} failed:`, error.message);
 
-          // Handle specific errors
-          if (error.status === 400 && error.message?.includes('model')) {
-            // Try fallback model
-            selectedChatModel = 'gemini-1.5-flash';
-            continue;
-          }
-
-          if (error.status === 429 && attempts < maxAttempts) {
-            // Wait and retry for rate limits
-            await new Promise((resolve) => setTimeout(resolve, 1000)); // Reduced retry delay for faster recovery
-            continue;
-          }
-
+          // If this is the last attempt, try Gemini fallback
           if (attempts >= maxAttempts) {
-            throw error;
+            console.log('Groq failed, trying Gemini fallback...');
+            try {
+              // Use Gemini Flash as fallback model
+              const modelName = 'gemini-2.0-flash-exp';
+              console.log('Using Gemini Flash model as fallback:', modelName);
+              const model = geminiProvider.languageModel(modelName);
+
+              // Add timeout to prevent hanging requests
+              const timeoutPromise = new Promise((_, reject) => {
+                setTimeout(() => reject(new Error('Request timeout')), 12000);
+              });
+
+              // Add AI identity instructions to the prompt
+              const enhancedContents = [
+                {
+                  role: 'system' as const,
+                  parts: [{ type: 'text', text: aiIdentityInstructions }],
+                },
+                ...contents,
+              ];
+
+              // Validate and prepare the prompt
+              const prompt = enhancedContents.map((msg) => {
+                try {
+                  // Ensure we have valid parts
+                  const parts = msg.parts || [];
+                  if (parts.length === 0 && msg.content) {
+                    // Fallback for messages with content but no parts
+                    parts.push({ type: 'text', text: msg.content });
+                  }
+
+                  // Ensure we have at least one part
+                  if (parts.length === 0) {
+                    console.warn('Message has no parts, adding fallback:', msg);
+                    parts.push({ type: 'text', text: 'Empty message' });
+                  }
+
+                  return {
+                    role: (msg.role === 'assistant' ? 'assistant' : 'user') as
+                      | 'assistant'
+                      | 'user', // Ensure valid roles
+                    content: parts.map((p: any) => ({
+                      type: 'text' as const,
+                      text: p.text || p.content || '',
+                    })),
+                  };
+                } catch (error) {
+                  console.error('Error processing message:', error, msg);
+                  // Return a safe fallback
+                  return {
+                    role: 'user' as const,
+                    content: [
+                      {
+                        type: 'text' as const,
+                        text: 'Error processing message',
+                      },
+                    ],
+                  };
+                }
+              });
+
+              console.log(
+                'Prepared Gemini fallback prompt:',
+                JSON.stringify(prompt, null, 2),
+              );
+
+              const streamPromise = model.doStream({
+                inputFormat: 'messages',
+                mode: { type: 'regular' },
+                prompt: prompt,
+                temperature: config.generationConfig.temperature,
+                maxTokens: config.generationConfig.maxOutputTokens,
+                topK: config.generationConfig.topK,
+                topP: config.generationConfig.topP,
+              });
+
+              console.log('Gemini fallback stream request sent');
+              return await Promise.race([streamPromise, timeoutPromise]);
+            } catch (geminiError: any) {
+              console.error(
+                'Gemini fallback also failed:',
+                geminiError.message,
+              );
+              throw new Error(
+                `All providers failed. Groq error: ${error.message}. Gemini error: ${geminiError.message}`,
+              );
+            }
           }
         }
       }
@@ -407,7 +894,7 @@ export async function POST(request: Request) {
         return new Response(
           JSON.stringify({
             error: 'AI response took too long. Please try again.',
-            details: 'The request timed out after 15 seconds.',
+            details: 'The request timed out after 12 seconds.',
             retryable: true,
           }),
           {
@@ -420,12 +907,31 @@ export async function POST(request: Request) {
       if (error.message?.includes('API key') || error.status === 403) {
         return new Response(
           JSON.stringify({
-            error: 'API configuration error. Please check your setup.',
-            details: 'Invalid or missing API key',
-            retryable: false,
+            error:
+              'AI service temporarily unavailable. Please try again later.',
+            details: 'Configuration issue detected',
+            retryable: true,
           }),
           {
-            status: 403,
+            status: 503,
+            headers: { 'Content-Type': 'application/json' },
+          },
+        );
+      }
+
+      if (
+        error.message?.includes('quota') ||
+        error.message?.includes('billing')
+      ) {
+        return new Response(
+          JSON.stringify({
+            error:
+              'AI service temporarily unavailable. Please try again later.',
+            details: 'Service temporarily overloaded',
+            retryable: true,
+          }),
+          {
+            status: 503,
             headers: { 'Content-Type': 'application/json' },
           },
         );
@@ -434,12 +940,13 @@ export async function POST(request: Request) {
       if (error.message?.includes('model') || error.status === 400) {
         return new Response(
           JSON.stringify({
-            error: 'Model configuration error. Trying fallback model.',
-            details: 'Unsupported model or invalid parameters',
+            error:
+              'AI service temporarily unavailable. Trying alternative model.',
+            details: 'Model configuration issue',
             retryable: true,
           }),
           {
-            status: 400,
+            status: 503,
             headers: { 'Content-Type': 'application/json' },
           },
         );
@@ -513,9 +1020,7 @@ export async function POST(request: Request) {
       if (chatExists) {
         await saveMessages({ messages: [assistantMessageToSave] });
       } else {
-        console.log(
-          'Chat not created - skipping assistant message save to database',
-        );
+        // Chat not created - skipping assistant message save
       }
     } catch (error) {
       console.error('Failed to save assistant message:', error);
@@ -571,6 +1076,7 @@ export async function POST(request: Request) {
           // Handle the response stream properly with improved error handling
           if (response?.stream) {
             const reader = response.stream.getReader();
+            let hasReceivedContent = false;
 
             try {
               while (!controllerClosed) {
@@ -592,7 +1098,16 @@ export async function POST(request: Request) {
                   text = value.candidates[0].content.parts[0].text;
                 }
 
+                // Debug logging for empty responses
+                if (!text && value) {
+                  console.log(
+                    'Empty text from stream value:',
+                    JSON.stringify(value, null, 2),
+                  );
+                }
+
                 if (text && !controllerClosed) {
+                  hasReceivedContent = true;
                   // Send text immediately without buffering for faster streaming
                   if (!controllerClosed) {
                     try {
@@ -619,27 +1134,29 @@ export async function POST(request: Request) {
                         userMessage.parts?.[0]?.text ||
                         userMessage.content ||
                         '';
-                      const generatedTitle = await generateTitleFromUserMessage(
-                        userText,
-                        {
-                          selectedModelId: selectedChatModel,
-                        },
-                      );
 
-                      // Update chat title in database for both logged-in users and guests
-                      await updateChatTitleById({
-                        chatId,
-                        title: generatedTitle,
-                      });
+                      // Only generate title if we don't have one already
+                      if (!titleGenerated) {
+                        const generatedTitle =
+                          await generateTitleFromUserMessage(userText, {
+                            selectedModelId: selectedChatModel,
+                          });
 
-                      // Notify UI components about the title update
-                      updateThreadTitle(chatId, generatedTitle);
+                        // Update chat title in database for both logged-in users and guests
+                        await updateChatTitleById({
+                          chatId,
+                          title: generatedTitle,
+                        });
 
-                      console.log(
-                        'Generated title when AI started responding:',
-                        generatedTitle,
-                      );
-                      titleGenerated = true;
+                        // Notify UI components about the title update
+                        updateThreadTitle(chatId, generatedTitle);
+
+                        console.log(
+                          'Generated title when AI started responding:',
+                          generatedTitle,
+                        );
+                        titleGenerated = true;
+                      }
                     } catch (error) {
                       console.error(
                         'Failed to generate title when AI started responding:',
@@ -655,6 +1172,32 @@ export async function POST(request: Request) {
             } finally {
               if (reader) {
                 reader.releaseLock();
+              }
+
+              // Check if we received any content from the AI
+              if (!hasReceivedContent) {
+                console.warn(
+                  'No content received from AI stream, providing fallback',
+                );
+                const fallbackResponse =
+                  "I apologize, but I'm having trouble generating a response right now. Please try rephrasing your question or try again in a moment.";
+
+                if (!controllerClosed) {
+                  try {
+                    controller.enqueue(
+                      new TextEncoder().encode(
+                        `data: ${JSON.stringify({ type: 'text-delta', id: messageId, delta: fallbackResponse })}\n\n`,
+                      ),
+                    );
+                    fullResponse = fallbackResponse;
+                  } catch (enqueueError) {
+                    console.error(
+                      'Failed to enqueue fallback response:',
+                      enqueueError,
+                    );
+                    controllerClosed = true;
+                  }
+                }
               }
             }
           } else {
@@ -711,10 +1254,40 @@ export async function POST(request: Request) {
             }
           }
 
-          // Validate response quality
-          if (fullResponse.trim().length < 10) {
-            console.warn('Generated response too short:', fullResponse);
-            throw new Error('Generated response too short');
+          // Validate response quality - be more lenient for short but valid responses
+          const trimmedResponse = fullResponse.trim();
+          if (trimmedResponse.length === 0) {
+            console.warn(
+              'Generated response is empty, providing fallback response',
+            );
+            // Instead of throwing an error, provide a helpful fallback response
+            const fallbackResponse =
+              "I apologize, but I'm having trouble generating a response right now. Please try rephrasing your question or try again in a moment.";
+
+            if (!controllerClosed) {
+              try {
+                controller.enqueue(
+                  new TextEncoder().encode(
+                    `data: ${JSON.stringify({ type: 'text-delta', id: messageId, delta: fallbackResponse })}\n\n`,
+                  ),
+                );
+                fullResponse = fallbackResponse;
+              } catch (enqueueError) {
+                console.error(
+                  'Failed to enqueue fallback response:',
+                  enqueueError,
+                );
+                controllerClosed = true;
+              }
+            }
+          }
+
+          // Only warn for very short responses but don't fail the request
+          if (trimmedResponse.length > 0 && trimmedResponse.length < 10) {
+            console.warn(
+              'Generated response very short, but continuing:',
+              trimmedResponse,
+            );
           }
 
           // Send text-end message

@@ -8,7 +8,8 @@ A modern AI chat application built with Next.js, featuring real-time streaming, 
 
 ## Features
 
-- 🤖 **AI Chat**: Powered by Google Gemini with real-time streaming
+- 🤖 **AI Chat**: Powered by Google Gemini Flash with OpenRouter fallback
+- 🧠 **Reasoning Mode**: Enhanced responses using DeepSeek R1 for complex problem solving
 - 📁 **File Uploads**: Support for images, documents, and code files
 - 🔄 **Conversation History**: Persistent chat history with smart organization
 - 🎨 **Modern UI**: Beautiful, responsive interface with dark/light themes
@@ -43,8 +44,9 @@ A modern AI chat application built with Next.js, featuring real-time streaming, 
    GITHUB_CLIENT_ID=your_github_client_id
    GITHUB_CLIENT_SECRET=your_github_client_secret
    
-   # AI Provider (Gemini)
+   # AI Providers
    GEMINI_API_KEY=your_gemini_api_key
+   OPENROUTER_API_KEY=your_openrouter_api_key
    ```
 
 4. **Set up the database**
@@ -61,8 +63,31 @@ A modern AI chat application built with Next.js, featuring real-time streaming, 
 6. **Open your browser**
    Navigate to [http://localhost:3000](http://localhost:3000)
 
-## Multiple API Keys Setup (Recommended for Production)
+## AI Providers Setup
 
+### Primary Provider: Google Gemini Flash
+The application uses Google Gemini Flash as the primary AI model for fast, high-quality responses.
+
+1. **Get a Gemini API key** from [Google AI Studio](https://aistudio.google.com/app/apikey)
+2. **Add it to your environment variables**:
+   ```env
+   GEMINI_API_KEY=your_gemini_api_key
+   ```
+
+### Fallback Provider: OpenRouter
+For enhanced reliability and reasoning capabilities, the app includes OpenRouter fallback with:
+- **DeepSeek R1**: Advanced reasoning model for complex problem solving
+- **Gemma 3N E2B**: Efficient general conversation model
+
+1. **Get OpenRouter API keys** from [OpenRouter](https://openrouter.ai)
+2. **Add them to your environment variables**:
+   ```env
+   OPENROUTER_API_KEY=your_primary_openrouter_api_key
+   OPENROUTER_API_KEY_2=your_secondary_openrouter_api_key
+   OPENROUTER_API_KEY_3=your_tertiary_openrouter_api_key
+   ```
+
+### Multiple Gemini API Keys (Recommended for Production)
 To handle rate limiting and ensure high availability, you can set up multiple Gemini API keys:
 
 1. **Create multiple API keys** in the [Google AI Studio](https://aistudio.google.com/app/apikey)
@@ -75,10 +100,12 @@ To handle rate limiting and ensure high availability, you can set up multiple Ge
    ```
 
 3. **The application will automatically**:
-   - Use the primary key by default
-   - Switch to the next available key when rate limited
-   - Retry failed requests with different keys
-   - Provide fallback mechanisms for better reliability
+   - Use Gemini Flash as the primary model
+   - Switch to OpenRouter fallback on failure
+   - Use DeepSeek R1 for reasoning mode
+   - Rotate between multiple Gemini and OpenRouter keys when rate limited
+   - Provide comprehensive fallback mechanisms for better reliability
+   - Handle rate limiting gracefully with automatic retries and fallbacks
 
 ## Rate Limiting Solutions
 
@@ -101,6 +128,21 @@ The application uses PostgreSQL with the following main tables:
 - `Message`: Individual messages with parts and attachments
 - `Memory`: User context and preferences
 - `Document`: Uploaded files and artifacts
+
+## Features in Detail
+
+### Reasoning Mode
+Enable reasoning mode to get enhanced responses using DeepSeek R1:
+- Click the ⚡ button in the chat input to toggle reasoning mode
+- Perfect for complex problem solving and analytical tasks
+- Automatically bypasses Gemini and uses OpenRouter with DeepSeek R1
+- Provides more detailed, step-by-step reasoning in responses
+
+### Model Fallback System
+The application implements a robust fallback system:
+1. **Primary**: Google Gemini Flash for fast, high-quality responses
+2. **Fallback**: OpenRouter with DeepSeek R1 or Gemma 3N E2B on failure
+3. **Reasoning**: Direct routing to DeepSeek R1 when reasoning mode is enabled
 
 ## API Endpoints
 

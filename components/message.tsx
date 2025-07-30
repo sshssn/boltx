@@ -35,6 +35,7 @@ const PurePreviewMessage = ({
   isStreaming,
   style,
   limitReached = false,
+  onContinue,
 }: {
   chatId: string;
   message: ChatMessage;
@@ -47,12 +48,40 @@ const PurePreviewMessage = ({
   isStreaming?: boolean;
   style?: React.CSSProperties;
   limitReached?: boolean;
+  onContinue?: () => void;
 }) => {
   const [mode, setMode] = useState<'view' | 'edit'>('view');
 
   const attachmentsFromMessage = message.parts.filter(
     (part) => part.type === 'file',
   );
+
+  // Check if message was cut off (ends abruptly)
+  const isMessageCutOff =
+    message.role === 'assistant' &&
+    (() => {
+      const textContent = message.parts
+        ?.filter((part) => part.type === 'text')
+        .map((part) => part.text)
+        .join('')
+        .trim();
+
+      // Check for common cut-off indicators
+      const cutOffIndicators = [
+        /\.\.\.$/, // Ends with ellipsis
+        /-$/, // Ends with dash
+        /,$/, // Ends with comma
+        /:$/, // Ends with colon
+        /;$/, // Ends with semicolon
+        /\s+$/, // Ends with whitespace
+        /[^.!?]$/, // Doesn't end with proper punctuation
+      ];
+
+      return (
+        cutOffIndicators.some((indicator) => indicator.test(textContent)) &&
+        textContent.length > 50
+      ); // Only consider it cut off if it's substantial
+    })();
 
   useDataStream();
 
@@ -156,7 +185,18 @@ const PurePreviewMessage = ({
                         })}
                       >
                         {message.role === 'assistant' ? (
-                          <Markdown>{sanitizeText(part.text)}</Markdown>
+                          <>
+                            <Markdown>{sanitizeText(part.text)}</Markdown>
+                            {isMessageCutOff && (
+                              <div className="flex items-center gap-2 mt-2 p-2 bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+                                <div className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse" />
+                                <span className="text-sm text-yellow-700 dark:text-yellow-300">
+                                  Response was cut off. Use the Continue button
+                                  to resume.
+                                </span>
+                              </div>
+                            )}
+                          </>
                         ) : (
                           <Markdown>{sanitizeText(part.text)}</Markdown>
                         )}
@@ -334,6 +374,8 @@ const PurePreviewMessage = ({
                 message={message}
                 vote={vote}
                 isLoading={isLoading}
+                regenerate={regenerate}
+                onContinue={isMessageCutOff ? onContinue : undefined}
               />
             )}
           </div>

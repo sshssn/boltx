@@ -10,10 +10,10 @@ const API_KEYS = [
     key !== undefined && key !== null && key.trim() !== '',
 );
 
-// OpenRouter API key for fallback
-const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
+// Groq API key for fallback
+const GROQ_API_KEY = process.env.GROQ_API_KEY;
 
-if (API_KEYS.length === 0 && !OPENROUTER_API_KEY) {
+if (API_KEYS.length === 0 && !GROQ_API_KEY) {
   throw new Error('No valid API keys found in environment variables');
 }
 
@@ -39,38 +39,46 @@ let provider = createProviderWithFallback();
 const rotateApiKey = () => {
   currentKeyIndex = (currentKeyIndex + 1) % API_KEYS.length;
   provider = createProviderWithFallback();
-  console.log(`Rotated to API key index: ${currentKeyIndex}`);
+  // API key rotated
 };
 
-// OpenRouter fallback function
-const callOpenRouter = async (messages: any[], options: any = {}) => {
-  if (!OPENROUTER_API_KEY) {
-    throw new Error('OpenRouter API key not configured');
+// Groq fallback function with optimized settings
+const callGroq = async (messages: any[], options: any = {}) => {
+  if (!GROQ_API_KEY) {
+    throw new Error('Groq API key not configured');
   }
 
+  // Groq API call initiated
+
   const response = await fetch(
-    'https://openrouter.ai/api/v1/chat/completions',
+    'https://api.groq.com/openai/v1/chat/completions',
     {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${OPENROUTER_API_KEY}`,
-        'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL || 'https://boltX.com',
-        'X-Title': 'boltX',
+        Authorization: `Bearer ${GROQ_API_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemma-3n-e2b-it:free',
+        model: 'llama3-70b-8192', // Use Llama3-70b as default fallback
         messages: messages,
-        temperature: options.temperature || 0.9,
-        max_tokens: options.maxTokens || 800,
+        temperature: options.temperature || 0.7, // Increased for better responses
+        max_tokens: options.maxTokens || 1024, // Increased token limit
         stream: options.stream || false,
+        top_p: 0.9, // Higher for better coding responses
+        frequency_penalty: 0,
+        presence_penalty: 0,
+        stop: null, // No stop sequences
       }),
     },
   );
 
+  // Groq API response received
+
   if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Groq API error response:', errorText);
     throw new Error(
-      `OpenRouter API error: ${response.status} ${response.statusText}`,
+      `Groq API error: ${response.status} ${response.statusText} - ${errorText}`,
     );
   }
 
@@ -102,8 +110,53 @@ export const myProvider = {
       provider: 'google',
 
       doGenerate: async (params: any) => {
+        // Try Groq first as primary provider
+        if (GROQ_API_KEY) {
+          // Using Groq as primary provider
+          try {
+            const formattedPrompt = Array.isArray(params.prompt)
+              ? params.prompt
+              : typeof params.prompt === 'string'
+                ? [{ role: 'user', content: params.prompt }]
+                : params.prompt;
+
+            const response = await callGroq(formattedPrompt, {
+              temperature: params.temperature || 0.8,
+              maxTokens: params.maxTokens || 1024,
+            });
+
+            const data = await response.json();
+
+            // Log the full response for debugging
+                    // Groq API response processed
+
+            // Validate content
+            const content = data.choices?.[0]?.message?.content;
+            if (!content || content.trim() === '') {
+              console.error('Groq returned empty content');
+              throw new Error(
+                'Groq API returned empty content - check prompt or model limits',
+              );
+            }
+
+            return {
+              content: [{ type: 'text', text: content }],
+              finishReason: data.choices?.[0]?.finish_reason || 'stop',
+              usage: {
+                inputTokens: data.usage?.prompt_tokens || 0,
+                outputTokens: data.usage?.completion_tokens || 0,
+              },
+              warnings: [],
+            };
+          } catch (groqError: any) {
+            console.error('Groq primary failed');
+            // Continue to Gemini fallback
+          }
+        }
+
+        // Gemini as fallback
         let attempts = 0;
-        const maxAttempts = API_KEYS.length;
+        const maxAttempts = Math.min(API_KEYS.length, 1);
 
         while (attempts < maxAttempts) {
           try {
@@ -120,10 +173,10 @@ export const myProvider = {
               inputFormat: 'messages',
               mode: { type: 'regular' },
               prompt: formattedPrompt,
-              temperature: Math.min(Math.max(params.temperature || 0.9, 0), 2), // Clamp between 0-2
-              maxTokens: Math.min(params.maxTokens || 800, 8192), // Reasonable limits
-              topK: params.topK || 40,
-              topP: Math.min(Math.max(params.topP || 0.9, 0), 1), // Clamp between 0-1
+              temperature: Math.min(Math.max(params.temperature || 0.8, 0), 1),
+              maxTokens: Math.min(params.maxTokens || 1024, 4096),
+              topK: params.topK || 20,
+              topP: Math.min(Math.max(params.topP || 0.9, 0), 1),
             });
 
             return {
@@ -133,11 +186,14 @@ export const myProvider = {
                 inputTokens: result.usage?.promptTokens || 0,
                 outputTokens: result.usage?.completionTokens || 0,
               },
-              warnings: [],
+              warnings: ['Used Gemini fallback'],
             };
           } catch (error: any) {
             attempts++;
-            console.error(`API attempt ${attempts} failed:`, error.message);
+            console.error(
+              `Gemini fallback attempt ${attempts} failed:`,
+              error.message,
+            );
 
             // Check if it's an API key issue and rotate
             if (error.status === 403 || error.status === 401) {
@@ -147,96 +203,124 @@ export const myProvider = {
               }
             }
 
-            // Check for rate limiting
+            // Check for rate limiting - skip retry to prevent excessive calls
             if (error.status === 429) {
-              const retryAfter = error.headers?.['retry-after'] || 1;
-              console.log(
-                `Rate limited, waiting ${retryAfter}s before retry...`,
-              );
-              await new Promise((resolve) =>
-                setTimeout(resolve, retryAfter * 1000),
-              );
-              continue;
-            }
-
-            // If this is the last attempt, try OpenRouter fallback
-            if (attempts >= maxAttempts) {
-              console.log(
-                'All Gemini attempts failed, trying OpenRouter fallback...',
-              );
-              try {
-                const formattedPrompt = Array.isArray(params.prompt)
-                  ? params.prompt
-                  : typeof params.prompt === 'string'
-                    ? [{ role: 'user', content: params.prompt }]
-                    : params.prompt;
-
-                const response = await callOpenRouter(formattedPrompt, {
-                  temperature: params.temperature || 0.9,
-                  maxTokens: params.maxTokens || 800,
-                });
-
-                const data = await response.json();
-
-                return {
-                  content: data.choices?.[0]?.message?.content
-                    ? [{ type: 'text', text: data.choices[0].message.content }]
-                    : [],
-                  finishReason: data.choices?.[0]?.finish_reason || 'stop',
-                  usage: {
-                    inputTokens: data.usage?.prompt_tokens || 0,
-                    outputTokens: data.usage?.completion_tokens || 0,
-                  },
-                  warnings: ['Used OpenRouter fallback'],
-                };
-              } catch (openRouterError: any) {
-                console.error(
-                  'OpenRouter fallback also failed:',
-                  openRouterError.message,
-                );
-                throw new Error(
-                  `All providers failed. Last Gemini error: ${error.message}. OpenRouter error: ${openRouterError.message}`,
-                );
-              }
+              // Gemini rate limited, skipping retry
+              break;
             }
           }
         }
 
-        // Try OpenRouter as final fallback
-        if (OPENROUTER_API_KEY) {
-          console.log('Falling back to OpenRouter API');
-          try {
-            const response = await callOpenRouter(
-              Array.isArray(params.prompt)
-                ? params.prompt
-                : [{ role: 'user', content: params.prompt }],
-              {
-                temperature: params.temperature || 0.9,
-                maxTokens: params.maxTokens || 800,
-                stream: false,
-              },
-            );
-
-            const data = await response.json();
-            const text = data.choices?.[0]?.message?.content || '';
-
-            return {
-              content: [{ type: 'text', text }],
-              finishReason: 'stop',
-              usage: { inputTokens: 0, outputTokens: 0, totalTokens: 0 },
-              warnings: [],
-            };
-          } catch (openRouterError) {
-            console.error('OpenRouter fallback failed:', openRouterError);
-          }
-        }
-
-        throw new Error('Unexpected error: All attempts exhausted');
+        throw new Error(
+          'All providers failed - Groq primary and Gemini fallback both failed',
+        );
       },
 
       doStream: async (params: any) => {
+        // Try Groq first as primary provider for streaming
+        if (GROQ_API_KEY) {
+          // Using Groq as primary provider for streaming
+          try {
+            const formattedPrompt = Array.isArray(params.prompt)
+              ? params.prompt
+              : typeof params.prompt === 'string'
+                ? [{ role: 'user', content: params.prompt }]
+                : params.prompt;
+
+            const response = await callGroq(formattedPrompt, {
+              temperature: params.temperature || 0.8,
+              maxTokens: params.maxTokens || 1024,
+              stream: true,
+            });
+
+            if (!response.body) {
+              throw new Error('No response body from Groq');
+            }
+
+            return {
+              stream: new ReadableStream({
+                async start(controller) {
+                  const reader = response.body?.getReader();
+                  if (!reader) {
+                    throw new Error('No response body reader from Groq');
+                  }
+                  const decoder = new TextDecoder();
+                  let hasContent = false;
+
+                  try {
+                    while (true) {
+                      const { done, value } = await reader.read();
+                      if (done) break;
+
+                      const chunk = decoder.decode(value);
+                      const lines = chunk.split('\n');
+
+                      for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                          const data = line.slice(6);
+                          if (data === '[DONE]') {
+                            if (!hasContent) {
+                              console.error(
+                                'Groq stream completed without content',
+                              );
+                              controller.error(
+                                new Error('Groq stream returned no content'),
+                              );
+                              return;
+                            }
+                            controller.close();
+                            return;
+                          }
+
+                          try {
+                            const parsed = JSON.parse(data);
+                            if (parsed.choices?.[0]?.delta?.content) {
+                              const content = parsed.choices[0].delta.content;
+                              if (content && content.trim() !== '') {
+                                hasContent = true;
+                                controller.enqueue({
+                                  type: 'text-delta',
+                                  delta: content,
+                                });
+                              }
+                            }
+                          } catch (parseError: any) {
+                            console.log(
+                              'Parse error for line:',
+                              line,
+                              parseError.message,
+                            );
+                          }
+                        }
+                      }
+                    }
+
+                    if (!hasContent) {
+                      console.error(
+                        'Groq stream completed without any content',
+                      );
+                      controller.error(
+                        new Error('Groq stream returned no content'),
+                      );
+                    }
+                  } catch (streamError: any) {
+                    console.error('Groq stream processing error:', streamError);
+                    controller.error(streamError);
+                  } finally {
+                    reader.releaseLock();
+                  }
+                },
+              }),
+            };
+          } catch (groqError: any) {
+            console.error('Groq primary streaming failed');
+            // Continue to Gemini fallback
+          }
+        }
+
+        // Gemini as fallback for streaming
         let attempts = 0;
-        const maxAttempts = API_KEYS.length;
+        const maxAttempts = Math.min(API_KEYS.length, 1);
 
         while (attempts < maxAttempts) {
           try {
@@ -253,9 +337,9 @@ export const myProvider = {
               inputFormat: 'messages',
               mode: { type: 'regular' },
               prompt: formattedPrompt,
-              temperature: Math.min(Math.max(params.temperature || 0.9, 0), 2),
-              maxTokens: Math.min(params.maxTokens || 800, 8192),
-              topK: params.topK || 40,
+              temperature: Math.min(Math.max(params.temperature || 0.8, 0), 1),
+              maxTokens: Math.min(params.maxTokens || 1024, 4096),
+              topK: params.topK || 20,
               topP: Math.min(Math.max(params.topP || 0.9, 0), 1),
             });
 
@@ -274,13 +358,11 @@ export const myProvider = {
                       // Handle different response formats
                       if (value && typeof value === 'object') {
                         if (value.type === 'text-delta' && value.textDelta) {
-                          // No delay for instant streaming
                           controller.enqueue({
                             type: 'text-delta',
                             delta: value.textDelta,
                           });
                         } else if (value.text) {
-                          // Handle non-delta text responses
                           controller.enqueue({
                             type: 'text-delta',
                             delta:
@@ -294,7 +376,10 @@ export const myProvider = {
 
                     controller.close();
                   } catch (streamError: any) {
-                    console.error('Stream processing error:', streamError);
+                    console.error(
+                      'Gemini stream processing error:',
+                      streamError,
+                    );
                     controller.error(streamError);
                   } finally {
                     if (reader) {
@@ -313,9 +398,11 @@ export const myProvider = {
             };
           } catch (error: any) {
             attempts++;
-            console.error(`Stream attempt ${attempts} failed:`, error.message);
+            console.error(
+              `Gemini fallback streaming attempt ${attempts} failed:`,
+              error.message,
+            );
 
-            // Same error handling logic as doGenerate
             if (error.status === 403 || error.status === 401) {
               if (attempts < maxAttempts) {
                 rotateApiKey();
@@ -324,102 +411,15 @@ export const myProvider = {
             }
 
             if (error.status === 429) {
-              const retryAfter = error.headers?.['retry-after'] || 1;
-              await new Promise((resolve) =>
-                setTimeout(resolve, retryAfter * 1000),
-              );
-              continue;
-            }
-
-            // If this is the last attempt, try OpenRouter fallback
-            if (attempts >= maxAttempts) {
-              console.log(
-                'All Gemini streaming attempts failed, trying OpenRouter fallback...',
-              );
-              try {
-                const formattedPrompt = Array.isArray(params.prompt)
-                  ? params.prompt
-                  : typeof params.prompt === 'string'
-                    ? [{ role: 'user', content: params.prompt }]
-                    : params.prompt;
-
-                const response = await callOpenRouter(formattedPrompt, {
-                  temperature: params.temperature || 0.9,
-                  maxTokens: params.maxTokens || 800,
-                  stream: true,
-                });
-
-                if (!response.body) {
-                  throw new Error('No response body from OpenRouter');
-                }
-
-                return {
-                  stream: new ReadableStream({
-                    async start(controller) {
-                      const reader = response.body?.getReader();
-                      if (!reader) {
-                        throw new Error(
-                          'No response body reader from OpenRouter',
-                        );
-                      }
-                      const decoder = new TextDecoder();
-
-                      try {
-                        while (true) {
-                          const { done, value } = await reader.read();
-                          if (done) break;
-
-                          const chunk = decoder.decode(value);
-                          const lines = chunk.split('\n');
-
-                          for (const line of lines) {
-                            if (line.startsWith('data: ')) {
-                              const data = line.slice(6);
-                              if (data === '[DONE]') {
-                                controller.close();
-                                return;
-                              }
-
-                              try {
-                                const parsed = JSON.parse(data);
-                                if (parsed.choices?.[0]?.delta?.content) {
-                                  controller.enqueue({
-                                    type: 'text-delta',
-                                    delta: parsed.choices[0].delta.content,
-                                  });
-                                }
-                              } catch (parseError) {
-                                // Ignore parse errors for incomplete chunks
-                              }
-                            }
-                          }
-                        }
-                      } catch (streamError: any) {
-                        console.error(
-                          'OpenRouter stream processing error:',
-                          streamError,
-                        );
-                        controller.error(streamError);
-                      } finally {
-                        reader.releaseLock();
-                      }
-                    },
-                  }),
-                };
-              } catch (openRouterError: any) {
-                console.error(
-                  'OpenRouter streaming fallback also failed:',
-                  openRouterError.message,
-                );
-                throw new Error(
-                  `All providers failed for streaming. Last Gemini error: ${error.message}. OpenRouter error: ${openRouterError.message}`,
-                );
-              }
+              // Gemini rate limited, skipping retry
+              break;
             }
           }
         }
 
-        throw new Error('Unexpected streaming error: All attempts exhausted');
+        throw new Error(
+          'All streaming providers failed - Groq primary and Gemini fallback both failed',
+        );
       },
     };
   },
@@ -447,7 +447,7 @@ export const getApiKeyStatus = () => ({
   totalKeys: API_KEYS.length,
   currentKeyIndex,
   hasValidKeys: API_KEYS.length > 0,
-  hasOpenRouterFallback: !!OPENROUTER_API_KEY,
+  hasGroqFallback: !!GROQ_API_KEY,
 });
 
 export const resetApiKeyRotation = () => {

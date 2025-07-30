@@ -2,19 +2,33 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import Image from 'next/image';
+import { useEffect, useState } from 'react';
 
 export default function PrivacyPolicy() {
   const pathname = usePathname();
+  const [isFromAuth, setIsFromAuth] = useState(false);
+
+  useEffect(() => {
+    // Check if user came from auth page
+    const referrer = document.referrer;
+    if (
+      referrer.includes('/auth') ||
+      referrer.includes('localhost:3000/auth')
+    ) {
+      setIsFromAuth(true);
+    }
+  }, []);
+
   return (
     <div className="relative min-h-screen w-full flex flex-col items-center justify-center bg-gradient-to-br from-[#181c2a] via-[#232329] to-[#181c2a] dark:from-[#181c2a] dark:via-[#232329] dark:to-[#181c2a]">
-      {/* Back to Chat Button */}
+      {/* Back Button */}
       <div className="absolute top-4 left-4 md:top-6 md:left-6 z-10">
-        <Link href="/">
+        <Link href={isFromAuth ? '/auth' : '/'}>
           <button
             type="button"
             className="px-3 py-1.5 md:px-4 md:py-2 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs md:text-sm font-medium shadow border border-white/20 backdrop-blur-md transition-all"
           >
-            ← Back to Chat
+            ← {isFromAuth ? 'Back To Login' : 'Back to Chat'}
           </button>
         </Link>
       </div>

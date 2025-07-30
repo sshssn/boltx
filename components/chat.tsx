@@ -1,6 +1,6 @@
 'use client';
 import { useChat } from '@ai-sdk/react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import type { Vote } from '@/lib/db/schema';
 import { MultimodalInput } from './multimodal-input';
 import { Messages } from './messages';
@@ -22,8 +22,7 @@ import {
   AlertDialogCancel,
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
-import { KeyboardShortcuts } from './keyboard-shortcuts';
-import { ShortcutsOverlay } from './shortcuts-overlay';
+
 import { useCopyToClipboard } from 'usehooks-ts';
 import { toast } from 'sonner';
 import { useMessageLimit } from '@/components/message-limit-provider';
@@ -151,9 +150,6 @@ export function Chat({
   const [votes, setVotes] = useState<Vote[]>([]);
   const [currentTitle, setCurrentTitle] = useState<string>('New Chat');
   const [isTitleGenerating, setIsTitleGenerating] = useState<boolean>(false);
-  const [isTitleRevealing, setIsTitleRevealing] = useState<boolean>(false);
-  const [showShortcutsOverlay, setShowShortcutsOverlay] =
-    useState<boolean>(false);
 
   // Get message limit data for the main chat component
   const { hasReachedLimit } = useMessageLimit();
@@ -202,13 +198,12 @@ export function Chat({
   // Listen for title update events from ChatTitleManager
   useEffect(() => {
     const handleTitleUpdate = (event: CustomEvent) => {
-      const { chatId, title, isGenerating, isRevealing, status } = event.detail;
+      const { chatId, title, isGenerating, status } = event.detail;
 
       // Only update if this event is for our current chat
       if (chatId === id) {
         setCurrentTitle(title || 'New Chat');
         setIsTitleGenerating(isGenerating || false);
-        setIsTitleRevealing(isRevealing || false);
 
         // Update browser tab title
         if (title && title !== 'New Chat' && title !== 'New Thread...') {
@@ -398,12 +393,60 @@ export function Chat({
     }
   };
 
+  const handleContinue = () => {
+    if (messages.length > 0) {
+      const lastMessage = messages[messages.length - 1];
+      if (lastMessage.role === 'assistant') {
+        regenerate();
+      }
+    }
+  };
+
+  // Force reset chat state to prevent loops
+  const forceResetChat = useCallback(() => {
+    // Clear all cached data
+    if (typeof window !== 'undefined') {
+      localStorage.clear();
+      sessionStorage.clear();
+
+      // Clear any chat-specific storage
+      Object.keys(localStorage).forEach((key) => {
+        if (key.includes('chat') || key.includes('message')) {
+          localStorage.removeItem(key);
+        }
+      });
+
+      Object.keys(sessionStorage).forEach((key) => {
+        if (key.includes('chat') || key.includes('message')) {
+          sessionStorage.removeItem(key);
+        }
+      });
+    }
+
+    // Reset messages to initial state
+    setMessages(initialMessages);
+    setLastError(null);
+    setIsRetrying(false);
+    setIsSlowResponse(false);
+
+    // Force page reload to clear all state
+    window.location.reload();
+  }, [initialMessages, setMessages]);
+
   // Clear error when user sends a new message
   const handleNewMessage = async (message: any) => {
     // Only clear error if we're not currently in an error state
     if (status !== 'error') {
       setLastError(null);
     }
+
+    // Clear any cached state to prevent loops
+    if (typeof window !== 'undefined') {
+      // Clear any stored chat state
+      localStorage.removeItem(`chat-${id}`);
+      sessionStorage.removeItem(`chat-${id}`);
+    }
+
     try {
       await sendMessageHook(message);
     } catch (error: any) {
@@ -416,21 +459,6 @@ export function Chat({
 
   return (
     <>
-      <KeyboardShortcuts
-        onNewChat={handleNewChat}
-        onSearch={handleSearch}
-        onToggleTheme={handleToggleTheme}
-        onCopyLastMessage={handleCopyLastMessage}
-        onRegenerate={regenerate}
-        onStopGeneration={stop}
-        onShowShortcuts={() => setShowShortcutsOverlay(true)}
-      />
-
-      <ShortcutsOverlay
-        isVisible={showShortcutsOverlay}
-        onClose={() => setShowShortcutsOverlay(false)}
-      />
-
       {/* Chat Title Manager - handles real-time title generation */}
       {messages.length > 0 && (
         <ChatTitleManager
@@ -462,18 +490,19 @@ export function Chat({
 
       <div
         className={`
-        flex flex-col min-w-0 h-dvh chat-container
+        flex flex-col min-w-0 h-screen chat-container
         bg-white dark:bg-zinc-950
         transition-all duration-300
-        ${isMobile ? 'pb-20' : ''}
+        ${isMobile ? 'pb-safe' : ''}
       `}
       >
-        <div className="flex-1 flex flex-col relative" style={{ minHeight: 0 }}>
+        <div className="flex-1 flex flex-col relative overflow-hidden">
           {messages.length === 0 ? (
             <div
               className={`
-              flex-1 flex items-center justify-center py-8 px-4
-              ${isMobile ? 'pb-24' : 'pb-36'}
+              flex-1 flex items-center justify-center py-4 px-4
+              ${isMobile ? 'pb-20' : 'pb-36'}
+              overflow-y-auto
             `}
             >
               <div className="w-full max-w-2xl">
@@ -501,23 +530,7 @@ export function Chat({
                 </div>
               )}
 
-              {/* Current Title Display */}
-              {currentTitle &&
-                currentTitle !== 'New Chat' &&
-                currentTitle !== 'New Thread...' &&
-                !isTitleGenerating && (
-                  <div className="flex items-center justify-center py-2 px-4 bg-green-50 dark:bg-green-950/20 border-b border-green-200/50 dark:border-green-800/50">
-                    <span
-                      className={`
-                        text-sm text-green-700 dark:text-green-300 font-medium truncate max-w-md
-                        transition-opacity duration-500
-                        ${isTitleRevealing ? 'opacity-0' : 'opacity-100'}
-                      `}
-                    >
-                      {currentTitle}
-                    </span>
-                  </div>
-                )}
+              {/* Title display removed - sidebar shows the title */}
 
               <Messages
                 chatId={id}
@@ -531,14 +544,29 @@ export function Chat({
                 onGuestLimit={handleGuestLimit}
                 votes={votes}
                 limitReached={hasReachedLimit}
+                onContinue={handleContinue}
               />
+
+              {/* Reset button for debugging */}
+              {process.env.NODE_ENV === 'development' && (
+                <div className="absolute top-4 right-4 z-50">
+                  <button
+                    type="button"
+                    onClick={forceResetChat}
+                    className="px-3 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
+                    title="Reset chat state (dev only)"
+                  >
+                    Reset Chat
+                  </button>
+                </div>
+              )}
             </>
           )}
 
           {/* Enhanced Input Section - Mobile Optimized */}
           <div
             className={`
-            absolute inset-x-0 bottom-0 z-10
+            absolute inset-x-0 bottom-0 z-20
             bg-gradient-to-t from-white via-white to-transparent 
             dark:from-zinc-950 dark:via-zinc-950 dark:to-transparent
             ${isMobile ? 'pb-safe' : ''}
@@ -589,8 +617,8 @@ export function Chat({
             <div
               className={`
               flex mx-auto gap-2 w-full
-              ${isMobile ? 'px-3 sm:px-4' : 'px-6 md:max-w-4xl'}
-              ${isMobile ? 'pb-6' : 'pb-4'}
+              ${isMobile ? 'px-3' : 'px-6 md:max-w-4xl'}
+              ${isMobile ? 'pb-4' : 'pb-4'}
             `}
             >
               {!isReadonly && (

@@ -20,13 +20,19 @@ import { ArrowUpIcon, PaperclipIcon, StopIcon } from './icons';
 import { PreviewAttachment } from './preview-attachment';
 import { Button as ShadcnButton } from '@/components/ui/button';
 import { Textarea as ShadcnTextarea } from '@/components/ui/textarea';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import equal from 'fast-deep-equal';
 import type { UseChatHelpers } from '@ai-sdk/react';
 import { useScrollToBottom } from '@/hooks/use-scroll-to-bottom';
 import type { VisibilityType } from './visibility-selector';
 import type { Attachment, ChatMessage } from '@/lib/types';
 
-import { X, Upload, FileText, Image, File, Copy } from 'lucide-react';
+import { X, Upload, FileText, Image, File, Copy, Zap } from 'lucide-react';
 import { useSidebar } from './ui/sidebar';
 import { useMessageLimit } from './message-limit-provider';
 
@@ -134,6 +140,7 @@ function PureMultimodalInput({
   const { width } = useWindowSize();
   const { open: sidebarOpen, isMobile } = useSidebar();
   const [showPasteIndicator, setShowPasteIndicator] = useState(false);
+  const [isThinkingMode, setIsThinkingMode] = useState(false);
   const { incrementMessageCount, remaining, hasReachedLimit } =
     useMessageLimit();
 
@@ -146,7 +153,7 @@ function PureMultimodalInput({
   const adjustHeight = useCallback(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
-      const maxHeight = width && width < 768 ? 120 : 200;
+      const maxHeight = width && width < 768 ? 100 : 200;
       textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight + 2, maxHeight)}px`;
     }
   }, [width]);
@@ -154,7 +161,7 @@ function PureMultimodalInput({
   const resetHeight = useCallback(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
-      const minHeight = width && width < 768 ? 60 : 80;
+      const minHeight = width && width < 768 ? 44 : 80;
       textareaRef.current.style.height = `${minHeight}px`;
     }
   }, [width]);
@@ -221,8 +228,12 @@ function PureMultimodalInput({
 
     window.history.replaceState({}, '', `/chat/${chatId}`);
 
+    // Generate unique message ID with timestamp
+    const uniqueId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
     sendMessage({
       role: 'user',
+      id: uniqueId, // Ensure unique ID
       parts: [
         ...attachments.map((attachment) => ({
           type: 'file' as const,
@@ -235,12 +246,19 @@ function PureMultimodalInput({
           text: input,
         },
       ],
+      // Add reasoning mode metadata
+      metadata: {
+        createdAt: new Date().toISOString(),
+        reasoning: isThinkingMode,
+        preferredModel: isThinkingMode ? 'deepseek-r1' : undefined,
+      } as any, // Type assertion for custom metadata
     });
 
     setAttachments([]);
     setLocalStorageInput('');
     resetHeight();
     setInput('');
+    setIsThinkingMode(false); // Reset thinking mode after sending
 
     setTimeout(() => {
       const event = new CustomEvent('refreshMessageCount');
@@ -262,6 +280,7 @@ function PureMultimodalInput({
     hasReachedLimit,
     incrementMessageCount,
     resetHeight,
+    isThinkingMode,
   ]);
 
   const uploadFile = async (file: File) => {
@@ -498,10 +517,10 @@ function PureMultimodalInput({
           {attachments.map((attachment) => (
             <div
               key={attachment.url}
-              className="flex items-center gap-1.5 md:gap-2 px-2 py-1.5 md:px-3 md:py-2 bg-white/60 dark:bg-zinc-800/60 backdrop-blur-sm rounded-lg border border-white/20 dark:border-zinc-700/50 shadow-sm"
+              className="flex items-center gap-1 md:gap-2 px-2 py-1 md:px-3 md:py-2 bg-white/60 dark:bg-zinc-800/60 backdrop-blur-sm rounded-lg border border-white/20 dark:border-zinc-700/50 shadow-sm"
             >
               {getFileIcon(attachment.contentType, attachment.name)}
-              <span className="text-xs md:text-sm text-zinc-700 dark:text-zinc-300 truncate max-w-24 md:max-w-32">
+              <span className="text-xs md:text-sm text-zinc-700 dark:text-zinc-300 truncate max-w-16 md:max-w-32">
                 {attachment.name}
               </span>
               <button
@@ -509,7 +528,7 @@ function PureMultimodalInput({
                 onClick={() => removeAttachment(attachment.url)}
                 className="text-zinc-400 hover:text-red-500 transition-colors"
               >
-                <X className="size-2.5 md:size-3" />
+                <X className="size-2 md:size-3" />
               </button>
             </div>
           ))}
@@ -517,10 +536,10 @@ function PureMultimodalInput({
           {uploadQueue.map((filename) => (
             <div
               key={filename}
-              className="flex items-center gap-1.5 md:gap-2 px-2 py-1.5 md:px-3 md:py-2 bg-blue-50/60 dark:bg-blue-900/20 backdrop-blur-sm rounded-lg border border-blue-200/30 dark:border-blue-700/30 shadow-sm"
+              className="flex items-center gap-1 md:gap-2 px-2 py-1 md:px-3 md:py-2 bg-blue-50/60 dark:bg-blue-900/20 backdrop-blur-sm rounded-lg border border-blue-200/30 dark:border-blue-700/30 shadow-sm"
             >
-              <div className="size-3 md:size-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
-              <span className="text-xs md:text-sm text-blue-700 dark:text-blue-300 truncate max-w-24 md:max-w-32">
+              <div className="size-2.5 md:size-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+              <span className="text-xs md:text-sm text-blue-700 dark:text-blue-300 truncate max-w-16 md:max-w-32">
                 {filename}
               </span>
             </div>
@@ -538,7 +557,7 @@ function PureMultimodalInput({
       >
         <div
           className={cx(
-            'relative flex items-end min-h-[60px] md:min-h-[80px] w-full',
+            'relative flex items-end min-h-[44px] md:min-h-[80px] w-full',
             // Consistent glassmorphism that doesn't change on focus
             'bg-white/90 dark:bg-zinc-900/90',
             'backdrop-blur-xl backdrop-saturate-150',
@@ -572,10 +591,10 @@ function PureMultimodalInput({
             onPaste={handlePaste}
             placeholder="Type your message here..."
             className={cx(
-              'flex-1 min-h-[60px] max-h-[120px] md:min-h-[80px] md:max-h-[240px] resize-none',
+              'flex-1 min-h-[44px] max-h-[100px] md:min-h-[80px] md:max-h-[240px] resize-none',
               'bg-transparent border-0 outline-none ring-0 focus:ring-0 focus-visible:ring-0 focus:outline-none',
               'text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 dark:placeholder:text-zinc-400',
-              'px-3 py-3 pr-20 md:px-5 md:py-5 md:pr-28 text-sm md:text-base leading-6 md:leading-7',
+              'px-3 py-2 pr-12 md:px-5 md:py-5 md:pr-28 text-sm md:text-base leading-6 md:leading-7',
               'scrollbar-thin scrollbar-thumb-zinc-300 dark:scrollbar-thumb-zinc-600',
               disabled && 'cursor-not-allowed opacity-50',
             )}
@@ -601,74 +620,126 @@ function PureMultimodalInput({
           />
 
           {/* Action buttons */}
-          <div className="absolute bottom-2 right-2 md:bottom-3 md:right-3 flex items-center gap-1 md:gap-2">
-            {status === 'streaming' ? (
-              <ShadcnButton
-                type="button"
-                size="sm"
-                variant="ghost"
-                onClick={stop}
-                className={cx(
-                  'h-8 w-8 md:h-9 md:w-9 rounded-full p-0',
-                  'bg-red-500/10 hover:bg-red-500/20 dark:bg-red-500/20 dark:hover:bg-red-500/30',
-                  'text-red-600 dark:text-red-400',
-                  'border border-red-200/50 dark:border-red-700/50',
-                  'transition-all duration-200',
-                )}
-                aria-label="Stop generation"
-              >
-                <StopIcon size={14} />
-              </ShadcnButton>
-            ) : (
-              <>
-                <ShadcnButton
-                  type="button"
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => fileInputRef.current?.click()}
-                  className={cx(
-                    'h-8 w-8 md:h-10 md:w-10 rounded-full p-0',
-                    'bg-zinc-100/80 hover:bg-zinc-200/80 dark:bg-zinc-800/80 dark:hover:bg-zinc-700/80',
-                    'text-zinc-600 dark:text-zinc-400',
-                    'border border-zinc-200/50 dark:border-zinc-700/50',
-                    'transition-all duration-200',
-                  )}
-                  disabled={limitReached}
-                  aria-label="Attach file"
-                >
-                  <PaperclipIcon size={16} />
-                </ShadcnButton>
+          <div className="absolute bottom-1.5 right-1.5 md:bottom-3 md:right-3 flex items-center gap-1 md:gap-2">
+            <TooltipProvider delayDuration={0}>
+              {status === 'streaming' ? (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <ShadcnButton
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      onClick={stop}
+                      className={cx(
+                        'h-7 w-7 md:h-10 md:w-10 rounded-full p-0 touch-manipulation',
+                        'bg-red-500/10 hover:bg-red-500/20 dark:bg-red-500/20 dark:hover:bg-red-500/30',
+                        'text-red-600 dark:text-red-400',
+                        'border border-red-200/50 dark:border-red-700/50',
+                        'transition-all duration-200',
+                      )}
+                      aria-label="Stop generation"
+                    >
+                      <StopIcon size={12} />
+                    </ShadcnButton>
+                  </TooltipTrigger>
+                  <TooltipContent>Stop generation</TooltipContent>
+                </Tooltip>
+              ) : (
+                <>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <ShadcnButton
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => fileInputRef.current?.click()}
+                        className={cx(
+                          'h-7 w-7 md:h-10 md:w-10 rounded-full p-0 touch-manipulation',
+                          'bg-zinc-100/80 hover:bg-zinc-200/80 dark:bg-zinc-800/80 dark:hover:bg-zinc-700/80',
+                          'text-zinc-600 dark:text-zinc-400',
+                          'border border-zinc-200/50 dark:border-zinc-700/50',
+                          'transition-all duration-200',
+                        )}
+                        disabled={limitReached}
+                        aria-label="Attach file"
+                      >
+                        <PaperclipIcon size={12} />
+                      </ShadcnButton>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      Attach files (images, PDFs, documents)
+                    </TooltipContent>
+                  </Tooltip>
 
-                <ShadcnButton
-                  type="button"
-                  size="sm"
-                  onClick={submitForm}
-                  disabled={
-                    limitReached ||
-                    (!input.trim() && attachments.length === 0) ||
-                    uploadQueue.length > 0
-                  }
-                  className={cx(
-                    'h-8 w-8 md:h-10 md:w-10 rounded-full p-0',
-                    'bg-zinc-700 hover:bg-zinc-800 dark:bg-zinc-600 dark:hover:bg-zinc-500',
-                    'text-white',
-                    'shadow-sm',
-                    'transition-all duration-200',
-                    'disabled:opacity-50 disabled:cursor-not-allowed',
-                  )}
-                  aria-label="Send message"
-                >
-                  <ArrowUpIcon size={16} />
-                </ShadcnButton>
-              </>
-            )}
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <ShadcnButton
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setIsThinkingMode(!isThinkingMode)}
+                        className={cx(
+                          'h-7 w-7 md:h-10 md:w-10 rounded-full p-0 touch-manipulation',
+                          'transition-all duration-200',
+                          isThinkingMode
+                            ? 'bg-purple-500/20 hover:bg-purple-500/30 text-purple-600 dark:text-purple-400 border border-purple-200/50 dark:border-purple-700/50'
+                            : 'bg-zinc-100/80 hover:bg-zinc-200/80 dark:bg-zinc-800/80 dark:hover:bg-zinc-700/80 text-zinc-600 dark:text-zinc-400 border border-zinc-200/50 dark:border-zinc-700/50',
+                        )}
+                        disabled={limitReached}
+                        aria-label={
+                          isThinkingMode
+                            ? 'Disable reasoning mode'
+                            : 'Enable thinking model'
+                        }
+                      >
+                        <Zap size={12} />
+                      </ShadcnButton>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      {isThinkingMode
+                        ? 'Disable reasoning mode'
+                        : 'Thinking Model'}
+                    </TooltipContent>
+                  </Tooltip>
+
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <ShadcnButton
+                        type="button"
+                        size="sm"
+                        onClick={submitForm}
+                        disabled={
+                          limitReached ||
+                          (!input.trim() && attachments.length === 0) ||
+                          uploadQueue.length > 0
+                        }
+                        className={cx(
+                          'h-7 w-7 md:h-10 md:w-10 rounded-full p-0 touch-manipulation',
+                          'bg-zinc-700 hover:bg-zinc-800 dark:bg-zinc-600 dark:hover:bg-zinc-500',
+                          'text-white',
+                          'shadow-sm',
+                          'transition-all duration-200',
+                          'disabled:opacity-50 disabled:cursor-not-allowed',
+                        )}
+                        aria-label="Send message"
+                      >
+                        <ArrowUpIcon size={12} />
+                      </ShadcnButton>
+                    </TooltipTrigger>
+                    <TooltipContent>Send message (Enter)</TooltipContent>
+                  </Tooltip>
+                </>
+              )}
+            </TooltipProvider>
           </div>
 
           {/* Helper text */}
-          <div className="absolute bottom-2 left-3 md:bottom-3 md:left-5 text-xs text-zinc-400 dark:text-zinc-500 select-none pointer-events-none">
+          <div className="absolute bottom-1.5 left-3 md:bottom-3 md:left-5 text-xs text-zinc-400 dark:text-zinc-500 select-none pointer-events-none">
             {uploadQueue.length > 0
               ? `Uploading ${uploadQueue.length} file${uploadQueue.length > 1 ? 's' : ''}...`
-              : 'Shift + Enter for new line'}
+              : isThinkingMode
+                ? 'Reasoning mode: DeepSeek R1 will respond'
+                : 'Shift + Enter for new line'}
           </div>
         </div>
       </div>

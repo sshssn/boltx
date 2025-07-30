@@ -25,12 +25,68 @@ import { GlobalMessageLimit } from '@/components/global-message-limit';
 import { UsageCounter } from '@/components/usage-counter';
 import { useUsername } from '@/hooks/use-username';
 import { getAvatarUrlForComponent } from '@/lib/gravatar';
+import { useMessageLimit } from '@/components/message-limit-provider';
+import { MessageSquare, Zap } from 'lucide-react';
 
 // Legacy function - keeping for backward compatibility
 function getGravatarUrl(email: string) {
   if (!email) return undefined;
   const hash = md5(email.trim().toLowerCase());
   return `https://www.gravatar.com/avatar/${hash}?d=identicon`;
+}
+
+// Compact usage display for sidebar
+function CompactUsageDisplay() {
+  const { messagesUsed, messagesLimit, remaining, isGuest, isLoading } =
+    useMessageLimit();
+
+  // Don't show if loading
+  if (isLoading) return null;
+
+  // For guests, show after first message or if they have used messages
+  if (isGuest && messagesUsed === 0) return null;
+
+  // Calculate usage percentage
+  const usagePercent = Math.min((messagesUsed / messagesLimit) * 100, 100);
+
+  // Determine color based on usage
+  const getProgressColor = () => {
+    if (usagePercent >= 90) return 'bg-red-500';
+    if (usagePercent >= 75) return 'bg-yellow-500';
+    return 'bg-green-500';
+  };
+
+  return (
+    <div className="w-full p-1.5 bg-zinc-50/60 dark:bg-zinc-900/60 backdrop-blur-sm border border-zinc-200/40 dark:border-zinc-700/40 rounded-md">
+      <div className="flex items-center justify-between mb-1">
+        <div className="flex items-center gap-1">
+          <MessageSquare className="w-2.5 h-2.5 text-zinc-500 dark:text-zinc-400" />
+          <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400">
+            {isGuest ? 'Guest' : 'Usage'}
+          </span>
+        </div>
+        <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400">
+          {messagesUsed}/{messagesLimit}
+        </span>
+      </div>
+
+      <div className="space-y-0.5">
+        <div className="relative h-1 w-full overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-700">
+          <div
+            className={`h-full transition-all ${getProgressColor()}`}
+            style={{ width: `${usagePercent}%` }}
+          />
+        </div>
+        <div className="flex items-center justify-between text-xs text-zinc-400 dark:text-zinc-500">
+          <span>{remaining} left</span>
+          <div className="flex items-center gap-0.5">
+            <Zap className="w-2 h-2" />
+            <span className="text-xs">{isGuest ? 'Guest' : 'Regular'}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export function AppSidebar({
@@ -54,7 +110,7 @@ export function AppSidebar({
   const { username } = useUsername();
   const displayUsername = username || user?.name?.split(' ')[0] || '';
   const avatarUrl = user?.email
-    ? getAvatarUrlForComponent(user.email, 32)
+    ? getAvatarUrlForComponent(user.email, 48)
     : undefined;
 
   // Persistent guest ID logic
@@ -82,6 +138,50 @@ export function AppSidebar({
       );
     }
   }, [session]);
+
+  // Listen for new chat creation events
+  useEffect(() => {
+    const handleNewChat = (event: CustomEvent) => {
+      const chatId = event.detail?.chatId;
+      if (chatId) {
+        // Dispatch the event to the sidebar history
+        window.dispatchEvent(
+          new CustomEvent('new-chat-created', {
+            detail: { chatId },
+          }),
+        );
+      }
+    };
+
+    const handleTitleGenerated = (event: CustomEvent) => {
+      const { chatId, title } = event.detail;
+      if (chatId && title && title !== 'New Thread...') {
+        // Dispatch the event to update the sidebar
+        window.dispatchEvent(
+          new CustomEvent('threadTitleUpdated', {
+            detail: { threadId: chatId, title },
+          }),
+        );
+      }
+    };
+
+    window.addEventListener('chat-created', handleNewChat as EventListener);
+    window.addEventListener(
+      'title-generated',
+      handleTitleGenerated as EventListener,
+    );
+
+    return () => {
+      window.removeEventListener(
+        'chat-created',
+        handleNewChat as EventListener,
+      );
+      window.removeEventListener(
+        'title-generated',
+        handleTitleGenerated as EventListener,
+      );
+    };
+  }, []);
 
   // Desktop/tablet floating controls when sidebar is closed
   if (!open && !isMobile) {
@@ -141,48 +241,72 @@ export function AppSidebar({
           </Button>
         </div>
 
-        {/* Enhanced floating search overlay */}
+        {/* Enhanced floating search overlay - updated design */}
         {showFloatingSearch && (
           <div
-            className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/40 backdrop-blur-md transition-all animate-in fade-in duration-200"
+            className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/20 dark:bg-black/40 backdrop-blur-sm transition-all animate-in fade-in duration-200"
             onClick={() => setShowFloatingSearch(false)}
           >
             <div
-              className="relative bg-white/90 dark:bg-zinc-900/90 border border-zinc-200/50 dark:border-zinc-700/50 rounded-2xl shadow-2xl p-6 flex flex-col items-center gap-4 backdrop-blur-2xl w-full max-w-lg mx-4 animate-in zoom-in-95 duration-200"
+              className="relative bg-white/90 dark:bg-zinc-900/90 backdrop-blur-2xl border border-zinc-200/60 dark:border-zinc-700/60 rounded-2xl shadow-2xl w-full max-w-md mx-4 animate-in zoom-in-95 slide-in-from-top-4 duration-300"
               onClick={(e) => e.stopPropagation()}
             >
-              <button
-                type="button"
-                className="absolute top-4 right-4 text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors p-1 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800"
-                onClick={() => setShowFloatingSearch(false)}
-                aria-label="Close search"
-              >
-                <X className="size-5" />
-              </button>
-
-              <div className="w-full flex items-center gap-3 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-sm px-4 py-3">
-                <div className="text-zinc-500">
-                  <SearchIcon size={20} />
-                </div>
-                <input
-                  ref={searchInputRef}
-                  autoFocus
-                  type="text"
-                  placeholder="Search conversations..."
-                  className="flex-1 bg-transparent border-none text-base text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 dark:placeholder:text-zinc-400 focus:ring-0 focus:outline-none"
-                  value={search || ''}
-                  onChange={(e) => setSearch(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
+              {/* Search container */}
+              <div className="p-6">
+                {/* Search input */}
+                <div className="flex items-center gap-2 rounded-xl border border-zinc-200/80 dark:border-zinc-700/80 bg-white/60 dark:bg-zinc-950/60 backdrop-blur-xl shadow-sm px-3 py-2.5 mb-4 relative">
+                  <div className="text-zinc-500 dark:text-zinc-400">
+                    <SearchIcon size={16} />
+                  </div>
+                  <div className="w-px h-4 bg-zinc-300 dark:bg-zinc-600" />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      router.push('/');
                       setShowFloatingSearch(false);
-                      // Focus search in sidebar if needed
-                    }
-                  }}
-                />
-              </div>
+                    }}
+                    className="text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors p-1 rounded"
+                  >
+                    <PlusIcon size={14} />
+                  </button>
+                  <input
+                    ref={searchInputRef}
+                    autoFocus
+                    type="text"
+                    placeholder="Search or press Enter to start new chat"
+                    className="flex-1 bg-transparent border-none text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 dark:placeholder:text-zinc-400 focus:ring-0 focus:outline-none"
+                    value={search || ''}
+                    onChange={(e) => setSearch(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        if (!search || search.trim() === '') {
+                          // Start new chat if no search term
+                          router.push('/');
+                          setShowFloatingSearch(false);
+                        } else {
+                          // Just close search if there's a search term
+                          setShowFloatingSearch(false);
+                        }
+                      }
+                      if (e.key === 'Escape') {
+                        setShowFloatingSearch(false);
+                      }
+                    }}
+                  />
+                  <button
+                    type="button"
+                    className="text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors p-1 rounded"
+                    onClick={() => setShowFloatingSearch(false)}
+                    aria-label="Close search"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
 
-              <div className="w-full max-h-64 overflow-y-auto">
-                <SidebarHistory user={user} search={search} />
+                {/* Search results */}
+                <div className="max-h-64 overflow-y-auto rounded-xl bg-white/40 dark:bg-zinc-950/40 backdrop-blur-sm border border-zinc-200/40 dark:border-zinc-700/40">
+                  <SidebarHistory user={user} search={search} />
+                </div>
               </div>
             </div>
           </div>
@@ -196,14 +320,16 @@ export function AppSidebar({
     <>
       <Sidebar
         {...props}
-        className="flex flex-col h-dvh min-h-0 bg-white dark:bg-zinc-950 border-r border-zinc-200 dark:border-zinc-800 z-50 w-72 max-w-full transition-all duration-300"
+        className="flex flex-col h-dvh min-h-0 bg-white dark:bg-zinc-950 border-r border-zinc-200 dark:border-zinc-800 z-50 w-64 max-w-full transition-all duration-300"
       >
-        <SidebarHeader className="flex flex-row items-center gap-3 p-4 border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950">
+        <SidebarHeader className="flex flex-col items-center gap-3 p-3 bg-white dark:bg-zinc-950">
           {/* Sidebar toggle */}
-          <SidebarToggle className="!shadow-none !border-none !bg-transparent hover:!bg-zinc-100 dark:hover:!bg-zinc-800 transition-all duration-200 flex-shrink-0" />
+          <div className="flex items-center justify-between w-full">
+            <SidebarToggle className="!shadow-none !border-none !bg-transparent hover:!bg-zinc-100 dark:hover:!bg-zinc-800 transition-all duration-200 flex-shrink-0" />
+          </div>
 
-          {/* Logo container - optimized sizing */}
-          <div className="flex items-center justify-center rounded-xl bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-zinc-800 dark:to-zinc-900 border border-zinc-200/50 dark:border-zinc-700/50 shadow-sm backdrop-blur-sm transition-all duration-300 hover:shadow-md h-10 px-3 w-auto">
+          {/* Logo container - standard size */}
+          <div className="flex items-center justify-center rounded-lg bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-zinc-800 dark:to-zinc-900 border border-zinc-200/50 dark:border-zinc-700/50 shadow-sm backdrop-blur-sm transition-all duration-300 hover:shadow-md h-12 px-4 w-auto">
             <Link
               href="/"
               className="flex items-center justify-center w-full h-full"
@@ -212,8 +338,8 @@ export function AppSidebar({
               <Image
                 src="/images/dark.svg"
                 alt="boltX"
-                width={80}
-                height={24}
+                width={100}
+                height={28}
                 className="object-contain w-auto h-6"
                 priority
               />
@@ -221,32 +347,33 @@ export function AppSidebar({
           </div>
         </SidebarHeader>
 
-        <SidebarContent className="flex flex-col flex-1 min-h-0 overflow-y-auto gap-4 px-3 py-4 bg-white dark:bg-zinc-950">
-          {/* New Chat Button - improved mobile sizing */}
-          <Button
-            className={`
-              w-full flex items-center justify-center gap-2 
-              text-sm font-semibold rounded-xl 
-              bg-gradient-to-r from-blue-600 to-indigo-600 
-              hover:from-blue-700 hover:to-indigo-700 
-              text-white shadow-lg hover:shadow-xl 
-              transition-all duration-200 hover:scale-[1.02] 
-              py-3 px-4 border-0
-              ${isMobile ? 'text-base py-3.5' : 'text-sm py-3'}
-            `}
-            onClick={() => {
-              router.push('/');
-              if (isMobile) toggleSidebar();
-            }}
-          >
-            <PlusIcon size={16} />
-            <span>New Chat</span>
-          </Button>
+        <SidebarContent className="flex flex-col flex-1 min-h-0 overflow-y-auto gap-3 px-2 py-3 bg-white dark:bg-zinc-950">
+          {/* New Chat Button - reduced width */}
+          <div className="flex justify-center">
+            <Button
+              className={`
+                w-48 flex items-center justify-center gap-2 
+                text-sm font-semibold rounded-lg 
+                bg-gradient-to-r from-blue-600 to-indigo-600 
+                hover:from-blue-700 hover:to-indigo-700 
+                text-white shadow-lg hover:shadow-xl 
+                transition-all duration-200 hover:scale-[1.02] 
+                py-2.5 px-3 border-0
+                ${isMobile ? 'text-base py-3 w-56' : 'text-sm py-2.5 w-48'}
+              `}
+              onClick={() => {
+                router.push('/');
+                if (isMobile) toggleSidebar();
+              }}
+            >
+              <span>New Chat</span>
+            </Button>
+          </div>
 
           {/* Search bar - enhanced mobile experience */}
-          <div className="flex items-center gap-2 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50/50 dark:bg-zinc-900/50 shadow-sm px-3 py-2 transition-all duration-200 focus-within:ring-2 focus-within:ring-blue-500/20 focus-within:border-blue-300 dark:focus-within:border-blue-600">
+          <div className="flex items-center gap-2 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50/50 dark:bg-zinc-900/50 shadow-sm px-2 py-1.5 transition-all duration-200 focus-within:ring-2 focus-within:ring-blue-500/20 focus-within:border-blue-300 dark:focus-within:border-blue-600">
             <div className="text-zinc-500 flex-shrink-0">
-              <SearchIcon size={18} />
+              <SearchIcon size={16} />
             </div>
             <Input
               type="text"
@@ -264,9 +391,11 @@ export function AppSidebar({
           </div>
         </SidebarContent>
 
-        <SidebarFooter className="flex flex-col items-center border-t border-zinc-200 dark:border-zinc-800 gap-3 p-4 bg-white dark:bg-zinc-950">
-          {/* Usage Counter */}
-          <UsageCounter />
+        <SidebarFooter className="flex flex-col items-center border-t border-zinc-200 dark:border-zinc-800 gap-1.5 p-3 bg-white dark:bg-zinc-950">
+          {/* Compact Usage Display */}
+          <div className="w-full">
+            <CompactUsageDisplay />
+          </div>
 
           {/* Global Message Limit Display */}
           <GlobalMessageLimit />
@@ -275,11 +404,11 @@ export function AppSidebar({
             <Button
               className={`
                 w-full flex items-center justify-center gap-2 
-                text-sm font-medium rounded-xl 
+                text-sm font-medium rounded-lg 
                 bg-zinc-100 dark:bg-zinc-800 
                 text-zinc-500 dark:text-zinc-400 
-                cursor-wait py-3 px-4
-                ${isMobile ? 'text-base py-3.5' : 'text-sm py-3'}
+                cursor-wait py-2.5 px-3
+                ${isMobile ? 'text-base py-3' : 'text-sm py-2.5'}
               `}
               disabled
             >
@@ -291,78 +420,76 @@ export function AppSidebar({
           ) : isLoggedIn ? (
             <Button
               className={`
-                w-full flex items-center justify-center gap-2 
-                text-sm font-semibold rounded-xl 
+                w-full flex items-center justify-between gap-3 
+                text-sm font-semibold rounded-lg 
                 bg-zinc-100 hover:bg-zinc-200 
                 dark:bg-zinc-800 dark:hover:bg-zinc-700 
                 text-zinc-700 dark:text-zinc-300 
                 hover:text-zinc-900 dark:hover:text-zinc-100 
                 transition-all duration-200 hover:scale-[1.02] 
                 py-3 px-4 shadow-sm hover:shadow-md
-                ${isMobile ? 'text-base py-3.5' : 'text-sm py-3'}
+                ${isMobile ? 'text-base py-3' : 'text-sm py-3'}
               `}
               onClick={() => {
                 router.push('/account');
                 if (isMobile) toggleSidebar();
               }}
             >
-              {avatarUrl ? (
-                <img
-                  src={avatarUrl}
-                  alt={displayUsername}
-                  className="w-4 h-4 rounded-full"
-                />
-              ) : (
-                <User size={16} />
-              )}
-              <span>{displayUsername || 'Account'}</span>
+              <div className="flex items-center gap-3">
+                {avatarUrl ? (
+                  <img
+                    src={avatarUrl}
+                    alt={displayUsername}
+                    className="w-8 h-8 rounded-full"
+                  />
+                ) : (
+                  <User size={20} />
+                )}
+                <span className="font-medium">
+                  {displayUsername || 'Account'}
+                </span>
+              </div>
+              <div className="flex items-center">
+                <span
+                  className={`
+                  px-2 py-1 rounded-full text-xs font-medium
+                  ${
+                    user?.plan === 'pro'
+                      ? 'bg-gradient-to-r from-purple-500 to-blue-500 text-white shadow-sm'
+                      : 'bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-600 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-600'
+                  }
+                `}
+                >
+                  {user?.plan === 'pro' ? 'Pro' : 'Free'}
+                </span>
+              </div>
             </Button>
           ) : (
             <Button
               className={`
                 w-full flex items-center justify-center gap-2 
-                text-sm font-semibold rounded-xl 
-                bg-gradient-to-r from-blue-600 to-indigo-600 
-                hover:from-blue-700 hover:to-indigo-700 
-                text-white shadow-lg hover:shadow-xl 
+                text-sm font-semibold rounded-lg 
+                bg-white/90 dark:bg-zinc-900/90
+                backdrop-blur-xl backdrop-saturate-150
+                border border-zinc-200/60 dark:border-zinc-700/60
+                shadow-lg shadow-black/5 dark:shadow-black/20
+                hover:bg-white/95 dark:hover:bg-zinc-900/95
+                hover:border-zinc-300/80 dark:hover:border-zinc-600/80
+                hover:shadow-xl hover:shadow-black/10
+                dark:hover:shadow-black/30
+                text-zinc-700 dark:text-zinc-300 
+                hover:text-zinc-900 dark:hover:text-zinc-100 
                 transition-all duration-200 hover:scale-[1.02] 
-                py-3 px-4 border-0
-                ${isMobile ? 'text-base py-3.5' : 'text-sm py-3'}
+                py-2.5 px-3
+                ${isMobile ? 'text-base py-3' : 'text-sm py-2.5'}
               `}
-              onClick={async () => {
-                await signIn();
-                router.refresh();
+              onClick={() => {
+                router.push('/auth');
                 if (isMobile) toggleSidebar();
               }}
             >
               <LogIn size={16} />
               <span>Sign In</span>
-            </Button>
-          )}
-
-          {/* Theme toggle for mobile */}
-          {isMobile && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="w-full flex items-center justify-center gap-2 text-sm text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 py-2"
-              onClick={() =>
-                setTheme(
-                  (resolvedTheme ?? 'light') === 'dark' ? 'light' : 'dark',
-                )
-              }
-            >
-              {(resolvedTheme ?? 'light') === 'dark' ? (
-                <>
-                  <Sun size={16} />
-                  <span>Light mode</span>
-                </>
-              ) : (
-                <>
-                  <Moon size={16} />
-                  <span>Dark mode</span>
-                </>
-              )}
             </Button>
           )}
         </SidebarFooter>

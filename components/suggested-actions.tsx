@@ -23,8 +23,8 @@ const cn = (...classes: (string | undefined | null | false)[]): string => {
   return classes.filter(Boolean).join(' ');
 };
 
-// Icon components - moved to top before usage
-const PaintbrushIcon = ({ size = 20 }) => (
+// Clean, modern icon components
+const CreateIcon = ({ size = 20 }) => (
   <svg
     width={size}
     height={size}
@@ -33,13 +33,11 @@ const PaintbrushIcon = ({ size = 20 }) => (
     stroke="currentColor"
     strokeWidth="2"
   >
-    <path d="m9.06 11.9 8.07-8.06a2.85 2.85 0 1 1 4.03 4.03l-8.06 8.08" />
-    <path d="m7.07 14.94-1.13 1.13a3.984 3.984 0 0 1-5.657 0 3.984 3.984 0 0 1 0-5.657l1.13-1.13" />
-    <path d="m12 15 3.5 3.5a2.121 2.121 0 0 1-3 3L9 18" />
+    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
   </svg>
 );
 
-const CompassIcon = ({ size = 20 }) => (
+const ExploreIcon = ({ size = 20 }) => (
   <svg
     width={size}
     height={size}
@@ -48,12 +46,15 @@ const CompassIcon = ({ size = 20 }) => (
     stroke="currentColor"
     strokeWidth="2"
   >
-    <circle cx="12" cy="12" r="10" />
-    <polygon points="16.24,7.76 14.12,14.12 7.76,16.24 9.88,9.88" />
+    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+    <polyline points="14,2 14,8 20,8" />
+    <line x1="16" y1="13" x2="8" y2="13" />
+    <line x1="16" y1="17" x2="8" y2="17" />
+    <polyline points="10,9 9,9 8,9" />
   </svg>
 );
 
-const TerminalIcon = ({ size = 20 }) => (
+const CodeIcon = ({ size = 20 }) => (
   <svg
     width={size}
     height={size}
@@ -62,12 +63,12 @@ const TerminalIcon = ({ size = 20 }) => (
     stroke="currentColor"
     strokeWidth="2"
   >
-    <polyline points="4,17 10,11 4,5" />
-    <line x1="12" x2="20" y1="19" y2="19" />
+    <polyline points="16,18 22,12 16,6" />
+    <polyline points="8,6 2,12 8,18" />
   </svg>
 );
 
-const LightbulbIcon = ({ size = 20 }) => (
+const LearnIcon = ({ size = 20 }) => (
   <svg
     width={size}
     height={size}
@@ -76,13 +77,8 @@ const LightbulbIcon = ({ size = 20 }) => (
     stroke="currentColor"
     strokeWidth="2"
   >
-    <path d="M9 21h6" />
-    <path d="M12 17c0 0 0-4.5 0-6a5 5 0 1 0-10 0c0 1.5 0 6 0 6 h10Z" />
-    <path d="M12 1v2" />
-    <path d="M22 12h-2" />
-    <path d="M4 12H2" />
-    <path d="m19.07 4.93-1.41 1.41" />
-    <path d="m6.34 6.34-1.41-1.41" />
+    <path d="M22 10v6M2 10l10-5 10 5-10 5z" />
+    <path d="M6 12v5c3 3 9 3 12 0v-5" />
   </svg>
 );
 
@@ -93,147 +89,181 @@ interface SuggestedActionsProps {
   setInput?: (value: string) => void;
 }
 
-// Fun, engaging prompts for each category
+// Clean, focused prompts - 4 per category
 const PRE_PROMPTS = {
   Create: [
-    'Design a logo for a time travel agency',
-    'Write a haiku about digital dreams',
-    'Invent a superhero for the metaverse',
-    'Create a tagline for invisible socks',
+    'Write a short story about a robot discovering emotions',
+    'Help me outline a sci-fi novel set in a post-apocalyptic world',
+    'Create a character profile for a complex villain with sympathetic motives',
+    'Give me 5 creative writing prompts for flash fiction',
   ],
   Explore: [
-    'Find a hidden gem city for 2025',
-    'What hobby will be trending next year?',
-    'Coolest underwater discovery recently?',
-    'Most mind-blowing tech gadget under $50?',
+    'What are the most Instagram-worthy hidden gems in Europe?',
+    'What will replace smartphones in the next 10 years?',
+    'What is the most breathtaking natural wonder discovered recently?',
+    'Explain the latest mind-blowing space discovery simply',
   ],
   Code: [
-    'One-liner to reverse a string in Python',
-    'Best React pattern for state management?',
-    'Debug: Why is my API call failing?',
-    'Fastest way to deploy a simple app?',
+    'Write a one-liner to sort an array by multiple properties',
+    'What is the best React pattern for complex state management?',
+    'How do I debug an API that returns 200 but empty data?',
+    'What is the fastest way to deploy a Next.js app for free?',
   ],
   Learn: [
-    'ELI5: How does quantum computing work?',
-    'Latest breakthrough in renewable energy?',
-    'Most exciting space discovery this year?',
-    'What skill will be most valuable in 2030?',
+    'Explain how machine learning works in simple terms',
+    'What is the latest breakthrough in clean energy technology?',
+    'What is the most exciting space mission launching soon?',
+    'What skill will be most valuable by 2030?',
   ],
 };
 
-// More unique and fun icons for each category
+// Clean category icons
 const CATEGORY_ICONS = {
-  Create: <PaintbrushIcon size={20} />,
-  Explore: <CompassIcon size={20} />,
-  Code: <TerminalIcon size={20} />,
-  Learn: <LightbulbIcon size={20} />,
+  Create: <CreateIcon size={18} />,
+  Explore: <ExploreIcon size={18} />,
+  Code: <CodeIcon size={18} />,
+  Learn: <LearnIcon size={18} />,
 };
 
-const CATEGORY_COLORS = {
+// Enhanced color scheme with better hover effects
+const CATEGORY_THEMES = {
   Create: {
     active:
-      'bg-gradient-to-br from-purple-500/30 via-pink-500/20 to-fuchsia-500/30 border-purple-300/60 text-purple-800 dark:text-purple-200 shadow-purple-500/20',
-    icon: 'text-purple-700 dark:text-purple-300',
-    accent: 'bg-gradient-to-r from-purple-400/50 to-pink-400/50',
-    frost: 'bg-purple-500/15 backdrop-blur-xl border-purple-300/40',
+      'bg-gradient-to-r from-violet-500 to-purple-500 text-white shadow-lg shadow-violet-500/25',
+    inactive:
+      'bg-white/80 dark:bg-zinc-800/60 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100/80 dark:hover:bg-zinc-700/80 hover:text-zinc-900 dark:hover:text-white hover:shadow-md hover:shadow-zinc-500/20 border-zinc-300 dark:border-zinc-700 hover:border-zinc-400 dark:hover:border-zinc-600',
+    border: 'border-zinc-300 dark:border-zinc-700',
   },
   Explore: {
     active:
-      'bg-gradient-to-br from-blue-500/30 via-cyan-500/20 to-sky-500/30 border-blue-300/60 text-blue-800 dark:text-blue-200 shadow-blue-500/20',
-    icon: 'text-blue-700 dark:text-blue-300',
-    accent: 'bg-gradient-to-r from-blue-400/50 to-cyan-400/50',
-    frost: 'bg-blue-500/15 backdrop-blur-xl border-blue-300/40',
+      'bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-lg shadow-cyan-500/25',
+    inactive:
+      'bg-white/80 dark:bg-zinc-800/60 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100/80 dark:hover:bg-zinc-700/80 hover:text-zinc-900 dark:hover:text-white hover:shadow-md hover:shadow-zinc-500/20 border-zinc-300 dark:border-zinc-700 hover:border-zinc-400 dark:hover:border-zinc-600',
+    border: 'border-zinc-300 dark:border-zinc-700',
   },
   Code: {
     active:
-      'bg-gradient-to-br from-emerald-500/30 via-green-500/20 to-teal-500/30 border-emerald-300/60 text-emerald-800 dark:text-emerald-200 shadow-emerald-500/20',
-    icon: 'text-emerald-700 dark:text-emerald-300',
-    accent: 'bg-gradient-to-r from-emerald-400/50 to-teal-400/50',
-    frost: 'bg-emerald-500/15 backdrop-blur-xl border-emerald-300/40',
+      'bg-gradient-to-r from-emerald-500 to-green-500 text-white shadow-lg shadow-emerald-500/25',
+    inactive:
+      'bg-white/80 dark:bg-zinc-800/60 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100/80 dark:hover:bg-zinc-700/80 hover:text-zinc-900 dark:hover:text-white hover:shadow-md hover:shadow-zinc-500/20 border-zinc-300 dark:border-zinc-700 hover:border-zinc-400 dark:hover:border-zinc-600',
+    border: 'border-zinc-300 dark:border-zinc-700',
   },
   Learn: {
     active:
-      'bg-gradient-to-br from-amber-500/30 via-yellow-500/20 to-orange-500/30 border-amber-300/60 text-amber-800 dark:text-amber-200 shadow-amber-500/20',
-    icon: 'text-amber-700 dark:text-amber-300',
-    accent: 'bg-gradient-to-r from-amber-400/50 to-orange-400/50',
-    frost: 'bg-amber-500/15 backdrop-blur-xl border-amber-300/40',
+      'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-lg shadow-orange-500/25',
+    inactive:
+      'bg-white/80 dark:bg-zinc-800/60 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100/80 dark:hover:bg-zinc-700/80 hover:text-zinc-900 dark:hover:text-white hover:shadow-md hover:shadow-zinc-500/20 border-zinc-300 dark:border-zinc-700 hover:border-zinc-400 dark:hover:border-zinc-600',
+    border: 'border-zinc-300 dark:border-zinc-700',
   },
 };
 
-// Dynamic greeting component (no loading animations)
+// Enhanced dynamic greeting with username logic
 function DynamicGreeting() {
   const [greeting, setGreeting] = useState('');
   const { data: session, status } = useSession();
   const { username } = useUsername();
 
-  // Get username from session
-  const displayUsername = username || session?.user?.name || 'there';
+  const displayUsername = username || session?.user?.name;
+  const isLoggedIn = !!displayUsername;
 
   useEffect(() => {
-    if (!displayUsername || status === 'loading') return;
+    if (status === 'loading') return;
 
-    // Time-based greeting
     const hour = new Date().getHours();
     let timeGreeting = '';
 
-    if (hour < 5) timeGreeting = 'Working late';
-    else if (hour < 12) timeGreeting = 'Good morning';
-    else if (hour < 17) timeGreeting = 'Good afternoon';
-    else if (hour < 21) timeGreeting = 'Good evening';
-    else timeGreeting = 'Good night';
+    // Time-based greeting logic
+    if (hour >= 5 && hour < 12) {
+      timeGreeting = 'Good morning';
+    } else if (hour >= 12 && hour < 17) {
+      timeGreeting = 'Good afternoon';
+    } else {
+      timeGreeting = 'Good evening';
+    }
 
-    // Variety of greeting styles
-    const greetingStyles = [
-      `${timeGreeting}, ${displayUsername}!`,
-      `Hey there, ${displayUsername}!`,
-      `Welcome back, ${displayUsername}`,
-      `Hi ${displayUsername}! Ready to explore?`,
-      `${timeGreeting}! What's on your mind, ${displayUsername}?`,
-      `Great to see you, ${displayUsername}!`,
-    ];
+    if (isLoggedIn) {
+      // Greetings for logged in users
+      const greetingStyles = [
+        `${timeGreeting}, ${displayUsername}!`,
+        `Hey ${displayUsername}!`,
+        `Welcome back, ${displayUsername}`,
+        `Hi ${displayUsername}! Ready to create?`,
+        `${timeGreeting}! What's inspiring you today?`,
+        `Great to see you, ${displayUsername}!`,
+      ];
 
-    const randomGreeting =
-      greetingStyles[Math.floor(Math.random() * greetingStyles.length)];
-    setGreeting(randomGreeting);
-  }, [displayUsername, status]);
+      const randomGreeting =
+        greetingStyles[Math.floor(Math.random() * greetingStyles.length)];
+      setGreeting(randomGreeting);
+    } else {
+      // Simple greeting for logged out users
+      const guestGreetings = [
+        'How can I help you?',
+        'Welcome! What would you like to explore?',
+        'Ready to get started?',
+        'What can I assist you with today?',
+      ];
 
-  // Show loading state while session is loading
+      const randomGreeting =
+        guestGreetings[Math.floor(Math.random() * guestGreetings.length)];
+      setGreeting(randomGreeting);
+    }
+  }, [displayUsername, status, isLoggedIn]);
+
   if (status === 'loading') {
     return (
-      <div className="text-center space-y-4">
-        <div className="space-y-2">
-          <h1 className="text-4xl sm:text-5xl font-bold">
-            <span className="bg-gradient-to-r from-zinc-900 via-zinc-700 to-zinc-900 dark:from-zinc-100 dark:via-zinc-300 dark:to-zinc-100 bg-clip-text text-transparent">
-              Welcome back
-            </span>
-          </h1>
-          <p className="text-lg text-zinc-600 dark:text-zinc-400 font-medium">
-            What would you like to explore today?
-          </p>
-        </div>
-      </div>
+      <motion.div
+        className="text-left space-y-6"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6 }}
+      >
+        <h1 className="text-3xl sm:text-4xl font-bold text-zinc-900 dark:text-white">
+          How can I help you?
+        </h1>
+      </motion.div>
     );
   }
 
   return (
-    <div className="text-center space-y-4">
-      <div className="space-y-2">
-        <h1 className="text-4xl sm:text-5xl font-bold">
-          <span className="bg-gradient-to-r from-zinc-900 via-zinc-700 to-zinc-900 dark:from-zinc-100 dark:via-zinc-300 dark:to-zinc-100 bg-clip-text text-transparent">
-            {greeting.split(displayUsername)[0]}
-          </span>
-          <span className="bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 dark:from-blue-400 dark:via-purple-400 dark:to-indigo-400 bg-clip-text text-transparent font-extrabold">
-            {displayUsername}
-          </span>
-          <span className="bg-gradient-to-r from-zinc-900 via-zinc-700 to-zinc-900 dark:from-zinc-100 dark:via-zinc-300 dark:to-zinc-100 bg-clip-text text-transparent">
-            {greeting.split(displayUsername)[1]}
-          </span>
+    <motion.div
+      className="text-left space-y-6"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.6 }}
+    >
+      <div className="space-y-3">
+        <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold leading-tight">
+          {isLoggedIn ? (
+            <>
+              <span className="bg-gradient-to-r from-zinc-800 via-zinc-600 to-zinc-800 dark:from-zinc-200 dark:via-zinc-100 dark:to-zinc-200 bg-clip-text text-transparent">
+                {greeting.includes(displayUsername)
+                  ? greeting.split(displayUsername)[0]
+                  : greeting}
+              </span>
+              {greeting.includes(displayUsername) && (
+                <>
+                  <span className="bg-gradient-to-r from-blue-600 via-purple-600 to-cyan-600 dark:from-blue-400 dark:via-purple-400 dark:to-cyan-400 bg-clip-text text-transparent font-black">
+                    {displayUsername}
+                  </span>
+                  <span className="bg-gradient-to-r from-zinc-800 via-zinc-600 to-zinc-800 dark:from-zinc-200 dark:via-zinc-100 dark:to-zinc-200 bg-clip-text text-transparent">
+                    {greeting.split(displayUsername)[1]}
+                  </span>
+                </>
+              )}
+            </>
+          ) : (
+            <span className="text-zinc-900 dark:text-white">{greeting}</span>
+          )}
         </h1>
-        <p className="text-lg text-zinc-600 dark:text-zinc-400 font-medium">
-          What would you like to explore today?
+
+        <p className="text-base sm:text-lg text-zinc-600 dark:text-zinc-400 font-medium">
+          {isLoggedIn
+            ? 'What would you like to explore today?'
+            : 'Choose a category to get started'}
         </p>
       </div>
-    </div>
+    </motion.div>
   );
 }
 
@@ -244,121 +274,83 @@ export function SuggestedActions({
   setInput,
 }: SuggestedActionsProps) {
   const categoryKeys = Object.keys(PRE_PROMPTS) as (keyof typeof PRE_PROMPTS)[];
-  const [selectedCategory, setSelectedCategory] = useState<
-    keyof typeof PRE_PROMPTS | undefined
-  >(undefined);
-  const [hoveredPrompt, setHoveredPrompt] = useState<string | null>(null);
+  const [selectedCategory, setSelectedCategory] =
+    useState<keyof typeof PRE_PROMPTS>('Create');
 
   const promptsToShow = selectedCategory
     ? PRE_PROMPTS[selectedCategory]
-    : PRE_PROMPTS[categoryKeys[0]];
+    : PRE_PROMPTS.Create;
 
   return (
-    <div className="w-full max-w-5xl mx-auto space-y-10 px-4 sm:px-8">
-      {/* Dynamic Greeting */}
-      <div>
-        <DynamicGreeting />
-      </div>
+    <div className="w-full max-w-4xl mx-auto space-y-8 px-4 sm:px-6">
+      {/* Enhanced Greeting with Username */}
+      <DynamicGreeting />
 
-      {/* Modern Category Pills */}
-      <div className="flex flex-row justify-center gap-3 text-sm">
-        {categoryKeys.map((cat, index) => (
-          <button
-            key={cat}
-            type="button"
-            className={cn(
-              'group relative overflow-hidden backdrop-blur-xl transition-all duration-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50',
-              'h-14 flex items-center gap-3 rounded-full px-8 py-4 font-semibold border-2',
-              'transform hover:scale-105 active:scale-95',
-              selectedCategory === cat
-                ? `${CATEGORY_COLORS[cat].active} shadow-2xl scale-105`
-                : 'bg-white/40 dark:bg-zinc-900/40 text-zinc-600 dark:text-zinc-400 border-white/30 dark:border-zinc-700/50 hover:bg-white/60 dark:hover:bg-zinc-800/60 hover:border-white/50 dark:hover:border-zinc-600/60 backdrop-blur-xl hover:shadow-lg',
-            )}
-            onClick={() => setSelectedCategory(cat)}
-          >
-            {/* Animated background for selected */}
-            {selectedCategory === cat && (
-              <div
-                className={cn(
-                  'absolute inset-0 rounded-full',
-                  CATEGORY_COLORS[cat].accent,
-                )}
-              />
-            )}
+      {/* Category Selection - Horizontal buttons, left-aligned */}
+      <motion.div
+        className="flex gap-3"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.8, delay: 0.2 }}
+      >
+        {categoryKeys.map((category, index) => {
+          const theme = CATEGORY_THEMES[category];
+          const isSelected = selectedCategory === category;
 
-            {/* Icon */}
-            <div
+          return (
+            <motion.button
+              key={category}
+              type="button"
               className={cn(
-                'transition-all duration-300 z-10',
-                selectedCategory === cat
-                  ? CATEGORY_COLORS[cat].icon
-                  : 'text-zinc-500 dark:text-zinc-500 group-hover:text-zinc-700 dark:group-hover:text-zinc-300',
+                'flex items-center gap-2 px-6 py-3 rounded-xl font-medium text-sm transition-all duration-300',
+                'border focus:outline-none focus:ring-2 focus:ring-zinc-500 focus:ring-offset-2 focus:ring-offset-zinc-900',
+                isSelected ? theme.active : theme.inactive,
               )}
+              onClick={() => setSelectedCategory(category)}
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.3, delay: index * 0.1 }}
+              whileHover={{ scale: 1.02, y: -1 }}
+              whileTap={{ scale: 0.98 }}
             >
-              {CATEGORY_ICONS[cat]}
-            </div>
+              {CATEGORY_ICONS[category]}
+              <span>{category}</span>
+            </motion.button>
+          );
+        })}
+      </motion.div>
 
-            <span className="relative z-10 font-bold tracking-wider text-sm">
-              {cat}
-            </span>
-          </button>
+      {/* Prompt List - Left-aligned, enhanced hover effects */}
+      <motion.div
+        className="space-y-0"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.6, delay: 0.4 }}
+      >
+        {promptsToShow.map((prompt, idx) => (
+          <motion.div
+            key={`${selectedCategory}-${prompt}`}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, delay: 0.5 + idx * 0.1 }}
+          >
+            <button
+              type="button"
+              className="w-full text-left p-4 hover:bg-zinc-100/80 dark:hover:bg-zinc-800/60 hover:shadow-lg hover:shadow-zinc-500/10 transition-all duration-300 focus:outline-none focus:bg-zinc-100/80 dark:focus:bg-zinc-800/60 focus:shadow-lg focus:shadow-zinc-500/10 rounded-lg"
+              onClick={() => {
+                if (setInput) setInput(prompt);
+              }}
+            >
+              <p className="text-zinc-900 dark:text-white text-base leading-relaxed group-hover:text-zinc-700 dark:group-hover:text-zinc-100 transition-colors duration-200">
+                {prompt}
+              </p>
+            </button>
+            {idx < promptsToShow.length - 1 && (
+              <div className="h-px bg-zinc-300 dark:bg-zinc-700 mx-4" />
+            )}
+          </motion.div>
         ))}
-      </div>
-
-      {/* Clean Prompt Texts - No Containers */}
-      <div className="space-y-6">
-        <div className="flex flex-col gap-4">
-          {promptsToShow.map((prompt, idx) => (
-            <div key={`${selectedCategory}-${prompt}`}>
-              <button
-                type="button"
-                className="group w-full text-left px-8 py-6 transition-all duration-300 text-base font-medium hover:text-zinc-900 dark:hover:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-offset-0 focus:ring-white/40"
-                onClick={() => {
-                  if (setInput) setInput(prompt);
-                }}
-                onMouseEnter={() => setHoveredPrompt(prompt)}
-                onMouseLeave={() => setHoveredPrompt(null)}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-zinc-700 dark:text-zinc-300 group-hover:text-zinc-900 dark:group-hover:text-zinc-100 transition-colors duration-300 leading-relaxed font-medium text-lg">
-                    {prompt}
-                  </span>
-
-                  <div className="ml-6 opacity-0 group-hover:opacity-100 transition-all duration-300 flex-shrink-0">
-                    <svg
-                      className="size-5 text-zinc-500 dark:text-zinc-400"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M7 17L17 7M17 7H7M17 7V17"
-                      />
-                    </svg>
-                  </div>
-                </div>
-              </button>
-            </div>
-          ))}
-        </div>
-
-        {/* Clean separator */}
-        <div className="flex items-center justify-center py-8">
-          <div className="flex items-center space-x-4">
-            <div className="h-px bg-gradient-to-r from-transparent via-zinc-300/60 dark:via-zinc-600/60 to-transparent w-20" />
-            <div
-              className={cn(
-                'w-2 h-2 rounded-full',
-                CATEGORY_COLORS[selectedCategory ?? categoryKeys[0]].accent,
-              )}
-            />
-            <div className="h-px bg-gradient-to-r from-transparent via-zinc-300/60 dark:via-zinc-600/60 to-transparent w-20" />
-          </div>
-        </div>
-      </div>
+      </motion.div>
     </div>
   );
 }

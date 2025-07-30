@@ -18,17 +18,18 @@ import {
   Loader2,
   ExternalLink,
   Sparkles,
+  Sun,
+  Copy,
+  Image,
+  FileText,
+  File,
+  Lock,
+  Database,
+  Check,
+  AlertTriangle,
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-
 import { Badge } from '@/components/ui/badge';
 import {
   AlertDialog,
@@ -51,7 +52,7 @@ import { UserAvatar } from '@/components/user-avatar';
 const tabItems = [
   { id: 'account', label: 'Account', icon: <User size={16} /> },
   { id: 'history', label: 'History & Sync', icon: <History size={16} /> },
-  { id: 'memories', label: 'Memories', icon: <Bot size={16} /> },
+  { id: 'memories', label: 'Memories', icon: <Database size={16} /> },
   { id: 'api-keys', label: 'API Keys', icon: <Key size={16} /> },
   { id: 'attachments', label: 'Attachments', icon: <Paperclip size={16} /> },
   { id: 'billing', label: 'Billing', icon: <Receipt size={16} /> },
@@ -87,6 +88,8 @@ export default function ClientAccountDashboard() {
   const [apiKeyError, setApiKeyError] = useState<string | null>(null);
   const [historyPage, setHistoryPage] = useState(1);
   const [historySearch, setHistorySearch] = useState('');
+  const [deleteAccountInput, setDeleteAccountInput] = useState('');
+  const [deleteAccountConfirmed, setDeleteAccountConfirmed] = useState(false);
   const chatsPerPage = 5;
   const filteredChats = chats.filter((c) =>
     (c.title || 'Untitled Chat')
@@ -124,7 +127,6 @@ export default function ClientAccountDashboard() {
 
     if (sessionData?.user) {
       setIsGuest(sessionData.user.type === 'guest');
-      // Set username from session if available
       if (sessionData.user.username) {
         setUsername(sessionData.user.username);
       }
@@ -159,7 +161,6 @@ export default function ClientAccountDashboard() {
     fetchUsage();
   }, [sessionData, status]);
 
-  // Fetch user plan from database
   useEffect(() => {
     if (status === 'loading' || !sessionData?.user) return;
 
@@ -216,7 +217,6 @@ export default function ClientAccountDashboard() {
     }
   }, [activeTab, sessionData]);
 
-  // Fetch attachments when attachments tab is active
   useEffect(() => {
     if (activeTab === 'attachments' && sessionData?.user) {
       setAttachmentsLoading(true);
@@ -232,7 +232,6 @@ export default function ClientAccountDashboard() {
     }
   }, [activeTab, sessionData]);
 
-  // Fetch API key when API Keys tab is active
   useEffect(() => {
     if (activeTab === 'api-keys' && sessionData?.user) {
       setApiKeyLoading(true);
@@ -248,7 +247,6 @@ export default function ClientAccountDashboard() {
     }
   }, [activeTab, sessionData]);
 
-  // Fetch username and last username change timestamp
   useEffect(() => {
     if (status === 'loading' || !sessionData?.user) return;
 
@@ -279,49 +277,12 @@ export default function ClientAccountDashboard() {
     fetchUsername();
   }, [sessionData, status]);
 
-  useEffect(() => {
-    function handleKeyDown(e: KeyboardEvent) {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'n') {
-        e.preventDefault();
-        router.push('/');
-      }
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
-        e.preventDefault();
-        // Focus input (implement as needed)
-        document
-          .querySelector('[data-global-search="true"]')
-          ?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-      }
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'b') {
-        e.preventDefault();
-        // Toggle sidebar (implement as needed)
-        document
-          .querySelector('[aria-label="Toggle sidebar"]')
-          ?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-      }
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'j') {
-        e.preventDefault();
-        // Theme toggle (implement as needed)
-        document
-          .querySelector('[aria-label="Toggle theme"]')
-          ?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-      }
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'p') {
-        e.preventDefault();
-        // Previous chat (implement as needed)
-        console.log('Previous chat');
-      }
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'l') {
-        e.preventDefault();
-        // Next chat (implement as needed)
-        console.log('Next chat');
-      }
-    }
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [router]);
-
   const handleDeleteAccount = async () => {
+    if (!deleteAccountConfirmed) {
+      toast.error('Please type "Delete my account" to confirm deletion');
+      return;
+    }
+
     setDeleting(true);
     try {
       const res = await fetch('/api/profile/delete', {
@@ -329,19 +290,26 @@ export default function ClientAccountDashboard() {
         headers: {
           'Content-Type': 'application/json',
         },
+        body: JSON.stringify({
+          confirmed: true,
+        }),
       });
 
       if (res.ok) {
-        // Sign out and redirect to homepage
+        toast.success(
+          'Account deleted successfully. You have been logged out.',
+        );
         await signOut({
           callbackUrl: '/',
           redirect: true,
         });
       } else {
-        console.error('Failed to delete account');
+        const errorData = await res.json().catch(() => ({}));
+        toast.error(errorData.message || 'Failed to delete account');
       }
     } catch (error) {
       console.error('Error deleting account:', error);
+      toast.error('Network error. Please try again.');
     } finally {
       setDeleting(false);
     }
@@ -387,23 +355,18 @@ export default function ClientAccountDashboard() {
     }
   };
 
-  // Create a unique display name that shows username or a formatted email
   const getDisplayName = () => {
-    // First check if we have a username from the API (most up-to-date)
     if (username) {
       return username;
     }
-    // Fallback to session username
     if (sessionData?.user?.username) {
       return sessionData.user.username;
     }
     if (sessionData?.user?.email) {
-      // For guest users or users without username, show a formatted version
       const email = sessionData.user.email;
       if (email.startsWith('guest-')) {
         return 'Guest User';
       }
-      // For regular emails, show the part before @
       return email.split('@')[0];
     }
     return 'Account';
@@ -412,7 +375,6 @@ export default function ClientAccountDashboard() {
   const displayName = getDisplayName();
   const messagesRemaining = Math.max(messagesLimit - messagesUsed, 0);
   const usagePercent = Math.min((messagesUsed / messagesLimit) * 100, 100);
-  // Use plan from database
   const plan = isGuest
     ? 'Guest'
     : userPlan === 'pro'
@@ -424,7 +386,6 @@ export default function ClientAccountDashboard() {
     (!!lastUsernameChange &&
       Date.now() - lastUsernameChange.getTime() < 1000 * 60 * 60 * 24 * 30);
 
-  // Calculate days remaining for username change
   const getDaysRemaining = () => {
     if (!lastUsernameChange) return 0;
     const daysElapsed = Math.floor(
@@ -435,11 +396,10 @@ export default function ClientAccountDashboard() {
 
   const daysRemaining = getDaysRemaining();
 
-  // Show loading state while session is loading
   if (status === 'loading') {
     return (
-      <div className="min-h-screen bg-background text-foreground font-sans flex items-center justify-center">
-        <div className="flex items-center gap-2">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/20 dark:from-background dark:via-background/95 dark:to-background flex items-center justify-center">
+        <div className="flex items-center gap-2 text-foreground">
           <Loader2 className="w-6 h-6 animate-spin" />
           <span>Loading...</span>
         </div>
@@ -447,11 +407,10 @@ export default function ClientAccountDashboard() {
     );
   }
 
-  // Show error state if not authenticated
   if (status === 'unauthenticated') {
     return (
-      <div className="min-h-screen bg-background text-foreground font-sans flex items-center justify-center">
-        <div className="text-center">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/20 dark:from-background dark:via-background/95 dark:to-background flex items-center justify-center">
+        <div className="text-center text-foreground">
           <h1 className="text-2xl font-bold mb-4">Authentication Required</h1>
           <p className="text-muted-foreground mb-4">
             Please sign in to access your account settings.
@@ -463,1073 +422,301 @@ export default function ClientAccountDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground font-sans">
-      {/* Back Button */}
-      <div className="absolute top-6 left-6 z-10">
-        <Button
-          variant="outline"
-          size="sm"
-          className="px-4 py-2"
-          onClick={() => router.push('/')}
-        >
-          ← Back to Chat
-        </Button>
-      </div>
-
-      <div className="container mx-auto px-4 py-8 max-w-7xl">
-        <div className="flex flex-col lg:flex-row gap-8">
-          {/* Sidebar */}
-          <aside className="w-full lg:w-80 shrink-0 space-y-6 lg:sticky lg:top-8 lg:h-fit lg:max-h-[calc(100vh-4rem)] lg:overflow-y-auto">
-            {/* Profile Card */}
-            <div className="rounded-lg border bg-card p-6">
-              <div className="flex flex-col items-center text-center space-y-4">
-                <div className="relative">
-                  <UserAvatar
-                    email={sessionData?.user?.email}
-                    name={displayName}
-                    size={80}
-                  />
-                </div>
-                <div>
-                  <h2 className="text-xl font-bold text-card-foreground mb-1">
-                    {displayName}
-                  </h2>
-                  {sessionData?.user?.email && (
-                    <p className="text-sm text-muted-foreground mb-3">
-                      {sessionData.user.email}
-                    </p>
-                  )}
-                  <Badge variant="secondary">{plan}</Badge>
-                </div>
-              </div>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/20 dark:from-background dark:via-background/95 dark:to-background text-foreground font-sans overflow-hidden relative">
+      {/* Enhanced background patterns with better light mode */}
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_80%,rgba(59,130,246,0.06),transparent_50%)] dark:bg-[radial-gradient(circle_at_20%_80%,rgba(59,130,246,0.12),transparent_50%)] pointer-events-none" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_20%,rgba(147,51,234,0.04),transparent_50%)] dark:bg-[radial-gradient(circle_at_80%_20%,rgba(147,51,234,0.1),transparent_50%)] pointer-events-none" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_40%_40%,rgba(16,185,129,0.03),transparent_50%)] dark:bg-[radial-gradient(circle_at_40%_40%,rgba(16,185,129,0.08),transparent_50%)] pointer-events-none" />
+      {/* Additional soft blur layers for light mode */}
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_60%_10%,rgba(168,85,247,0.02),transparent_40%)] dark:hidden pointer-events-none" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_10%_60%,rgba(34,197,94,0.02),transparent_40%)] dark:hidden pointer-events-none" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_90%_90%,rgba(239,68,68,0.02),transparent_40%)] dark:hidden pointer-events-none" />
+      <div className="relative z-10">
+        {/* Navigation Layout */}
+        <div className="sticky top-0 z-50 p-4">
+          <div className="flex items-center justify-between max-w-7xl mx-auto">
+            {/* Back Button - Aligned to left like login form */}
+            <div className="flex items-center">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-muted-foreground hover:text-foreground hover:bg-accent/50"
+                onClick={() => router.push('/')}
+              >
+                ← Back to Chat
+              </Button>
             </div>
 
-            {/* Usage Card */}
-            <div className="rounded-lg border bg-card p-6">
-              <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <h3 className="text-sm font-semibold text-card-foreground">
-                    Message Usage
-                  </h3>
-                  <span className="text-xs text-muted-foreground">
-                    Resets daily at 12:00am
-                  </span>
-                </div>
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Standard</span>
-                    <span className="text-card-foreground font-medium">
-                      {messagesUsed}/{messagesLimit}
-                    </span>
-                  </div>
-                  <Progress value={usagePercent} className="h-2" />
-                  <p className="text-xs text-muted-foreground">
-                    {messagesRemaining} messages remaining
-                  </p>
-                </div>
-                {isGuest && (
-                  <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20">
-                    <p className="text-xs text-destructive">
-                      You are using a guest account. You have 10 messages per
-                      day.{' '}
-                      <a href="/auth" className="underline font-medium">
-                        Sign up
-                      </a>{' '}
-                      to increase your limit!
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Upgrade to Pro CTA */}
-            {!usageLoading && !isGuest && plan === 'Free Plan' && (
-              <div className="rounded-lg border bg-card p-4">
-                <div className="space-y-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-blue-500 rounded-full flex items-center justify-center">
-                      <Sparkles className="w-4 h-4 text-white" />
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="text-sm font-semibold text-card-foreground">
-                        Upgrade to Pro
-                      </h3>
-                      <p className="text-xs text-muted-foreground">
-                        25x more messages, advanced AI models
-                      </p>
-                    </div>
-                  </div>
+            {/* Floating Navigation Container */}
+            <div className="rounded-xl border border-border/50 bg-white/80 dark:bg-background/50 backdrop-blur-xl shadow-2xl">
+              <div className="flex items-center gap-1 p-1">
+                {tabItems.map((tab) => (
                   <Button
-                    onClick={handleUpgradeToPro}
-                    disabled={upgrading}
+                    key={tab.id}
+                    variant={activeTab === tab.id ? 'default' : 'ghost'}
                     size="sm"
-                    className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white"
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`flex items-center gap-2 px-3 py-2 text-sm rounded-lg transition-all ${
+                      activeTab === tab.id
+                        ? 'bg-primary/10 hover:bg-primary/20 border border-primary/30 text-primary hover:text-primary/80 backdrop-blur-sm shadow-lg'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-accent/50'
+                    }`}
                   >
-                    {upgrading ? (
-                      <>
-                        <Loader2 className="w-3 h-3 mr-2 animate-spin" />
-                        Processing...
-                      </>
-                    ) : (
-                      <>
-                        Start Free Trial
-                        <ArrowRight className="w-3 h-3 ml-2" />
-                      </>
-                    )}
+                    {tab.icon}
+                    <span className="hidden sm:inline">{tab.label}</span>
                   </Button>
-                  <p className="text-xs text-muted-foreground text-center">
-                    30-day free trial • Cancel anytime
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {/* Pro Plan Status */}
-            {!usageLoading && plan === 'Pro Plan' && (
-              <div className="rounded-lg border bg-card p-4">
-                <div className="space-y-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-emerald-500 rounded-full flex items-center justify-center">
-                      <Sparkles className="w-4 h-4 text-white" />
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="text-sm font-semibold text-card-foreground">
-                        Pro Plan Active
-                      </h3>
-                      <p className="text-xs text-muted-foreground">
-                        Access to all premium features
-                      </p>
-                    </div>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full"
-                    onClick={() => setActiveTab('billing')}
-                  >
-                    Manage Billing
-                    <ArrowRight className="w-3 h-3 ml-2" />
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            {/* Shortcuts Card */}
-            <div className="rounded-lg border bg-card p-6">
-              <h3 className="text-sm font-semibold text-card-foreground mb-4">
-                Keyboard Shortcuts
-              </h3>
-              <div className="space-y-3 max-h-48 overflow-y-auto">
-                {[
-                  { label: 'New Thread', shortcut: '⌘ N' },
-                  { label: 'Focus Input', shortcut: '⌘ K' },
-                  { label: 'Toggle Sidebar', shortcut: '⌘ B' },
-                  { label: 'Toggle Theme', shortcut: '⌘ J' },
-                  { label: 'Copy Last Message', shortcut: '⌘ C' },
-                  { label: 'Regenerate Response', shortcut: '⌘ R' },
-                  { label: 'Stop Generation', shortcut: '⌘ S' },
-                ].map((item) => (
-                  <div
-                    key={item.label}
-                    className="flex justify-between items-center"
-                  >
-                    <span className="text-sm text-muted-foreground">
-                      {item.label}
-                    </span>
-                    <span className="px-2 py-1 bg-muted rounded text-xs font-mono text-muted-foreground border">
-                      {item.shortcut}
-                    </span>
-                  </div>
                 ))}
               </div>
             </div>
-          </aside>
 
-          {/* Main Content */}
-          <main className="flex-1 lg:max-h-[calc(100vh-4rem)] lg:overflow-y-auto">
-            <div className="rounded-lg border bg-card overflow-hidden">
-              <Tabs
-                value={activeTab}
-                onValueChange={setActiveTab}
-                className="w-full"
+            {/* Right Side */}
+            <div className="flex items-center gap-3">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-muted-foreground hover:text-foreground hover:bg-accent/50"
+                onClick={() => {
+                  const newTheme = document.documentElement.classList.contains(
+                    'dark',
+                  )
+                    ? 'light'
+                    : 'dark';
+                  document.documentElement.classList.toggle('dark');
+                  localStorage.setItem('theme', newTheme);
+                }}
               >
-                <div className="p-6 border-b">
-                  <TabsList className="flex gap-2 overflow-x-auto no-scrollbar">
-                    {tabItems.map((tab) => (
-                      <TabsTrigger
-                        key={tab.id}
-                        value={tab.id}
-                        className="flex items-center gap-2 whitespace-nowrap"
-                      >
-                        {tab.icon}
-                        <span className="hidden sm:inline">{tab.label}</span>
-                      </TabsTrigger>
-                    ))}
-                  </TabsList>
+                <Sun className="w-4 h-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-muted-foreground hover:text-foreground hover:bg-accent/50"
+                onClick={handleSignOut}
+              >
+                Sign out
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        <div className="container mx-auto px-4 py-6 max-w-7xl">
+          <div className="flex flex-col lg:flex-row gap-8">
+            {/* Left Panel - User Info & Usage */}
+            <div className="w-full lg:w-80 shrink-0 space-y-6">
+              {/* Profile Card */}
+              <div className="rounded-xl border border-border/50 bg-white/90 dark:bg-card/50 backdrop-blur-xl p-6 shadow-lg">
+                <div className="flex flex-col items-center text-center space-y-4">
+                  <div className="relative">
+                    <UserAvatar
+                      email={sessionData?.user?.email}
+                      name={displayName}
+                      size={80}
+                      className="w-20 h-20"
+                    />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold text-foreground mb-1">
+                      {displayName}
+                    </h2>
+                    {sessionData?.user?.email && (
+                      <p className="text-sm text-muted-foreground mb-3">
+                        {sessionData.user.email}
+                      </p>
+                    )}
+                    <Badge className="bg-primary/10 hover:bg-primary/20 border border-primary/30 text-primary hover:text-primary/80 backdrop-blur-sm">
+                      {plan}
+                    </Badge>
+                  </div>
                 </div>
-                <div className="p-6 space-y-8">
-                  <TabsContent value="account" className="mt-0">
-                    <div className="space-y-6">
-                      {/* Profile Information */}
-                      <div className="rounded-lg border bg-card p-6">
-                        <div className="space-y-6">
-                          <div>
-                            <h3 className="text-lg font-semibold text-card-foreground mb-2">
-                              Profile Information
-                            </h3>
-                            <p className="text-sm text-muted-foreground">
-                              Manage your account details and preferences
-                            </p>
-                          </div>
+              </div>
 
-                          {/* Username Section */}
-                          <div className="space-y-3">
-                            <div className="flex items-center justify-between">
-                              <span className="text-sm font-medium text-white">
-                                Username
-                              </span>
-                              {!editingUsername && (
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={() => setEditingUsername(true)}
-                                  disabled={usernameChangeDisabled}
-                                  title={
-                                    usernameChangeDisabled
-                                      ? `You can change your username again in ${daysRemaining} day${daysRemaining !== 1 ? 's' : ''}`
-                                      : 'Edit username'
-                                  }
-                                >
-                                  {usernameChangeDisabled
-                                    ? 'Edit (30d)'
-                                    : 'Edit'}
-                                </Button>
-                              )}
-                            </div>
-
-                            {editingUsername ? (
-                              <div className="space-y-3">
-                                <Input
-                                  value={username}
-                                  onChange={(e) => setUsername(e.target.value)}
-                                  disabled={usernameLoading}
-                                  autoFocus
-                                  placeholder="Enter username"
-                                />
-                                <div className="flex gap-2">
-                                  <Button
-                                    size="sm"
-                                    onClick={async () => {
-                                      setUsernameLoading(true);
-                                      setUsernameError('');
-                                      setUsernameSuccess('');
-
-                                      if (!username.trim()) {
-                                        setUsernameError(
-                                          'Username is required.',
-                                        );
-                                        setUsernameLoading(false);
-                                        return;
-                                      }
-
-                                      if (
-                                        username.length < 3 ||
-                                        username.length > 32
-                                      ) {
-                                        setUsernameError(
-                                          'Username must be 3-32 characters.',
-                                        );
-                                        setUsernameLoading(false);
-                                        return;
-                                      }
-
-                                      if (!/^[a-zA-Z0-9_-]+$/.test(username)) {
-                                        setUsernameError(
-                                          'Username can only contain letters, numbers, underscores, and hyphens.',
-                                        );
-                                        setUsernameLoading(false);
-                                        return;
-                                      }
-
-                                      try {
-                                        const res = await fetch(
-                                          '/api/profile/username',
-                                          {
-                                            method: 'POST',
-                                            headers: {
-                                              'Content-Type':
-                                                'application/json',
-                                            },
-                                            body: JSON.stringify({ username }),
-                                          },
-                                        );
-
-                                        if (res.ok) {
-                                          const data = await res.json();
-                                          setUsernameSuccess(
-                                            'Username updated successfully!',
-                                          );
-                                          setEditingUsername(false);
-                                          toast.success(
-                                            'Username updated successfully!',
-                                          );
-
-                                          // Force a session refresh by updating the session data
-                                          await updateSession();
-
-                                          // Force a page refresh to ensure all components get updated session
-                                          setTimeout(() => {
-                                            window.location.reload();
-                                          }, 500);
-
-                                          // Refresh the last change timestamp
-                                          const refreshRes = await fetch(
-                                            '/api/profile/username',
-                                          );
-                                          if (refreshRes.ok) {
-                                            const refreshData =
-                                              await refreshRes.json();
-                                            setLastUsernameChange(
-                                              refreshData.lastChange
-                                                ? new Date(
-                                                    refreshData.lastChange,
-                                                  )
-                                                : null,
-                                            );
-                                          }
-                                        } else {
-                                          const data = await res.json();
-                                          const errorMessage =
-                                            data.error ||
-                                            'Failed to update username';
-                                          setUsernameError(errorMessage);
-                                          toast.error(errorMessage);
-
-                                          // If the API returns days remaining, update the local state
-                                          if (
-                                            data.daysRemaining !== undefined
-                                          ) {
-                                            // This will trigger a re-fetch of the username data
-                                            const refreshRes = await fetch(
-                                              '/api/profile/username',
-                                            );
-                                            if (refreshRes.ok) {
-                                              const refreshData =
-                                                await refreshRes.json();
-                                              setLastUsernameChange(
-                                                refreshData.lastChange
-                                                  ? new Date(
-                                                      refreshData.lastChange,
-                                                    )
-                                                  : null,
-                                              );
-                                            }
-                                          }
-                                        }
-                                      } catch (error) {
-                                        console.error(
-                                          'Error updating username:',
-                                          error,
-                                        );
-                                        const errorMessage =
-                                          'Network error. Please try again.';
-                                        setUsernameError(errorMessage);
-                                        toast.error(errorMessage);
-                                      }
-
-                                      setUsernameLoading(false);
-                                    }}
-                                    disabled={usernameChangeDisabled}
-                                  >
-                                    {usernameLoading ? 'Saving...' : 'Save'}
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={() => {
-                                      setEditingUsername(false);
-                                      setUsername(username || '');
-                                      setUsernameError('');
-                                      setUsernameSuccess('');
-                                    }}
-                                    disabled={usernameLoading}
-                                  >
-                                    Cancel
-                                  </Button>
-                                </div>
-                              </div>
-                            ) : (
-                              <div className="p-3 rounded-lg bg-muted border">
-                                <span className="font-mono text-card-foreground">
-                                  {username || (
-                                    <span className="text-muted-foreground">
-                                      No username set • Using email as display
-                                      name
-                                    </span>
-                                  )}
-                                </span>
-                              </div>
-                            )}
-
-                            <p className="text-xs text-white/60">
-                              Choose a unique username. This helps the AI
-                              address you personally and improves your chat
-                              experience.
-                              {!username &&
-                                ' Currently using your email as your display name.'}
-                            </p>
-
-                            {usernameChangeDisabled && daysRemaining > 0 && (
-                              <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
-                                <p className="text-sm text-amber-600 dark:text-amber-400">
-                                  ⏰ Username can only be changed once per
-                                  month. You can change it again in{' '}
-                                  {daysRemaining} day
-                                  {daysRemaining !== 1 ? 's' : ''}.
-                                </p>
-                              </div>
-                            )}
-
-                            {usernameError && (
-                              <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20">
-                                <p className="text-sm text-destructive">
-                                  {usernameError}
-                                </p>
-                              </div>
-                            )}
-
-                            {usernameSuccess && (
-                              <div className="p-3 rounded-lg bg-green-500/10 border border-green-500/20">
-                                <p className="text-sm text-green-600 dark:text-green-400">
-                                  {usernameSuccess}
-                                </p>
-                              </div>
-                            )}
-                          </div>
-                        </div>
+              {/* Message Usage Card */}
+              <div className="rounded-xl border border-border/50 bg-white/90 dark:bg-card/50 backdrop-blur-xl p-6 shadow-lg">
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <h3 className="text-sm font-semibold text-foreground">
+                      Message Usage
+                    </h3>
+                    <span className="text-xs text-muted-foreground">
+                      Resets today at 4:59 AM
+                    </span>
+                  </div>
+                  <div className="space-y-3">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Standard</span>
+                      <span className="text-foreground font-medium">
+                        {messagesUsed}/{messagesLimit}
+                      </span>
+                    </div>
+                    <Progress value={usagePercent} className="h-2 bg-muted" />
+                    <p className="text-xs text-muted-foreground">
+                      {messagesRemaining} messages remaining
+                    </p>
+                    <div className="flex items-start gap-2 p-3 rounded-lg bg-muted/30 border border-border/50">
+                      <div className="w-4 h-4 text-muted-foreground mt-0.5">
+                        ℹ️
                       </div>
-                      {/* Account Settings */}
-                      <div className="rounded-lg border bg-card p-6">
-                        <div className="space-y-6">
-                          <div>
-                            <h3 className="text-lg font-semibold text-card-foreground mb-2">
-                              Account Settings
-                            </h3>
-                            <p className="text-sm text-muted-foreground">
-                              Manage your account actions
-                            </p>
-                          </div>
+                      <p className="text-xs text-muted-foreground">
+                        Each tool call (e.g. search grounding) used in a reply
+                        consumes an additional standard credit. Models may not
+                        always utilize enabled tools.
+                      </p>
+                    </div>
+                  </div>
+                  {isGuest && (
+                    <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+                      <p className="text-xs text-destructive">
+                        You are using a guest account. You have 10 messages per
+                        day.{' '}
+                        <a href="/auth" className="underline font-medium">
+                          Sign up
+                        </a>{' '}
+                        to increase your limit!
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
 
-                          <div className="space-y-4">
-                            <div>
-                              <Button
-                                onClick={handleSignOut}
-                                className="w-full"
-                              >
-                                Sign Out
-                              </Button>
-                            </div>
+              {/* Keyboard Shortcuts Card */}
+              <div className="rounded-xl border border-border/50 bg-white/90 dark:bg-card/50 backdrop-blur-xl p-6 shadow-lg">
+                <h3 className="text-sm font-semibold text-foreground mb-4">
+                  Keyboard Shortcuts
+                </h3>
+                <div className="space-y-3 max-h-48 overflow-y-auto">
+                  {[
+                    { label: 'Search chats', shortcut: '⌘K' },
+                    { label: 'Open new chat', shortcut: '⇧⌘O' },
+                    { label: 'Toggle sidebar', shortcut: '⇧⌘S' },
+                    { label: 'Copy last code block', shortcut: '⇧⌘;' },
+                    { label: 'Next message', shortcut: '⇧↓' },
+                    { label: 'Previous message', shortcut: '⇧↑' },
+                    { label: 'Delete chat', shortcut: '⇧⌘⌫' },
+                    { label: 'Focus chat input', shortcut: '⇧R' },
+                    { label: 'Show shortcuts', shortcut: '⌘/' },
+                    { label: 'Set custom instructions', shortcut: '⇧⌘I' },
+                  ].map((item) => (
+                    <div
+                      key={item.label}
+                      className="flex justify-between items-center"
+                    >
+                      <span className="text-sm text-muted-foreground">
+                        {item.label}
+                      </span>
+                      <span className="px-2 py-1 bg-muted rounded text-xs font-mono text-muted-foreground border border-border">
+                        {item.shortcut}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
 
-                            <div className="border-t pt-4">
-                              <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                  <Button
-                                    variant="destructive"
-                                    disabled={deleting}
-                                    className="w-full"
-                                  >
-                                    {deleting
-                                      ? 'Deleting...'
-                                      : 'Delete Account'}
-                                  </Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                  <AlertDialogHeader>
-                                    <AlertDialogTitle>
-                                      Delete this account?
-                                    </AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                      This action cannot be undone. This will
-                                      permanently delete:
-                                      <br />• All your chats and messages
-                                      <br />• All your memories
-                                      <br />• All your files and attachments
-                                      <br />• Your account data
-                                    </AlertDialogDescription>
-                                  </AlertDialogHeader>
-                                  <AlertDialogFooter>
-                                    <AlertDialogCancel>
-                                      Cancel
-                                    </AlertDialogCancel>
-                                    <AlertDialogAction
-                                      onClick={handleDeleteAccount}
-                                      disabled={deleting}
-                                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            {/* Right Panel - Main Content */}
+            <div className="flex-1">
+              <div className="rounded-xl border border-border/50 bg-white/90 dark:bg-card/50 backdrop-blur-xl overflow-hidden shadow-lg">
+                {/* Mobile Tabs */}
+                <div className="lg:hidden p-4 border-b border-border/50">
+                  <Tabs value={activeTab} onValueChange={setActiveTab}>
+                    <TabsList className="flex gap-1 overflow-x-auto no-scrollbar w-full bg-muted/50">
+                      {tabItems.map((tab) => (
+                        <TabsTrigger
+                          key={tab.id}
+                          value={tab.id}
+                          className="flex items-center gap-1.5 whitespace-nowrap flex-shrink-0 text-xs px-3 py-2 data-[state=active]:bg-primary/10 data-[state=active]:border data-[state=active]:border-primary/30 data-[state=active]:text-primary backdrop-blur-sm"
+                        >
+                          {tab.icon}
+                          <span className="text-xs">{tab.label}</span>
+                        </TabsTrigger>
+                      ))}
+                    </TabsList>
+                  </Tabs>
+                </div>
+
+                <Tabs value={activeTab} onValueChange={setActiveTab}>
+                  <div className="p-6 space-y-6">
+                    <TabsContent value="account" className="mt-0">
+                      <div className="space-y-6">
+                        {/* Mini Pricing Design - Replacing bento cards */}
+                        {!usageLoading && !isGuest && userPlan !== 'pro' && (
+                          <div className="rounded-xl border border-border/50 bg-white/90 dark:bg-card/50 backdrop-blur-xl p-6 shadow-lg">
+                            <div className="space-y-6">
+                              <div className="text-center">
+                                <h4 className="text-lg font-semibold text-foreground mb-2">
+                                  Pricing that Scales with You
+                                </h4>
+                                <p className="text-sm text-muted-foreground">
+                                  Choose the plan that fits your needs
+                                </p>
+                              </div>
+
+                              <div className="grid gap-4 md:grid-cols-5">
+                                {/* Free Plan */}
+                                <div className="rounded-lg flex flex-col justify-between space-y-4 border border-border/50 p-4 md:col-span-2">
+                                  <div className="space-y-3">
+                                    <div>
+                                      <h5 className="font-medium text-foreground">
+                                        Free
+                                      </h5>
+                                      <span className="block text-xl font-semibold text-foreground">
+                                        $0 / mo
+                                      </span>
+                                      <p className="text-muted-foreground text-xs">
+                                        Per user
+                                      </p>
+                                    </div>
+
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="w-full bg-primary/10 hover:bg-primary/20 border border-primary/30 text-primary hover:text-primary/80 backdrop-blur-sm"
+                                      disabled
                                     >
-                                      {deleting
-                                        ? 'Deleting...'
-                                        : 'Delete Account'}
-                                    </AlertDialogAction>
-                                  </AlertDialogFooter>
-                                </AlertDialogContent>
-                              </AlertDialog>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </TabsContent>
-                  <TabsContent value="memories" className="mt-0">
-                    <div className="space-y-6">
-                      <div className="rounded-lg border bg-card p-6">
-                        <div className="space-y-6">
-                          <div>
-                            <h3 className="text-lg font-semibold text-card-foreground mb-2">
-                              Memories
-                            </h3>
-                            <p className="text-sm text-muted-foreground">
-                              Your unique AI memories
-                            </p>
-                          </div>
+                                      Current Plan
+                                    </Button>
 
-                          {memoriesLoading ? (
-                            <div className="text-sm text-muted-foreground">
-                              Loading...
-                            </div>
-                          ) : memories.length === 0 ? (
-                            <div className="text-sm text-muted-foreground">
-                              No memories found for your account.
-                            </div>
-                          ) : (
-                            <div className="space-y-4">
-                              {memories.map((m) => (
-                                <div
-                                  key={m.id}
-                                  className="relative group rounded-lg p-4 bg-muted/50 border transition-all duration-200 hover:scale-[1.02] hover:bg-muted"
-                                >
-                                  <span
-                                    className="font-mono text-sm text-card-foreground break-words select-text"
-                                    style={{
-                                      fontFamily: 'JetBrains Mono, monospace',
-                                    }}
-                                  >
-                                    {m.content}
-                                  </span>
-                                  <span className="text-xs text-muted-foreground mt-2 block">
-                                    {new Date(m.createdAt).toLocaleString()}
-                                  </span>
-                                  <AlertDialog
-                                    open={deleteDialogOpen === m.id}
-                                    onOpenChange={(open) =>
-                                      setDeleteDialogOpen(
-                                        open ? m.id : undefined,
-                                      )
-                                    }
-                                  >
-                                    <AlertDialogTrigger asChild>
-                                      <button
-                                        type="button"
-                                        className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition bg-destructive/20 hover:bg-destructive/30 text-destructive rounded-full p-1.5 shadow border border-destructive/30"
-                                        title="Delete memory"
-                                      >
-                                        <svg
-                                          width="16"
-                                          height="16"
-                                          viewBox="0 0 20 20"
-                                          fill="none"
-                                          xmlns="http://www.w3.org/2000/svg"
+                                    <hr className="border-border/50" />
+
+                                    <ul className="space-y-2 text-xs text-muted-foreground">
+                                      {[
+                                        '50 messages/day',
+                                        '5 file uploads',
+                                        'Basic AI models',
+                                        'Email support',
+                                      ].map((item) => (
+                                        <li
+                                          key={item}
+                                          className="flex items-center gap-2"
                                         >
-                                          <path
-                                            d="M6.5 6.5L13.5 13.5M13.5 6.5L6.5 13.5"
-                                            stroke="currentColor"
-                                            strokeWidth="1.5"
-                                            strokeLinecap="round"
-                                          />
-                                        </svg>
-                                      </button>
-                                    </AlertDialogTrigger>
-                                    <AlertDialogContent>
-                                      <AlertDialogHeader>
-                                        <AlertDialogTitle>
-                                          Delete this memory?
-                                        </AlertDialogTitle>
-                                        <AlertDialogDescription>
-                                          This action cannot be undone. Are you
-                                          sure you want to delete this memory?
-                                        </AlertDialogDescription>
-                                      </AlertDialogHeader>
-                                      <AlertDialogFooter>
-                                        <AlertDialogCancel>
-                                          Cancel
-                                        </AlertDialogCancel>
-                                        <AlertDialogAction
-                                          onClick={async () => {
-                                            await fetch(
-                                              `/api/memory?id=${m.id}`,
-                                              {
-                                                method: 'DELETE',
-                                              },
-                                            );
-                                            setMemories((prev) =>
-                                              prev.filter((x) => x.id !== m.id),
-                                            );
-                                            setDeleteDialogOpen(undefined);
-                                          }}
-                                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                        >
-                                          Delete
-                                        </AlertDialogAction>
-                                      </AlertDialogFooter>
-                                    </AlertDialogContent>
-                                  </AlertDialog>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </TabsContent>
-                  <TabsContent value="history" className="mt-0">
-                    <div className="space-y-6">
-                      <div className="rounded-lg border bg-card p-6">
-                        <div className="space-y-6">
-                          <div>
-                            <h3 className="text-lg font-semibold text-card-foreground mb-2">
-                              Chat History
-                            </h3>
-                            <p className="text-sm text-muted-foreground">
-                              Manage your conversation history and sync settings
-                            </p>
-                          </div>
-
-                          <div className="mb-4 flex flex-row gap-2 items-center">
-                            <Input
-                              type="text"
-                              placeholder="Search chats..."
-                              value={historySearch}
-                              onChange={(e) => {
-                                setHistorySearch(e.target.value);
-                                setHistoryPage(1);
-                              }}
-                              className="w-64"
-                            />
-                            <span className="ml-auto text-xs text-muted-foreground">
-                              Page {historyPage} of {totalPages}
-                            </span>
-                          </div>
-
-                          {chatsLoading ? (
-                            <div className="text-sm text-muted-foreground">
-                              Loading...
-                            </div>
-                          ) : !sessionData?.user ||
-                            (sessionData.user.type !== 'regular' &&
-                              (sessionData.user as any)?.user_type !==
-                                'pro') ? (
-                            <div className="text-sm text-muted-foreground">
-                              Sign in to view your chat history.
-                            </div>
-                          ) : filteredChats.length === 0 ? (
-                            <div className="text-sm text-muted-foreground">
-                              No chat history found for your account.
-                            </div>
-                          ) : (
-                            <>
-                              <div className="space-y-2">
-                                {paginatedChats.map((c) => (
-                                  <div
-                                    key={c.id}
-                                    className="relative group rounded-lg p-3 bg-muted/50 border transition-all duration-200 hover:scale-[1.01] hover:bg-muted"
-                                  >
-                                    <div className="flex items-start justify-between">
-                                      <div className="flex-1 min-w-0">
-                                        <h4 className="text-sm font-medium text-card-foreground break-words select-text mb-1">
-                                          {c.title || 'Untitled Chat'}
-                                        </h4>
-
-                                        <div className="flex items-center gap-3 text-xs text-muted-foreground mb-2">
-                                          <div className="flex items-center gap-1">
-                                            <Calendar className="w-3 h-3" />
-                                            <span>
-                                              {new Date(
-                                                c.createdAt,
-                                              ).toLocaleDateString()}
-                                            </span>
-                                          </div>
-                                          <div className="flex items-center gap-1">
-                                            <Clock className="w-3 h-3" />
-                                            <span>
-                                              {new Date(
-                                                c.createdAt,
-                                              ).toLocaleTimeString()}
-                                            </span>
-                                          </div>
-                                          <div className="flex items-center gap-1">
-                                            <MessageCircle className="w-3 h-3" />
-                                            <span>1 token used</span>
-                                          </div>
-                                        </div>
-
-                                        <button
-                                          type="button"
-                                          className="opacity-0 group-hover:opacity-100 transition bg-blue-500/20 hover:bg-blue-500/30 text-blue-600 dark:text-blue-400 rounded-full p-1 shadow border border-blue-500/30"
-                                          onClick={() =>
-                                            window.open(
-                                              `/chat/${c.id}`,
-                                              '_blank',
-                                            )
-                                          }
-                                          title="Open chat in new tab"
-                                        >
-                                          <ExternalLink className="w-3 h-3" />
-                                        </button>
-                                      </div>
-
-                                      <AlertDialog
-                                        open={deleteChatDialogOpen === c.id}
-                                        onOpenChange={(open) =>
-                                          setDeleteChatDialogOpen(
-                                            open ? c.id : undefined,
-                                          )
-                                        }
-                                      >
-                                        <AlertDialogTrigger asChild>
-                                          <button
-                                            type="button"
-                                            className="opacity-0 group-hover:opacity-100 transition bg-destructive/20 hover:bg-destructive/30 text-destructive rounded-full p-1 shadow border border-destructive/30"
-                                            title="Delete chat"
-                                          >
-                                            <Trash2 className="w-3 h-3" />
-                                          </button>
-                                        </AlertDialogTrigger>
-                                        <AlertDialogContent>
-                                          <AlertDialogHeader>
-                                            <AlertDialogTitle>
-                                              Delete this chat?
-                                            </AlertDialogTitle>
-                                            <AlertDialogDescription>
-                                              This action cannot be undone. Are
-                                              you sure you want to delete this
-                                              chat and all its messages?
-                                            </AlertDialogDescription>
-                                          </AlertDialogHeader>
-                                          <AlertDialogFooter>
-                                            <AlertDialogCancel>
-                                              Cancel
-                                            </AlertDialogCancel>
-                                            <AlertDialogAction
-                                              onClick={async () => {
-                                                await fetch(
-                                                  `/api/chat/${c.id}`,
-                                                  {
-                                                    method: 'DELETE',
-                                                  },
-                                                );
-                                                setChats((prev) =>
-                                                  prev.filter(
-                                                    (x) => x.id !== c.id,
-                                                  ),
-                                                );
-                                                setDeleteChatDialogOpen(
-                                                  undefined,
-                                                );
-                                              }}
-                                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                            >
-                                              Delete
-                                            </AlertDialogAction>
-                                          </AlertDialogFooter>
-                                        </AlertDialogContent>
-                                      </AlertDialog>
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                              <div className="flex flex-row justify-center items-center gap-2 mt-4">
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={() =>
-                                    setHistoryPage((p) => Math.max(1, p - 1))
-                                  }
-                                  disabled={historyPage === 1}
-                                >
-                                  &lt;
-                                </Button>
-                                <span className="text-xs text-muted-foreground">
-                                  Page {historyPage} of {totalPages}
-                                </span>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={() =>
-                                    setHistoryPage((p) =>
-                                      Math.min(totalPages, p + 1),
-                                    )
-                                  }
-                                  disabled={historyPage === totalPages}
-                                >
-                                  &gt;
-                                </Button>
-                              </div>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </TabsContent>
-                  <TabsContent value="api-keys" className="mt-0">
-                    <div className="space-y-6">
-                      <div className="rounded-lg border bg-card p-6">
-                        <div className="space-y-6">
-                          <div>
-                            <h3 className="text-lg font-semibold text-card-foreground mb-2">
-                              API Keys
-                            </h3>
-                            <p className="text-sm text-muted-foreground">
-                              Manage your API keys for external integrations
-                            </p>
-                          </div>
-
-                          <div className="space-y-4">
-                            <form
-                              onSubmit={async (e) => {
-                                e.preventDefault();
-                                setApiKeyLoading(true);
-                                setApiKeyError(null);
-                                const res = await fetch(
-                                  '/api/profile/api-key',
-                                  {
-                                    method: 'POST',
-                                    headers: {
-                                      'Content-Type': 'application/json',
-                                    },
-                                    body: JSON.stringify({
-                                      apiKey: apiKeyInput,
-                                    }),
-                                  },
-                                );
-                                if (res.ok) {
-                                  setApiKey(apiKeyInput);
-                                  setApiKeyInput('');
-                                } else {
-                                  const data = await res.json();
-                                  setApiKeyError(
-                                    data.error || 'Failed to save API key',
-                                  );
-                                }
-                                setApiKeyLoading(false);
-                              }}
-                              className="space-y-4"
-                            >
-                              <div>
-                                <span className="text-sm font-medium text-card-foreground">
-                                  Bring your own key
-                                </span>
-                                <Input
-                                  type="text"
-                                  value={apiKeyInput}
-                                  onChange={(e) =>
-                                    setApiKeyInput(e.target.value)
-                                  }
-                                  className="mt-2"
-                                  placeholder="Paste your API key here"
-                                  disabled={apiKeyLoading}
-                                />
-                              </div>
-                              <Button
-                                type="submit"
-                                disabled={apiKeyLoading || !apiKeyInput}
-                              >
-                                {apiKeyLoading ? 'Saving...' : 'Save Key'}
-                              </Button>
-                              {apiKeyError && (
-                                <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20">
-                                  <p className="text-sm text-destructive">
-                                    {apiKeyError}
-                                  </p>
-                                </div>
-                              )}
-                              {apiKey && (
-                                <div className="p-3 rounded-lg bg-green-500/10 border border-green-500/20">
-                                  <p className="text-sm text-green-600 dark:text-green-400">
-                                    Current key:{' '}
-                                    <span className="font-mono">{apiKey}</span>
-                                  </p>
-                                </div>
-                              )}
-                            </form>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </TabsContent>
-                  <TabsContent value="contact" className="mt-0">
-                    <div className="space-y-6">
-                      <div className="rounded-lg border bg-card p-6">
-                        <div className="space-y-6">
-                          <div>
-                            <h3 className="text-lg font-semibold text-card-foreground mb-2">
-                              Contact Support
-                            </h3>
-                            <p className="text-sm text-muted-foreground">
-                              Get help and support for your account
-                            </p>
-                          </div>
-
-                          <form
-                            action="https://formspree.io/f/yourFormId"
-                            method="POST"
-                            className="space-y-4"
-                          >
-                            <Input
-                              name="name"
-                              placeholder="Your Name"
-                              required
-                            />
-                            <Input
-                              name="email"
-                              type="email"
-                              placeholder="Your Email"
-                              required
-                            />
-                            <textarea
-                              name="message"
-                              placeholder="Your Message"
-                              required
-                              className="w-full rounded-lg border bg-background px-3 py-2 min-h-[100px] resize-none"
-                            />
-                            <Button type="submit" className="w-full">
-                              Send Message
-                            </Button>
-                          </form>
-                        </div>
-                      </div>
-                    </div>
-                  </TabsContent>
-                  <TabsContent value="billing" className="mt-0">
-                    <div className="space-y-6">
-                      <div className="rounded-lg border bg-card p-6">
-                        <div className="space-y-6">
-                          <div>
-                            <h3 className="text-lg font-semibold text-card-foreground mb-2">
-                              Billing & Subscription
-                            </h3>
-                            <p className="text-sm text-muted-foreground">
-                              Manage your subscription and billing information
-                            </p>
-                          </div>
-
-                          {plan === 'Pro Plan' ? (
-                            <div className="space-y-4">
-                              <div className="p-4 rounded-lg bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800">
-                                <div className="flex items-center gap-3">
-                                  <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center">
-                                    <Sparkles className="w-5 h-5 text-white" />
-                                  </div>
-                                  <div>
-                                    <h4 className="font-semibold text-green-900 dark:text-green-100">
-                                      Pro Plan Active
-                                    </h4>
-                                    <p className="text-sm text-green-700 dark:text-green-300">
-                                      Your subscription is active and you have
-                                      access to all premium features.
-                                    </p>
-                                  </div>
-                                </div>
-                              </div>
-
-                              <div className="grid gap-4">
-                                <div className="p-4 rounded-lg bg-muted/50 border">
-                                  <h4 className="font-semibold mb-2">
-                                    Subscription Details
-                                  </h4>
-                                  <div className="space-y-2 text-sm">
-                                    <div className="flex justify-between">
-                                      <span className="text-muted-foreground">
-                                        Plan:
-                                      </span>
-                                      <span className="font-medium">
-                                        Pro Plan
-                                      </span>
-                                    </div>
-                                    <div className="flex justify-between">
-                                      <span className="text-muted-foreground">
-                                        Status:
-                                      </span>
-                                      <span className="font-medium text-green-600">
-                                        Active
-                                      </span>
-                                    </div>
-                                    <div className="flex justify-between">
-                                      <span className="text-muted-foreground">
-                                        Billing Cycle:
-                                      </span>
-                                      <span className="font-medium">
-                                        Monthly
-                                      </span>
-                                    </div>
-                                    <div className="flex justify-between">
-                                      <span className="text-muted-foreground">
-                                        Next Billing:
-                                      </span>
-                                      <span className="font-medium">
-                                        30 days from now
-                                      </span>
-                                    </div>
+                                          <Check className="w-3 h-3 text-green-500" />
+                                          {item}
+                                        </li>
+                                      ))}
+                                    </ul>
                                   </div>
                                 </div>
 
-                                <div className="flex gap-3">
-                                  <Button
-                                    variant="outline"
-                                    className="flex-1"
-                                    onClick={() => {
-                                      // Redirect to Stripe customer portal
-                                      window.open(
-                                        'https://billing.stripe.com/session/your-portal-url',
-                                        '_blank',
-                                      );
-                                    }}
-                                  >
-                                    Manage Subscription
-                                  </Button>
-                                  <Button
-                                    variant="outline"
-                                    className="flex-1"
-                                    onClick={() => {
-                                      // Cancel subscription logic
-                                      console.log('Cancel subscription');
-                                    }}
-                                  >
-                                    Cancel Plan
-                                  </Button>
-                                </div>
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="space-y-4">
-                              {!isGuest && plan === 'Free Plan' ? (
-                                <>
-                                  <div className="p-4 rounded-lg bg-gradient-to-br from-purple-50 to-blue-50 dark:from-purple-950/20 dark:to-blue-950/20 border border-purple-200 dark:border-purple-800">
-                                    <div className="text-center space-y-4">
-                                      <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-blue-500 rounded-full flex items-center justify-center mx-auto">
-                                        <Sparkles className="w-6 h-6 text-white" />
-                                      </div>
+                                {/* Pro Plan */}
+                                <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 shadow-lg md:col-span-3">
+                                  <div className="grid gap-4 sm:grid-cols-2">
+                                    <div className="space-y-3">
                                       <div>
-                                        <h4 className="font-semibold text-card-foreground mb-1">
-                                          Upgrade to Pro
-                                        </h4>
-                                        <p className="text-sm text-muted-foreground mb-4">
-                                          Get 25x more messages, advanced AI
-                                          models, and priority support
+                                        <h5 className="font-medium text-foreground">
+                                          Pro
+                                        </h5>
+                                        <span className="block text-xl font-semibold text-foreground">
+                                          $7.99 / mo
+                                        </span>
+                                        <p className="text-muted-foreground text-xs">
+                                          Per user
                                         </p>
                                       </div>
+
                                       <Button
+                                        size="sm"
                                         onClick={handleUpgradeToPro}
                                         disabled={upgrading}
-                                        className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white"
+                                        className="w-full bg-primary/10 hover:bg-primary/20 border border-primary/30 text-primary hover:text-primary/80 backdrop-blur-sm"
                                       >
                                         {upgrading ? (
                                           <>
@@ -1538,48 +725,1469 @@ export default function ClientAccountDashboard() {
                                           </>
                                         ) : (
                                           <>
-                                            Start Free Trial
-                                            <ArrowRight className="w-4 h-4 ml-2" />
+                                            {userPlan === 'pro'
+                                              ? 'Manage Plan'
+                                              : 'Upgrade to Pro'}
                                           </>
                                         )}
                                       </Button>
-                                      <p className="text-xs text-muted-foreground">
-                                        30-day free trial • Cancel anytime
-                                      </p>
                                     </div>
-                                  </div>
-                                </>
-                              ) : (
-                                <div className="p-4 rounded-lg bg-muted/50 border">
-                                  <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center">
-                                      <Zap className="w-5 h-5 text-white" />
-                                    </div>
+
                                     <div>
-                                      <h4 className="font-semibold">
-                                        {plan === 'Free Plan'
-                                          ? 'Free Plan'
-                                          : 'Guest Account'}
-                                      </h4>
-                                      <p className="text-sm text-muted-foreground">
-                                        {plan === 'Free Plan'
-                                          ? 'Upgrade to Pro for unlimited messages and premium features.'
-                                          : 'Sign up for a free account to access more features.'}
-                                      </p>
+                                      <div className="text-xs font-medium text-primary/80 mb-2">
+                                        Everything in free plus:
+                                      </div>
+                                      <ul className="space-y-2 text-xs text-muted-foreground">
+                                        {[
+                                          '1500 messages/month',
+                                          '∞ file uploads',
+                                          'All AI models',
+                                          'Priority support',
+                                          'Advanced analytics',
+                                          'Custom integrations',
+                                        ].map((item) => (
+                                          <li
+                                            key={item}
+                                            className="flex items-center gap-2"
+                                          >
+                                            <Check className="w-3 h-3 text-green-500" />
+                                            {item}
+                                          </li>
+                                        ))}
+                                      </ul>
                                     </div>
                                   </div>
                                 </div>
-                              )}
+                              </div>
                             </div>
-                          )}
+                          </div>
+                        )}
+
+                        {/* Pro User Status - Show when user is Pro */}
+                        {!usageLoading && !isGuest && userPlan === 'pro' && (
+                          <div className="rounded-xl border border-blue-500/30 bg-blue-500/5 backdrop-blur-xl p-6 shadow-lg">
+                            <div className="space-y-6">
+                              <div className="text-center">
+                                <h4 className="text-lg font-semibold text-foreground mb-2">
+                                  Pro Plan Active
+                                </h4>
+                                <p className="text-sm text-blue-600 dark:text-blue-300">
+                                  You have access to all premium features
+                                </p>
+                              </div>
+
+                              <div className="grid gap-4 md:grid-cols-3">
+                                <div className="text-center p-4 rounded-lg bg-muted/30 border border-border/50">
+                                  <div className="text-2xl font-bold text-foreground">
+                                    1500
+                                  </div>
+                                  <div className="text-xs text-muted-foreground">
+                                    Messages/day
+                                  </div>
+                                </div>
+                                <div className="text-center p-4 rounded-lg bg-muted/30 border border-border/50">
+                                  <div className="text-2xl font-bold text-foreground">
+                                    ∞
+                                  </div>
+                                  <div className="text-xs text-muted-foreground">
+                                    File uploads
+                                  </div>
+                                </div>
+                                <div className="text-center p-4 rounded-lg bg-muted/30 border border-border/50">
+                                  <div className="text-2xl font-bold text-foreground">
+                                    All
+                                  </div>
+                                  <div className="text-xs text-muted-foreground">
+                                    AI models
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="flex gap-3 justify-center">
+                                <Button
+                                  variant="ghost"
+                                  onClick={() =>
+                                    window.open('/api/stripe/portal', '_blank')
+                                  }
+                                  className="bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 backdrop-blur-sm"
+                                >
+                                  <Receipt className="w-4 h-4 mr-2" />
+                                  Manage Subscription
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  onClick={() =>
+                                    window.open('/api/stripe/portal', '_blank')
+                                  }
+                                  className="bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 backdrop-blur-sm"
+                                >
+                                  <Calendar className="w-4 h-4 mr-2" />
+                                  Billing History
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Profile Information and Account Settings - Side by Side */}
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                          {/* Profile Information */}
+                          <div className="rounded-xl border border-border/50 bg-white/90 dark:bg-card/50 backdrop-blur-xl p-6 shadow-lg">
+                            <div className="space-y-6">
+                              <div>
+                                <h3 className="text-lg font-semibold text-foreground mb-2">
+                                  Profile Information
+                                </h3>
+                                <p className="text-sm text-muted-foreground">
+                                  Manage your account details and preferences
+                                </p>
+                              </div>
+
+                              {/* Username Section */}
+                              <div className="space-y-3">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-sm font-medium text-foreground">
+                                    Username
+                                  </span>
+                                  {!editingUsername && (
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => setEditingUsername(true)}
+                                      disabled={usernameChangeDisabled}
+                                      title={
+                                        usernameChangeDisabled
+                                          ? `You can change your username again in ${daysRemaining} day${daysRemaining !== 1 ? 's' : ''}`
+                                          : 'Edit username'
+                                      }
+                                      className="text-muted-foreground hover:text-foreground hover:bg-accent/50"
+                                    >
+                                      {usernameChangeDisabled
+                                        ? 'Edit (30d)'
+                                        : 'Edit'}
+                                    </Button>
+                                  )}
+                                </div>
+
+                                {editingUsername ? (
+                                  <div className="space-y-3">
+                                    <Input
+                                      value={username}
+                                      onChange={(e) =>
+                                        setUsername(e.target.value)
+                                      }
+                                      disabled={usernameLoading}
+                                      autoFocus
+                                      placeholder="Enter username"
+                                      className="bg-muted/50 border-border text-foreground placeholder:text-muted-foreground"
+                                    />
+                                    <div className="flex gap-2">
+                                      <Button
+                                        size="sm"
+                                        onClick={async () => {
+                                          setUsernameLoading(true);
+                                          setUsernameError('');
+                                          setUsernameSuccess('');
+
+                                          if (!username.trim()) {
+                                            setUsernameError(
+                                              'Username is required.',
+                                            );
+                                            setUsernameLoading(false);
+                                            return;
+                                          }
+
+                                          if (
+                                            username.length < 3 ||
+                                            username.length > 32
+                                          ) {
+                                            setUsernameError(
+                                              'Username must be 3-32 characters.',
+                                            );
+                                            setUsernameLoading(false);
+                                            return;
+                                          }
+
+                                          if (
+                                            !/^[a-zA-Z0-9_-]+$/.test(username)
+                                          ) {
+                                            setUsernameError(
+                                              'Username can only contain letters, numbers, underscores, and hyphens.',
+                                            );
+                                            setUsernameLoading(false);
+                                            return;
+                                          }
+
+                                          try {
+                                            const res = await fetch(
+                                              '/api/profile/username',
+                                              {
+                                                method: 'POST',
+                                                headers: {
+                                                  'Content-Type':
+                                                    'application/json',
+                                                },
+                                                body: JSON.stringify({
+                                                  username,
+                                                }),
+                                              },
+                                            );
+
+                                            if (res.ok) {
+                                              const data = await res.json();
+                                              setUsernameSuccess(
+                                                'Username updated successfully!',
+                                              );
+                                              setEditingUsername(false);
+                                              toast.success(
+                                                'Username updated successfully!',
+                                              );
+                                              await updateSession();
+                                              setTimeout(() => {
+                                                window.location.reload();
+                                              }, 500);
+
+                                              const refreshRes = await fetch(
+                                                '/api/profile/username',
+                                              );
+                                              if (refreshRes.ok) {
+                                                const refreshData =
+                                                  await refreshRes.json();
+                                                setLastUsernameChange(
+                                                  refreshData.lastChange
+                                                    ? new Date(
+                                                        refreshData.lastChange,
+                                                      )
+                                                    : null,
+                                                );
+                                              }
+                                            } else {
+                                              const data = await res.json();
+                                              const errorMessage =
+                                                data.error ||
+                                                'Failed to update username';
+                                              setUsernameError(errorMessage);
+                                              toast.error(errorMessage);
+
+                                              if (
+                                                data.daysRemaining !== undefined
+                                              ) {
+                                                const refreshRes = await fetch(
+                                                  '/api/profile/username',
+                                                );
+                                                if (refreshRes.ok) {
+                                                  const refreshData =
+                                                    await refreshRes.json();
+                                                  setLastUsernameChange(
+                                                    refreshData.lastChange
+                                                      ? new Date(
+                                                          refreshData.lastChange,
+                                                        )
+                                                      : null,
+                                                  );
+                                                }
+                                              }
+                                            }
+                                          } catch (error) {
+                                            console.error(
+                                              'Error updating username:',
+                                              error,
+                                            );
+                                            const errorMessage =
+                                              'Network error. Please try again.';
+                                            setUsernameError(errorMessage);
+                                            toast.error(errorMessage);
+                                          }
+
+                                          setUsernameLoading(false);
+                                        }}
+                                        disabled={usernameChangeDisabled}
+                                        className="bg-primary/10 hover:bg-primary/20 border border-primary/30 text-primary hover:text-primary/80 backdrop-blur-sm"
+                                      >
+                                        {usernameLoading ? 'Saving...' : 'Save'}
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        onClick={() => {
+                                          setEditingUsername(false);
+                                          setUsername(username || '');
+                                          setUsernameError('');
+                                          setUsernameSuccess('');
+                                        }}
+                                        disabled={usernameLoading}
+                                        className="text-muted-foreground hover:text-foreground hover:bg-accent/50"
+                                      >
+                                        Cancel
+                                      </Button>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div className="p-3 rounded-lg bg-muted/30 border border-border/50">
+                                    <span className="font-mono text-foreground text-sm">
+                                      {username || (
+                                        <span className="text-muted-foreground">
+                                          No username set • Using email as
+                                          display name
+                                        </span>
+                                      )}
+                                    </span>
+                                  </div>
+                                )}
+
+                                <p className="text-xs text-muted-foreground">
+                                  Choose a unique username. This helps the AI
+                                  address you personally and improves your chat
+                                  experience.
+                                  {!username &&
+                                    ' Currently using your email as your display name.'}
+                                </p>
+
+                                {usernameChangeDisabled &&
+                                  daysRemaining > 0 && (
+                                    <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                                      <p className="text-sm text-amber-600 dark:text-amber-400">
+                                        ⏰ Username can only be changed once per
+                                        month. You can change it again in{' '}
+                                        {daysRemaining} day
+                                        {daysRemaining !== 1 ? 's' : ''}.
+                                      </p>
+                                    </div>
+                                  )}
+
+                                {usernameError && (
+                                  <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+                                    <p className="text-sm text-destructive">
+                                      {usernameError}
+                                    </p>
+                                  </div>
+                                )}
+
+                                {usernameSuccess && (
+                                  <div className="p-3 rounded-lg bg-green-500/10 border border-green-500/20">
+                                    <p className="text-sm text-green-600 dark:text-green-400">
+                                      {usernameSuccess}
+                                    </p>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Account Settings */}
+                          <div className="rounded-xl border border-border/50 bg-white/90 dark:bg-card/50 backdrop-blur-xl p-6 shadow-lg">
+                            <div className="space-y-6">
+                              <div>
+                                <h3 className="text-lg font-semibold text-foreground mb-2">
+                                  Account Settings
+                                </h3>
+                                <p className="text-sm text-muted-foreground">
+                                  Manage your account actions
+                                </p>
+                              </div>
+
+                              <div className="space-y-4">
+                                {/* Data Retention Warning */}
+                                <div className="p-4 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                                  <div className="flex items-start gap-3">
+                                    <div className="w-2 h-2 bg-amber-500 rounded-full mt-2" />
+                                    <div>
+                                      <h5 className="text-sm font-medium text-amber-600 dark:text-amber-400 mb-2">
+                                        Data Retention Policy
+                                      </h5>
+                                      <div className="text-xs text-amber-600/80 dark:text-amber-300/80 space-y-1">
+                                        <p>
+                                          • We do not retain any copies of your
+                                          data after account deletion
+                                        </p>
+                                        <p>
+                                          • Deletion is permanent and
+                                          irreversible - no recovery possible
+                                        </p>
+                                        <p>
+                                          • All data is permanently removed from
+                                          our servers within 30 days
+                                        </p>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Delete Account Section */}
+                        <div className="border-t border-border pt-4">
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                disabled={deleting}
+                                className="w-full bg-destructive/10 hover:bg-destructive/20 border border-destructive/30 text-destructive hover:text-destructive/80 backdrop-blur-sm"
+                              >
+                                <AlertTriangle className="w-4 h-4 mr-2" />
+                                {deleting ? 'Deleting...' : 'Delete Account'}
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent className="bg-background border-border">
+                              <AlertDialogHeader>
+                                <AlertDialogTitle className="text-foreground">
+                                  Delete this account?
+                                </AlertDialogTitle>
+                                <AlertDialogDescription className="text-muted-foreground">
+                                  This action cannot be undone. This will
+                                  permanently delete:
+                                  <br />• All your chats and messages
+                                  <br />• All your memories
+                                  <br />• All your files and attachments
+                                  <br />• Your account data
+                                  <br />
+                                  <br />
+                                  To confirm deletion, please type{' '}
+                                  <strong>&quot;Delete my account&quot;</strong>{' '}
+                                  below:
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+
+                              <div className="space-y-4">
+                                <Input
+                                  placeholder="Type 'Delete my account' to confirm"
+                                  value={deleteAccountInput}
+                                  onChange={(e) => {
+                                    setDeleteAccountInput(e.target.value);
+                                    setDeleteAccountConfirmed(
+                                      e.target.value === 'Delete my account',
+                                    );
+                                  }}
+                                  className="bg-muted/50 border-border text-foreground placeholder:text-muted-foreground"
+                                />
+                                {deleteAccountInput &&
+                                  !deleteAccountConfirmed && (
+                                    <p className="text-sm text-destructive">
+                                      Please type exactly &quot;Delete my
+                                      account&quot; to confirm
+                                    </p>
+                                  )}
+                              </div>
+
+                              <AlertDialogFooter>
+                                <AlertDialogCancel
+                                  className="bg-muted text-muted-foreground hover:bg-muted/80"
+                                  onClick={() => {
+                                    setDeleteAccountInput('');
+                                    setDeleteAccountConfirmed(false);
+                                  }}
+                                >
+                                  Cancel
+                                </AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={handleDeleteAccount}
+                                  disabled={deleting || !deleteAccountConfirmed}
+                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                  {deleting ? 'Deleting...' : 'Delete Account'}
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
                         </div>
                       </div>
-                    </div>
-                  </TabsContent>
-                </div>
-              </Tabs>
+                    </TabsContent>
+
+                    {/* Other tabs - simplified for now */}
+                    <TabsContent value="memories" className="mt-0">
+                      <div className="space-y-6">
+                        <div>
+                          <h3 className="text-lg font-semibold text-white mb-2">
+                            AI Memories
+                          </h3>
+                          <p className="text-sm text-zinc-400">
+                            Your AI assistant remembers important information
+                            from your conversations to provide better context in
+                            future chats.
+                          </p>
+                        </div>
+
+                        {memoriesLoading ? (
+                          <div className="flex items-center justify-center py-12">
+                            <Loader2 className="w-6 h-6 animate-spin text-zinc-400" />
+                            <span className="ml-2 text-zinc-400">
+                              Loading memories...
+                            </span>
+                          </div>
+                        ) : memories.length === 0 ? (
+                          <div className="text-center py-12">
+                            <div className="w-16 h-16 bg-muted/50 rounded-full flex items-center justify-center mx-auto mb-4">
+                              <Database className="w-8 h-8 text-muted-foreground" />
+                            </div>
+                            <h4 className="text-lg font-medium text-foreground mb-2">
+                              No memories yet
+                            </h4>
+                            <p className="text-sm text-muted-foreground mb-4">
+                              Your AI assistant will start remembering important
+                              information as you chat.
+                            </p>
+                            <Button
+                              onClick={() => router.push('/')}
+                              className="bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 text-blue-400 hover:text-blue-300 backdrop-blur-sm"
+                            >
+                              Start a new chat
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="space-y-4">
+                            {memories.map((memory) => (
+                              <div
+                                key={memory.id}
+                                className="rounded-lg border border-zinc-800/50 bg-zinc-900/50 backdrop-blur-xl p-4"
+                              >
+                                <div className="flex items-start justify-between">
+                                  <div className="flex-1">
+                                    <p className="text-sm text-white leading-relaxed">
+                                      {memory.content}
+                                    </p>
+                                    <p className="text-xs text-zinc-500 mt-2">
+                                      {new Date(
+                                        memory.createdAt,
+                                      ).toLocaleDateString('en-US', {
+                                        year: 'numeric',
+                                        month: 'short',
+                                        day: 'numeric',
+                                        hour: '2-digit',
+                                        minute: '2-digit',
+                                      })}
+                                    </p>
+                                  </div>
+                                  <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        className="text-zinc-400 hover:text-red-400 hover:bg-red-500/10 ml-2"
+                                      >
+                                        <Trash2 className="w-4 h-4" />
+                                      </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent className="bg-background border-border">
+                                      <AlertDialogHeader>
+                                        <AlertDialogTitle className="text-foreground">
+                                          Delete memory?
+                                        </AlertDialogTitle>
+                                        <AlertDialogDescription className="text-muted-foreground">
+                                          This will permanently delete this
+                                          memory. The AI will no longer remember
+                                          this information.
+                                        </AlertDialogDescription>
+                                      </AlertDialogHeader>
+                                      <AlertDialogFooter>
+                                        <AlertDialogCancel className="bg-zinc-800 text-zinc-300 hover:bg-zinc-700">
+                                          Cancel
+                                        </AlertDialogCancel>
+                                        <AlertDialogAction
+                                          onClick={async () => {
+                                            try {
+                                              const res = await fetch(
+                                                `/api/memory?id=${memory.id}`,
+                                                {
+                                                  method: 'DELETE',
+                                                },
+                                              );
+                                              if (res.ok) {
+                                                setMemories(
+                                                  memories.filter(
+                                                    (m) => m.id !== memory.id,
+                                                  ),
+                                                );
+                                                toast.success(
+                                                  'Memory deleted successfully',
+                                                );
+                                              } else {
+                                                toast.error(
+                                                  'Failed to delete memory',
+                                                );
+                                              }
+                                            } catch (error) {
+                                              console.error(
+                                                'Error deleting memory:',
+                                                error,
+                                              );
+                                              toast.error(
+                                                'Failed to delete memory',
+                                              );
+                                            }
+                                          }}
+                                          className="bg-red-600 text-white hover:bg-red-700"
+                                        >
+                                          Delete Memory
+                                        </AlertDialogAction>
+                                      </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                  </AlertDialog>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </TabsContent>
+
+                    <TabsContent value="history" className="mt-0">
+                      <div className="space-y-6">
+                        <div>
+                          <h3 className="text-lg font-semibold text-foreground mb-2">
+                            Chat History
+                          </h3>
+                          <p className="text-sm text-muted-foreground">
+                            View and manage your conversation history. You can
+                            search, view, and delete chats.
+                          </p>
+                        </div>
+
+                        {/* Search Bar */}
+                        <div className="relative">
+                          <Input
+                            placeholder="Search your threads"
+                            value={historySearch}
+                            onChange={(e) => setHistorySearch(e.target.value)}
+                            className="bg-white/90 dark:bg-zinc-800/50 border border-border/50 text-foreground placeholder:text-muted-foreground pl-10 rounded-lg"
+                          />
+                          <div className="absolute left-3 top-1/2 -translate-y-1/2">
+                            <svg
+                              className="w-4 h-4 text-muted-foreground"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                              />
+                            </svg>
+                          </div>
+                        </div>
+
+                        {chatsLoading ? (
+                          <div className="flex items-center justify-center py-12">
+                            <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+                            <span className="ml-2 text-muted-foreground">
+                              Loading chats...
+                            </span>
+                          </div>
+                        ) : filteredChats.length === 0 ? (
+                          <div className="text-center py-12">
+                            <div className="w-16 h-16 bg-muted/50 rounded-full flex items-center justify-center mx-auto mb-4">
+                              <History className="w-8 h-8 text-muted-foreground" />
+                            </div>
+                            <h4 className="text-lg font-medium text-foreground mb-2">
+                              {historySearch
+                                ? 'No chats found'
+                                : 'No chat history'}
+                            </h4>
+                            <p className="text-sm text-muted-foreground mb-4">
+                              {historySearch
+                                ? 'Try adjusting your search terms'
+                                : 'Start a conversation to see your chat history here.'}
+                            </p>
+                            {!historySearch && (
+                              <Button
+                                onClick={() => router.push('/')}
+                                className="bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 text-blue-400 hover:text-blue-300 backdrop-blur-sm"
+                              >
+                                Start a new chat
+                              </Button>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="space-y-4">
+                            {paginatedChats.map((chat) => (
+                              <div
+                                key={chat.id}
+                                className="rounded-lg border border-border/50 bg-white/90 dark:bg-zinc-900/50 backdrop-blur-xl p-4 hover:bg-muted/30 transition-colors"
+                              >
+                                <div className="flex items-center justify-between">
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-3">
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() =>
+                                          router.push(`/chat/${chat.id}`)
+                                        }
+                                        className="text-left p-0 h-auto hover:bg-transparent"
+                                      >
+                                        <h4 className="text-sm font-medium text-foreground truncate">
+                                          {chat.title || 'Untitled Chat'}
+                                        </h4>
+                                      </Button>
+                                      <Badge
+                                        variant={
+                                          chat.visibility === 'public'
+                                            ? 'default'
+                                            : 'secondary'
+                                        }
+                                        className="text-xs"
+                                      >
+                                        {chat.visibility}
+                                      </Badge>
+                                    </div>
+                                    <p className="text-xs text-muted-foreground mt-1">
+                                      {new Date(
+                                        chat.createdAt,
+                                      ).toLocaleDateString('en-US', {
+                                        year: 'numeric',
+                                        month: 'short',
+                                        day: 'numeric',
+                                        hour: '2-digit',
+                                        minute: '2-digit',
+                                      })}
+                                    </p>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() =>
+                                        router.push(`/chat/${chat.id}`)
+                                      }
+                                      className="text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50"
+                                    >
+                                      <ExternalLink className="w-4 h-4" />
+                                    </Button>
+                                    <AlertDialog>
+                                      <AlertDialogTrigger asChild>
+                                        <Button
+                                          size="sm"
+                                          variant="ghost"
+                                          className="text-zinc-400 hover:text-red-400 hover:bg-red-500/10"
+                                        >
+                                          <Trash2 className="w-4 h-4" />
+                                        </Button>
+                                      </AlertDialogTrigger>
+                                      <AlertDialogContent className="bg-background border-border">
+                                        <AlertDialogHeader>
+                                          <AlertDialogTitle className="text-foreground">
+                                            Delete chat?
+                                          </AlertDialogTitle>
+                                          <AlertDialogDescription className="text-muted-foreground">
+                                            This will permanently delete &quot;
+                                            {chat.title || 'Untitled Chat'}
+                                            &quot; and all its messages. This
+                                            action cannot be undone.
+                                          </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                          <AlertDialogCancel className="bg-zinc-800 text-zinc-300 hover:bg-zinc-700">
+                                            Cancel
+                                          </AlertDialogCancel>
+                                          <AlertDialogAction
+                                            onClick={async () => {
+                                              try {
+                                                const res = await fetch(
+                                                  `/api/chat/${chat.id}`,
+                                                  {
+                                                    method: 'DELETE',
+                                                  },
+                                                );
+                                                if (res.ok) {
+                                                  setChats(
+                                                    chats.filter(
+                                                      (c) => c.id !== chat.id,
+                                                    ),
+                                                  );
+                                                  toast.success(
+                                                    'Chat deleted successfully',
+                                                  );
+                                                } else {
+                                                  toast.error(
+                                                    'Failed to delete chat',
+                                                  );
+                                                }
+                                              } catch (error) {
+                                                console.error(
+                                                  'Error deleting chat:',
+                                                  error,
+                                                );
+                                                toast.error(
+                                                  'Failed to delete chat',
+                                                );
+                                              }
+                                            }}
+                                            className="bg-red-600 text-white hover:bg-red-700"
+                                          >
+                                            Delete Chat
+                                          </AlertDialogAction>
+                                        </AlertDialogFooter>
+                                      </AlertDialogContent>
+                                    </AlertDialog>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+
+                            {/* Pagination */}
+                            {totalPages > 1 && (
+                              <div className="flex items-center justify-between pt-4">
+                                <p className="text-sm text-zinc-400">
+                                  Showing {(historyPage - 1) * chatsPerPage + 1}{' '}
+                                  to{' '}
+                                  {Math.min(
+                                    historyPage * chatsPerPage,
+                                    filteredChats.length,
+                                  )}{' '}
+                                  of {filteredChats.length} chats
+                                </p>
+                                <div className="flex items-center gap-2">
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() =>
+                                      setHistoryPage(
+                                        Math.max(1, historyPage - 1),
+                                      )
+                                    }
+                                    disabled={historyPage === 1}
+                                    className="text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50"
+                                  >
+                                    Previous
+                                  </Button>
+                                  <span className="text-sm text-zinc-400">
+                                    {historyPage} of {totalPages}
+                                  </span>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() =>
+                                      setHistoryPage(
+                                        Math.min(totalPages, historyPage + 1),
+                                      )
+                                    }
+                                    disabled={historyPage === totalPages}
+                                    className="text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50"
+                                  >
+                                    Next
+                                  </Button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </TabsContent>
+
+                    <TabsContent value="api-keys" className="mt-0">
+                      <div className="space-y-6">
+                        <div>
+                          <h3 className="text-lg font-semibold text-foreground mb-2">
+                            API Keys
+                          </h3>
+                          <p className="text-sm text-muted-foreground">
+                            Bring your own API keys for select models
+                          </p>
+                        </div>
+
+                        {/* Locked Coming Soon Container */}
+                        <div className="rounded-xl border border-border/50 bg-white/90 dark:bg-zinc-900/50 backdrop-blur-xl p-12 relative overflow-hidden">
+                          {/* Frost glass effect */}
+                          <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-white/10 backdrop-blur-sm" />
+                          <div className="absolute inset-0 bg-gradient-to-br from-zinc-900/20 to-zinc-800/20" />
+
+                          <div className="relative z-10 text-center space-y-6">
+                            <div className="w-20 h-20 bg-muted/50 rounded-full flex items-center justify-center mx-auto border border-border/50">
+                              <Lock className="w-10 h-10 text-muted-foreground" />
+                            </div>
+
+                            <div className="space-y-3">
+                              <h4 className="text-xl font-semibold text-foreground">
+                                Coming Soon
+                              </h4>
+                              <p className="text-sm text-muted-foreground max-w-md mx-auto">
+                                We&apos;re working on bringing you the ability
+                                to use your own API keys for enhanced model
+                                access and customization.
+                              </p>
+                            </div>
+
+                            <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
+                              <div className="w-2 h-2 bg-muted-foreground rounded-full" />
+                              <span>Feature in development</span>
+                              <div className="w-2 h-2 bg-muted-foreground rounded-full" />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </TabsContent>
+
+                    <TabsContent value="attachments" className="mt-0">
+                      <div className="space-y-6">
+                        <div>
+                          <h3 className="text-lg font-semibold text-foreground mb-2">
+                            File Attachments
+                          </h3>
+                          <p className="text-sm text-muted-foreground">
+                            Manage files you've uploaded for AI analysis. These
+                            files are used to provide context in your
+                            conversations.
+                          </p>
+                        </div>
+
+                        {attachmentsLoading ? (
+                          <div className="flex items-center justify-center py-12">
+                            <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+                            <span className="ml-2 text-muted-foreground">
+                              Loading attachments...
+                            </span>
+                          </div>
+                        ) : attachments.length === 0 ? (
+                          <div className="text-center py-12">
+                            <div className="w-16 h-16 bg-muted/50 rounded-full flex items-center justify-center mx-auto mb-4">
+                              <Paperclip className="w-8 h-8 text-muted-foreground" />
+                            </div>
+                            <h4 className="text-lg font-medium text-foreground mb-2">
+                              No attachments yet
+                            </h4>
+                            <p className="text-sm text-muted-foreground mb-4">
+                              Upload files in your chats to see them listed
+                              here.
+                            </p>
+                            <Button
+                              onClick={() => router.push('/')}
+                              className="bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 text-blue-400 hover:text-blue-300 backdrop-blur-sm"
+                            >
+                              Start a new chat
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="space-y-4">
+                            {attachments.map((attachment) => (
+                              <div
+                                key={`${attachment.id}-${attachment.createdAt}`}
+                                className="rounded-lg border border-border/50 bg-white/90 dark:bg-zinc-900/50 backdrop-blur-xl p-4"
+                              >
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                                    <div className="w-10 h-10 bg-muted/50 rounded-lg flex items-center justify-center shrink-0">
+                                      {attachment.kind === 'image' ? (
+                                        <Image className="w-5 h-5 text-muted-foreground" />
+                                      ) : attachment.kind === 'code' ? (
+                                        <FileText className="w-5 h-5 text-muted-foreground" />
+                                      ) : (
+                                        <File className="w-5 h-5 text-muted-foreground" />
+                                      )}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <h4 className="text-sm font-medium text-foreground truncate">
+                                        {attachment.title}
+                                      </h4>
+                                      <p className="text-xs text-muted-foreground">
+                                        {attachment.kind} •{' '}
+                                        {new Date(
+                                          attachment.createdAt,
+                                        ).toLocaleDateString('en-US', {
+                                          year: 'numeric',
+                                          month: 'short',
+                                          day: 'numeric',
+                                          hour: '2-digit',
+                                          minute: '2-digit',
+                                        })}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => {
+                                        // Open file preview or download
+                                        if (attachment.content) {
+                                          const blob = new Blob(
+                                            [attachment.content],
+                                            { type: 'text/plain' },
+                                          );
+                                          const url = URL.createObjectURL(blob);
+                                          const a = document.createElement('a');
+                                          a.href = url;
+                                          a.download = attachment.title;
+                                          a.click();
+                                          URL.revokeObjectURL(url);
+                                        }
+                                      }}
+                                      className="text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50"
+                                    >
+                                      <ExternalLink className="w-4 h-4" />
+                                    </Button>
+                                    <AlertDialog>
+                                      <AlertDialogTrigger asChild>
+                                        <Button
+                                          size="sm"
+                                          variant="ghost"
+                                          className="text-zinc-400 hover:text-red-400 hover:bg-red-500/10"
+                                        >
+                                          <Trash2 className="w-4 h-4" />
+                                        </Button>
+                                      </AlertDialogTrigger>
+                                      <AlertDialogContent className="bg-background border-border">
+                                        <AlertDialogHeader>
+                                          <AlertDialogTitle className="text-foreground">
+                                            Delete attachment?
+                                          </AlertDialogTitle>
+                                          <AlertDialogDescription className="text-muted-foreground">
+                                            This will permanently delete &quot;
+                                            {attachment.title}&quot;. This
+                                            action cannot be undone.
+                                          </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                          <AlertDialogCancel className="bg-zinc-800 text-zinc-300 hover:bg-zinc-700">
+                                            Cancel
+                                          </AlertDialogCancel>
+                                          <AlertDialogAction
+                                            onClick={async () => {
+                                              try {
+                                                const res = await fetch(
+                                                  `/api/document?id=${attachment.id}&timestamp=${attachment.createdAt}`,
+                                                  {
+                                                    method: 'DELETE',
+                                                  },
+                                                );
+                                                if (res.ok) {
+                                                  setAttachments(
+                                                    attachments.filter(
+                                                      (a) =>
+                                                        !(
+                                                          a.id ===
+                                                            attachment.id &&
+                                                          a.createdAt ===
+                                                            attachment.createdAt
+                                                        ),
+                                                    ),
+                                                  );
+                                                  toast.success(
+                                                    'Attachment deleted successfully',
+                                                  );
+                                                } else {
+                                                  toast.error(
+                                                    'Failed to delete attachment',
+                                                  );
+                                                }
+                                              } catch (error) {
+                                                console.error(
+                                                  'Error deleting attachment:',
+                                                  error,
+                                                );
+                                                toast.error(
+                                                  'Failed to delete attachment',
+                                                );
+                                              }
+                                            }}
+                                            className="bg-red-600 text-white hover:bg-red-700"
+                                          >
+                                            Delete Attachment
+                                          </AlertDialogAction>
+                                        </AlertDialogFooter>
+                                      </AlertDialogContent>
+                                    </AlertDialog>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </TabsContent>
+
+                    <TabsContent value="billing" className="mt-0">
+                      <div className="space-y-6">
+                        <div>
+                          <h3 className="text-lg font-semibold text-foreground mb-2">
+                            Billing & Subscription
+                          </h3>
+                          <p className="text-sm text-muted-foreground">
+                            Manage your subscription, view billing history, and
+                            upgrade your plan.
+                          </p>
+                        </div>
+
+                        {/* Mini Pricing Design - Only show for Free users */}
+                        {plan === 'Free Plan' && !isGuest && (
+                          <div className="rounded-xl border border-border/50 bg-white/90 dark:bg-zinc-900/50 backdrop-blur-xl p-6">
+                            <div className="space-y-6">
+                              <div className="text-center">
+                                <h4 className="text-lg font-semibold text-foreground mb-2">
+                                  Pricing that Scales with You
+                                </h4>
+                                <p className="text-sm text-muted-foreground">
+                                  Choose the plan that fits your needs
+                                </p>
+                              </div>
+
+                              <div className="grid gap-4 md:grid-cols-5">
+                                {/* Free Plan */}
+                                <div className="rounded-lg flex flex-col justify-between space-y-4 border border-border/50 p-4 md:col-span-2">
+                                  <div className="space-y-3">
+                                    <div>
+                                      <h5 className="font-medium text-foreground">
+                                        Free
+                                      </h5>
+                                      <span className="block text-xl font-semibold text-foreground">
+                                        $0 / mo
+                                      </span>
+                                      <p className="text-muted-foreground text-xs">
+                                        Per user
+                                      </p>
+                                    </div>
+
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="w-full bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 text-blue-400 hover:text-blue-300 backdrop-blur-sm"
+                                      disabled
+                                    >
+                                      Current Plan
+                                    </Button>
+
+                                    <hr className="border-border/50" />
+
+                                    <ul className="space-y-2 text-xs text-muted-foreground">
+                                      {[
+                                        '50 messages/day',
+                                        '5 file uploads',
+                                        'Basic AI models',
+                                        'Email support',
+                                      ].map((item) => (
+                                        <li
+                                          key={item}
+                                          className="flex items-center gap-2"
+                                        >
+                                          <Check className="w-3 h-3 text-green-500" />
+                                          {item}
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                </div>
+
+                                {/* Pro Plan */}
+                                <div className="rounded-lg border border-blue-500/30 bg-blue-500/5 p-4 shadow-lg md:col-span-3">
+                                  <div className="grid gap-4 sm:grid-cols-2">
+                                    <div className="space-y-3">
+                                      <div>
+                                        <h5 className="font-medium text-foreground">
+                                          Pro
+                                        </h5>
+                                        <span className="block text-xl font-semibold text-foreground">
+                                          $7.99 / mo
+                                        </span>
+                                        <p className="text-muted-foreground text-xs">
+                                          Per user
+                                        </p>
+                                      </div>
+
+                                      <Button
+                                        size="sm"
+                                        onClick={handleUpgradeToPro}
+                                        disabled={upgrading}
+                                        className="w-full bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 text-blue-400 hover:text-blue-300 backdrop-blur-sm"
+                                      >
+                                        {upgrading ? (
+                                          <>
+                                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                            Processing...
+                                          </>
+                                        ) : (
+                                          <>
+                                            {userPlan === 'pro'
+                                              ? 'Manage Plan'
+                                              : 'Upgrade to Pro'}
+                                          </>
+                                        )}
+                                      </Button>
+                                    </div>
+
+                                    <div>
+                                      <div className="text-xs font-medium text-blue-300 mb-2">
+                                        Everything in free plus:
+                                      </div>
+                                      <ul className="space-y-2 text-xs text-zinc-300">
+                                        {[
+                                          '1500 messages/month',
+                                          '∞ file uploads',
+                                          'All AI models',
+                                          'Priority support',
+                                          'Advanced analytics',
+                                          'Custom integrations',
+                                        ].map((item) => (
+                                          <li
+                                            key={item}
+                                            className="flex items-center gap-2"
+                                          >
+                                            <Check className="w-3 h-3 text-green-400" />
+                                            {item}
+                                          </li>
+                                        ))}
+                                      </ul>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Pro User Status - Show when user is Pro */}
+                        {!usageLoading && !isGuest && userPlan === 'pro' && (
+                          <div className="rounded-xl border border-blue-500/30 bg-blue-500/5 backdrop-blur-xl p-6 shadow-lg">
+                            <div className="space-y-6">
+                              <div className="text-center">
+                                <h4 className="text-lg font-semibold text-foreground mb-2">
+                                  Pro Plan Active
+                                </h4>
+                                <p className="text-sm text-blue-600 dark:text-blue-300">
+                                  You have access to all premium features
+                                </p>
+                              </div>
+
+                              <div className="grid gap-4 md:grid-cols-3">
+                                <div className="text-center p-4 rounded-lg bg-muted/30 border border-border/50">
+                                  <div className="text-2xl font-bold text-foreground">
+                                    1500
+                                  </div>
+                                  <div className="text-xs text-muted-foreground">
+                                    Messages/day
+                                  </div>
+                                </div>
+                                <div className="text-center p-4 rounded-lg bg-muted/30 border border-border/50">
+                                  <div className="text-2xl font-bold text-foreground">
+                                    ∞
+                                  </div>
+                                  <div className="text-xs text-muted-foreground">
+                                    File uploads
+                                  </div>
+                                </div>
+                                <div className="text-center p-4 rounded-lg bg-muted/30 border border-border/50">
+                                  <div className="text-2xl font-bold text-foreground">
+                                    All
+                                  </div>
+                                  <div className="text-xs text-muted-foreground">
+                                    AI models
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="flex gap-3 justify-center">
+                                <Button
+                                  variant="ghost"
+                                  onClick={() =>
+                                    window.open('/api/stripe/portal', '_blank')
+                                  }
+                                  className="bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 backdrop-blur-sm"
+                                >
+                                  <Receipt className="w-4 h-4 mr-2" />
+                                  Manage Subscription
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  onClick={() =>
+                                    window.open('/api/stripe/portal', '_blank')
+                                  }
+                                  className="bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 backdrop-blur-sm"
+                                >
+                                  <Calendar className="w-4 h-4 mr-2" />
+                                  Billing History
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Usage Statistics */}
+                        <div className="rounded-xl border border-border/50 bg-white/70 dark:bg-card/50 backdrop-blur-xl p-6 shadow-lg">
+                          <div className="space-y-4">
+                            <h4 className="text-md font-semibold text-foreground">
+                              Usage This Month
+                            </h4>
+
+                            <div className="space-y-3">
+                              <div className="flex justify-between items-center">
+                                <span className="text-sm text-muted-foreground">
+                                  Messages Used
+                                </span>
+                                <span className="text-sm text-foreground font-medium">
+                                  {messagesUsed} / {messagesLimit}
+                                </span>
+                              </div>
+                              <Progress
+                                value={usagePercent}
+                                className="h-2 bg-muted"
+                              />
+                              <p className="text-xs text-muted-foreground">
+                                Resets daily at 4:59 AM UTC
+                              </p>
+                            </div>
+
+                            {userPlan === 'pro' && (
+                              <div className="p-3 rounded-lg bg-primary/10 border border-primary/20">
+                                <p className="text-xs text-primary/80">
+                                  💡 Pro tip: You can purchase additional
+                                  message credits for $8 per 100 messages if you
+                                  exceed your monthly limit.
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </TabsContent>
+
+                    <TabsContent value="contact" className="mt-0">
+                      <div className="space-y-6">
+                        <div>
+                          <h3 className="text-lg font-semibold text-foreground mb-2">
+                            Contact & Support
+                          </h3>
+                          <p className="text-sm text-muted-foreground">
+                            Get help, report issues, or contact our support
+                            team.
+                          </p>
+                        </div>
+
+                        {/* Support Options */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          {/* Documentation */}
+                          <div className="rounded-xl border border-border/50 bg-white/70 dark:bg-card/50 backdrop-blur-xl p-6 shadow-lg">
+                            <div className="space-y-4">
+                              <div className="w-12 h-12 bg-blue-500/10 rounded-lg flex items-center justify-center">
+                                <svg
+                                  className="w-6 h-6 text-blue-400"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
+                                  />
+                                </svg>
+                              </div>
+                              <div>
+                                <h4 className="text-md font-semibold text-foreground mb-2">
+                                  Documentation
+                                </h4>
+                                <p className="text-sm text-muted-foreground mb-4">
+                                  Learn how to use boltX effectively with our
+                                  comprehensive guides and tutorials.
+                                </p>
+                              </div>
+                              <Button
+                                variant="ghost"
+                                onClick={() => window.open('/docs', '_blank')}
+                                className="bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 text-blue-400 hover:text-blue-300 backdrop-blur-sm w-full"
+                              >
+                                <ExternalLink className="w-4 h-4 mr-2" />
+                                View Documentation
+                              </Button>
+                            </div>
+                          </div>
+
+                          {/* FAQ */}
+                          <div className="rounded-xl border border-border/50 bg-white/90 dark:bg-zinc-900/50 backdrop-blur-xl p-6">
+                            <div className="space-y-4">
+                              <div className="w-12 h-12 bg-green-500/10 rounded-lg flex items-center justify-center">
+                                <svg
+                                  className="w-6 h-6 text-green-400"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                                  />
+                                </svg>
+                              </div>
+                              <div>
+                                <h4 className="text-md font-semibold text-foreground mb-2">
+                                  Frequently Asked Questions
+                                </h4>
+                                <p className="text-sm text-muted-foreground mb-4">
+                                  Find quick answers to common questions about
+                                  boltX features and usage.
+                                </p>
+                              </div>
+                              <Button
+                                variant="ghost"
+                                onClick={() => router.push('/faq')}
+                                className="bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 text-blue-400 hover:text-blue-300 backdrop-blur-sm w-full"
+                              >
+                                <MessageCircle className="w-4 h-4 mr-2" />
+                                Browse FAQ
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Feature Requests & Bug Reports */}
+                        <div className="rounded-xl border border-border/50 bg-white/90 dark:bg-zinc-900/50 backdrop-blur-xl p-6">
+                          <div className="space-y-4">
+                            <div>
+                              <h4 className="text-md font-semibold text-foreground mb-2">
+                                Feature Requests & Bug Reports
+                              </h4>
+                              <p className="text-sm text-muted-foreground">
+                                Help us improve boltX by reporting bugs or
+                                suggesting new features.
+                              </p>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <Button
+                                variant="ghost"
+                                onClick={() =>
+                                  window.open(
+                                    'https://github.com/boltx/boltx/issues',
+                                    '_blank',
+                                  )
+                                }
+                                className="bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 text-blue-400 hover:text-blue-300 backdrop-blur-sm"
+                              >
+                                <svg
+                                  className="w-4 h-4 mr-2"
+                                  fill="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
+                                </svg>
+                                GitHub Issues
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                onClick={() =>
+                                  window.open(
+                                    'mailto:feedback@boltx.com?subject=Feature Request',
+                                    '_blank',
+                                  )
+                                }
+                                className="bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 text-blue-400 hover:text-blue-300 backdrop-blur-sm"
+                              >
+                                <MessageCircle className="w-4 h-4 mr-2" />
+                                Send Feedback
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </TabsContent>
+                  </div>
+                </Tabs>
+              </div>
             </div>
-          </main>
+          </div>
         </div>
       </div>
     </div>

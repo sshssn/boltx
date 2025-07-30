@@ -13,6 +13,7 @@ import { deleteTrailingMessages } from '@/app/(chat)/actions';
 import type { UseChatHelpers } from '@ai-sdk/react';
 import type { ChatMessage } from '@/lib/types';
 import { getTextFromMessage } from '@/lib/utils';
+import { toast } from 'sonner';
 
 export type MessageEditorProps = {
   message: ChatMessage;
@@ -69,9 +70,15 @@ export function MessageEditor({
     setIsSubmitting(true);
 
     try {
-      await deleteTrailingMessages({
-        id: message.id,
-      });
+      // Try to delete trailing messages, but don't fail if message doesn't exist
+      try {
+        await deleteTrailingMessages({
+          id: message.id,
+        });
+      } catch (error) {
+        console.warn('Could not delete trailing messages:', error);
+        // Continue with the edit even if deletion fails
+      }
 
       setMessages((messages) => {
         const index = messages.findIndex((m) => m.id === message.id);
@@ -92,6 +99,7 @@ export function MessageEditor({
       regenerate();
     } catch (error) {
       console.error('Error sending edited message:', error);
+      toast.error('Failed to edit message. Please try again.');
     } finally {
       setIsSubmitting(false);
     }

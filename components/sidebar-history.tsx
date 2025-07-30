@@ -209,7 +209,7 @@ export function SidebarHistory({
     fallbackData: [],
     revalidateOnFocus: false,
     revalidateOnReconnect: false,
-    refreshInterval: 5000, // Refresh every 5 seconds
+    refreshInterval: 30000, // Refresh every 30 seconds instead of 5
   });
 
   // Listen for new chat creation
@@ -230,14 +230,47 @@ export function SidebarHistory({
       }
     };
 
+    const handleTitleGenerated = (event: CustomEvent) => {
+      const { chatId, title } = event.detail;
+      if (chatId && title && title !== 'New Thread...') {
+        // Trigger a refresh of the chat history to show the new title
+        mutate();
+      }
+    };
+
+    const handleChatStatusUpdate = (event: CustomEvent) => {
+      const { chatId, status } = event.detail;
+      if (chatId && status === 'completed') {
+        // Trigger a refresh when title generation is completed
+        mutate();
+      }
+    };
+
     window.addEventListener('new-chat-created', handleNewChat as EventListener);
+    window.addEventListener(
+      'title-generated',
+      handleTitleGenerated as EventListener,
+    );
+    window.addEventListener(
+      'chat-status-update',
+      handleChatStatusUpdate as EventListener,
+    );
+
     return () => {
       window.removeEventListener(
         'new-chat-created',
         handleNewChat as EventListener,
       );
+      window.removeEventListener(
+        'title-generated',
+        handleTitleGenerated as EventListener,
+      );
+      window.removeEventListener(
+        'chat-status-update',
+        handleChatStatusUpdate as EventListener,
+      );
     };
-  }, []);
+  }, [mutate]);
 
   const handleDelete = useCallback(async () => {
     if (!deleteId) return;

@@ -1,7 +1,9 @@
-import { Toaster } from 'sonner';
+import { Toaster } from '@/components/ui/toaster';
 import type { Metadata } from 'next';
 import { ThemeProvider } from '@/components/theme-provider';
 import { ChatTitleUpdatesProvider } from '@/components/chat-title-updates-provider';
+import { OnboardingProvider } from '@/components/onboarding-provider';
+import { GlobalShortcutsProvider } from '@/components/global-shortcuts-provider';
 
 import './globals.css';
 import { SessionProvider } from 'next-auth/react';
@@ -69,32 +71,36 @@ export default async function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <Toaster position="top-center" />
+          <Toaster />
           <SessionProvider>
-            <ChatTitleUpdatesProvider>
-              <DashboardOverlay>
-                {/* Dashboard content goes here */}
-                <div className="space-y-4">
-                  <div className="p-4 border rounded-lg">
-                    Profile/Settings (TODO)
-                  </div>
-                  <div className="p-4 border rounded-lg">
-                    Subscription/Billing (TODO)
-                  </div>
-                  <div className="p-4 border rounded-lg">
-                    Integrations (TODO)
-                  </div>
-                  <div className="p-4 border rounded-lg">
-                    Support/Help (TODO)
-                  </div>
-                </div>
-              </DashboardOverlay>
-              <main className="w-full min-h-screen flex flex-col">
-                {children}
-              </main>
-              <MobileWarning />
-              <Analytics />
-            </ChatTitleUpdatesProvider>
+            <OnboardingProvider>
+              <ChatTitleUpdatesProvider>
+                <GlobalShortcutsProvider>
+                  <DashboardOverlay>
+                    {/* Dashboard content goes here */}
+                    <div className="space-y-4">
+                      <div className="p-4 border rounded-lg">
+                        Profile/Settings (TODO)
+                      </div>
+                      <div className="p-4 border rounded-lg">
+                        Subscription/Billing (TODO)
+                      </div>
+                      <div className="p-4 border rounded-lg">
+                        Integrations (TODO)
+                      </div>
+                      <div className="p-4 border rounded-lg">
+                        Support/Help (TODO)
+                      </div>
+                    </div>
+                  </DashboardOverlay>
+                  <main className="w-full min-h-screen flex flex-col">
+                    {children}
+                  </main>
+                  <MobileWarning />
+                  <Analytics />
+                </GlobalShortcutsProvider>
+              </ChatTitleUpdatesProvider>
+            </OnboardingProvider>
           </SessionProvider>
         </ThemeProvider>
       </body>

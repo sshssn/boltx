@@ -55,9 +55,21 @@ export function MessageLimitProvider({
     return lastDate !== today;
   }, []);
 
-  // Fetch from API with retry logic
+  // Fetch from API with retry logic and debouncing
   const fetchFromAPI = useCallback(
     async (retryCount = 0): Promise<{ limit: number; used: number } | null> => {
+      // Add debouncing to prevent excessive API calls
+      const now = Date.now();
+      const lastCall = (fetchFromAPI as any).lastCall || 0;
+      const timeSinceLastCall = now - lastCall;
+
+      if (timeSinceLastCall < 2000) {
+        // Minimum 2 seconds between calls
+        return null;
+      }
+
+      (fetchFromAPI as any).lastCall = now;
+
       try {
         const response = await fetch('/api/profile/tokens', {
           method: 'GET',
@@ -241,7 +253,7 @@ export function MessageLimitProvider({
       } catch (error) {
         console.error('Periodic sync failed:', error);
       }
-    }, 300000); // Sync every 5 minutes instead of 2 minutes
+    }, 600000); // Sync every 10 minutes instead of 5 minutes
 
     return () => clearInterval(syncInterval);
   }, [refreshUsage]);
@@ -261,7 +273,7 @@ export function MessageLimitProvider({
 
       // Only sync with API for logged-in users, and debounce the calls
       if (!isGuest) {
-        // Debounce API calls to prevent spam
+        // Debounce API calls to prevent spam - increased debounce time
         setTimeout(() => {
           fetch('/api/profile/tokens', {
             method: 'POST',
@@ -270,7 +282,7 @@ export function MessageLimitProvider({
           }).catch((error) => {
             console.error('Failed to sync message count:', error);
           });
-        }, 2000); // 2 second debounce
+        }, 5000); // 5 second debounce instead of 2 seconds
       }
 
       return newUsed;

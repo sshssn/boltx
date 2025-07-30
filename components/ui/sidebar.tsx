@@ -29,7 +29,7 @@ import {
 const SIDEBAR_COOKIE_NAME = 'sidebar_state';
 const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
 const SIDEBAR_WIDTH = '16rem';
-const SIDEBAR_WIDTH_TABLET = '14rem';
+const SIDEBAR_WIDTH_TABLET = '16rem';
 const SIDEBAR_WIDTH_MOBILE = '85vw';
 const SIDEBAR_WIDTH_ICON = '3rem';
 const SIDEBAR_KEYBOARD_SHORTCUT = 'b';
@@ -67,17 +67,18 @@ function HamburgerMenu({ children }: { children: React.ReactNode }) {
           variant="ghost"
           size="sm"
           className={cn(
-            'fixed top-4 left-4 z-50 h-11 w-11 rounded-xl',
+            'fixed top-4 left-4 z-50 h-10 w-10 rounded-lg',
             'bg-white/95 dark:bg-zinc-900/95',
             'backdrop-blur-xl border border-zinc-200/80 dark:border-zinc-700/80',
-            'shadow-xl hover:shadow-2xl',
+            'shadow-lg hover:shadow-xl',
             'hover:bg-white dark:hover:bg-zinc-800',
-            'transition-all duration-300 ease-out',
+            'transition-all duration-200 ease-out',
             'hover:scale-105 active:scale-95',
             'md:hidden',
+            'touch-manipulation',
           )}
         >
-          <Menu className="h-5 w-5 text-zinc-700 dark:text-zinc-300" />
+          <Menu className="h-4 w-4 text-zinc-700 dark:text-zinc-300" />
           <span className="sr-only">Toggle sidebar</span>
         </Button>
       </SheetTrigger>
@@ -85,13 +86,14 @@ function HamburgerMenu({ children }: { children: React.ReactNode }) {
         side="left"
         hideCloseButton={true}
         className={cn(
-          'w-[85vw] max-w-sm p-0 border-0',
+          'w-[90vw] max-w-xs p-0 border-0',
           'bg-white dark:bg-zinc-950',
           'shadow-2xl',
+          'transition-all duration-200 ease-out',
         )}
       >
         {/* Content with improved styling - matches desktop variant */}
-        <div className="flex h-full w-full flex-col bg-white dark:bg-zinc-950">
+        <div className="flex h-full w-full flex-col bg-white dark:bg-zinc-950 overflow-hidden">
           {children}
         </div>
       </SheetContent>

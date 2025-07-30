@@ -29,6 +29,7 @@ interface MessagesProps {
   extraPaddingBottom?: boolean;
   onGuestLimit?: (limit: number, used: number) => void;
   limitReached?: boolean;
+  onContinue?: () => void;
 }
 
 // Simple Thinking Dots Component
@@ -101,6 +102,7 @@ function PureMessages({
   extraPaddingBottom,
   onGuestLimit,
   limitReached = false,
+  onContinue,
 }: MessagesProps) {
   const {
     containerRef: messagesContainerRef,
@@ -224,6 +226,7 @@ function PureMessages({
           isStreaming={status === 'streaming' && index === messages.length - 1}
           style={index === 0 ? { marginTop: '1.2rem' } : {}}
           limitReached={limitReached}
+          onContinue={onContinue}
         />
       ))}
 

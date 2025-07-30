@@ -12,6 +12,7 @@ interface KeyboardShortcutsProps {
   onRegenerate?: () => void;
   onStopGeneration?: () => void;
   onShowShortcuts?: () => void;
+  onToggleShortcutsOverlay?: () => void;
 }
 
 export function KeyboardShortcuts({
@@ -22,9 +23,21 @@ export function KeyboardShortcuts({
   onRegenerate,
   onStopGeneration,
   onShowShortcuts,
+  onToggleShortcutsOverlay,
 }: KeyboardShortcutsProps) {
   const router = useRouter();
-  const { toggleSidebar } = useSidebar();
+
+  // Try to use sidebar if available, otherwise provide a fallback
+  let toggleSidebar: (() => void) | undefined;
+  try {
+    const { toggleSidebar: sidebarToggle } = useSidebar();
+    toggleSidebar = sidebarToggle;
+  } catch (error) {
+    // Sidebar not available, provide a no-op function
+    toggleSidebar = () => {
+      console.log('Sidebar not available - toggle ignored');
+    };
+  }
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -37,85 +50,163 @@ export function KeyboardShortcuts({
         return;
       }
 
-      // Cmd/Ctrl + K: Focus Input
-      if ((event.metaKey || event.ctrlKey) && event.key === 'k') {
+      // Helper function to check for CMD or CTRL (either one)
+      const isCmdOrCtrl = (event: KeyboardEvent) => {
+        return event.metaKey || event.ctrlKey;
+      };
+
+      // Helper function to check for SHIFT+CMD/CTRL
+      const isShiftCmdOrCtrl = (event: KeyboardEvent) => {
+        return event.shiftKey && (event.metaKey || event.ctrlKey);
+      };
+
+      // ⌘K: Search chats
+      if (isCmdOrCtrl(event) && event.key.toLowerCase() === 'k') {
         event.preventDefault();
         onSearch?.();
+        console.log('Shortcut triggered: Search chats (⌘K)');
+        return;
       }
 
-      // Cmd/Ctrl + N: New Thread
-      if ((event.metaKey || event.ctrlKey) && event.key === 'n') {
+      // ⇧⌘O: Open new chat
+      if (isShiftCmdOrCtrl(event) && event.key.toLowerCase() === 'o') {
         event.preventDefault();
         onNewChat?.();
+        console.log('Shortcut triggered: Open new chat (⇧⌘O)');
+        return;
       }
 
-      // Cmd/Ctrl + B: Toggle Sidebar
-      if ((event.metaKey || event.ctrlKey) && event.key === 'b') {
+      // ⇧⌘S: Toggle sidebar
+      if (isShiftCmdOrCtrl(event) && event.key.toLowerCase() === 's') {
         event.preventDefault();
         toggleSidebar();
+        console.log('Shortcut triggered: Toggle sidebar (⇧⌘S)');
+        return;
       }
 
-      // Cmd/Ctrl + J: Toggle Theme
-      if ((event.metaKey || event.ctrlKey) && event.key === 'j') {
-        event.preventDefault();
-        onToggleTheme?.();
-      }
-
-      // Cmd/Ctrl + P: Previous Chat
-      if ((event.metaKey || event.ctrlKey) && event.key === 'p') {
-        event.preventDefault();
-        // TODO: Implement previous chat navigation
-        console.log('Previous chat');
-      }
-
-      // Cmd/Ctrl + L: Next Chat
-      if ((event.metaKey || event.ctrlKey) && event.key === 'l') {
-        event.preventDefault();
-        // TODO: Implement next chat navigation
-        console.log('Next chat');
-      }
-
-      // Cmd/Ctrl + ?: Show Shortcuts
-      if ((event.metaKey || event.ctrlKey) && event.key === '?') {
-        event.preventDefault();
-        onShowShortcuts?.();
-      }
-
-      // Cmd/Ctrl + C: Copy last message
-      if ((event.metaKey || event.ctrlKey) && event.key === 'c') {
+      // ⇧⌘;: Copy last code block
+      if (isShiftCmdOrCtrl(event) && event.key === ';') {
         event.preventDefault();
         onCopyLastMessage?.();
+        console.log('Shortcut triggered: Copy last code block (⇧⌘;)');
+        return;
       }
 
-      // Cmd/Ctrl + R: Regenerate response
-      if ((event.metaKey || event.ctrlKey) && event.key === 'r') {
+      // ⇧↓: Next message
+      if (event.shiftKey && event.key === 'ArrowDown') {
         event.preventDefault();
-        onRegenerate?.();
+        // TODO: Implement next message navigation
+        console.log('Shortcut triggered: Next message (⇧↓)');
+        return;
       }
 
-      // Cmd/Ctrl + S: Stop generation
-      if ((event.metaKey || event.ctrlKey) && event.key === 's') {
+      // ⇧↑: Previous message
+      if (event.shiftKey && event.key === 'ArrowUp') {
         event.preventDefault();
-        onStopGeneration?.();
+        // TODO: Implement previous message navigation
+        console.log('Shortcut triggered: Previous message (⇧↑)');
+        return;
       }
+
+      // ⇧⌘⌫: Delete chat
+      if (isShiftCmdOrCtrl(event) && event.key === 'Backspace') {
+        event.preventDefault();
+        // TODO: Implement delete chat
+        console.log('Shortcut triggered: Delete chat (⇧⌘⌫)');
+        return;
+      }
+
+      // ⇧↻: Focus chat input
+      if (event.shiftKey && event.key === 'r') {
+        event.preventDefault();
+        onSearch?.();
+        console.log('Shortcut triggered: Focus chat input (⇧R)');
+        return;
+      }
+
+      // ⌘/: Show shortcuts
+      if (isCmdOrCtrl(event) && event.key === '/') {
+        event.preventDefault();
+        console.log(
+          'Shortcut triggered: Show shortcuts (⌘/) - calling onToggleShortcutsOverlay',
+        );
+        onToggleShortcutsOverlay?.();
+        return;
+      }
+
+      // ⇧⌘I: Set custom instructions
+      if (isShiftCmdOrCtrl(event) && event.key.toLowerCase() === 'i') {
+        event.preventDefault();
+        // TODO: Implement custom instructions
+        console.log('Shortcut triggered: Set custom instructions (⇧⌘I)');
+        return;
+      }
+
+      // Single key shortcuts (no modifiers)
 
       // Escape: Close modals, clear selection, etc.
       if (event.key === 'Escape') {
-        // Close any open modals or dropdowns
-        const modals = document.querySelectorAll('[data-state="open"]');
-        modals.forEach((modal) => {
-          const closeButton = modal.querySelector(
-            '[data-radix-collection-item]',
-          );
-          if (closeButton) {
-            (closeButton as HTMLElement).click();
+        event.preventDefault();
+
+        // Close any open dialogs
+        const openDialogs = document.querySelectorAll('[data-state="open"]');
+        openDialogs.forEach((dialog) => {
+          // Try to find close button
+          const closeButton =
+            dialog.querySelector('[data-dismiss]') ||
+            dialog.querySelector('[aria-label*="close"]') ||
+            dialog.querySelector('[role="button"][aria-label*="Close"]');
+
+          if (closeButton && closeButton instanceof HTMLElement) {
+            closeButton.click();
           }
         });
+
+        // Close any open dropdowns
+        const openDropdowns = document.querySelectorAll(
+          '[data-radix-popper-content-wrapper]',
+        );
+        openDropdowns.forEach((dropdown) => {
+          if (dropdown.getAttribute('data-state') === 'open') {
+            // Trigger escape on the dropdown
+            dropdown.dispatchEvent(
+              new KeyboardEvent('keydown', { key: 'Escape' }),
+            );
+          }
+        });
+
+        console.log('Shortcut triggered: Escape (Close modals/dropdowns)');
+        return;
+      }
+
+      // Fallback shortcuts for compatibility
+
+      // CMD/CTRL+N: New Chat (fallback)
+      if (isCmdOrCtrl(event) && event.key.toLowerCase() === 'n') {
+        event.preventDefault();
+        onNewChat?.();
+        console.log('Shortcut triggered: New Chat (CMD/CTRL+N - fallback)');
+        return;
+      }
+
+      // CMD/CTRL+B: Toggle Sidebar (fallback)
+      if (isCmdOrCtrl(event) && event.key.toLowerCase() === 'b') {
+        event.preventDefault();
+        toggleSidebar();
+        console.log(
+          'Shortcut triggered: Toggle Sidebar (CMD/CTRL+B - fallback)',
+        );
+        return;
       }
     };
 
+    // Add event listener
     document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
+
+    // Cleanup
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
   }, [
     onNewChat,
     onSearch,
@@ -124,8 +215,11 @@ export function KeyboardShortcuts({
     onRegenerate,
     onStopGeneration,
     onShowShortcuts,
+    onToggleShortcutsOverlay,
     toggleSidebar,
+    router,
   ]);
 
+  // This component doesn't render anything
   return null;
 }

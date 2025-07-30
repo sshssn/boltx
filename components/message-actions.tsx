@@ -15,17 +15,22 @@ import { memo } from 'react';
 import equal from 'fast-deep-equal';
 import { toast } from 'sonner';
 import type { ChatMessage } from '@/lib/types';
+import { RefreshCw, Play } from 'lucide-react';
 
 export function PureMessageActions({
   chatId,
   message,
   vote,
   isLoading,
+  regenerate,
+  onContinue,
 }: {
   chatId: string;
   message: ChatMessage;
   vote: Vote | undefined;
   isLoading: boolean;
+  regenerate?: () => void;
+  onContinue?: () => void;
 }) {
   const { mutate } = useSWRConfig();
   const [_, copyToClipboard] = useCopyToClipboard();
@@ -61,6 +66,44 @@ export function PureMessageActions({
             </Button>
           </TooltipTrigger>
           <TooltipContent>Copy</TooltipContent>
+        </Tooltip>
+
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              className="py-1 px-2 h-fit text-indigo-500 border-indigo-500 hover:bg-indigo-50 hover:text-indigo-700 focus-visible:ring-2 focus-visible:ring-indigo-500 transition"
+              variant="outline"
+              onClick={() => {
+                if (regenerate) {
+                  regenerate();
+                  toast.success('Regenerating response...');
+                }
+              }}
+              disabled={!regenerate}
+            >
+              <RefreshCw size={16} />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Retry Response</TooltipContent>
+        </Tooltip>
+
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              className="py-1 px-2 h-fit text-green-500 border-green-500 hover:bg-green-50 hover:text-green-700 focus-visible:ring-2 focus-visible:ring-green-500 transition"
+              variant="outline"
+              onClick={() => {
+                if (onContinue) {
+                  onContinue();
+                  toast.success('Continuing response...');
+                }
+              }}
+              disabled={!onContinue}
+            >
+              <Play size={16} />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Continue Response</TooltipContent>
         </Tooltip>
 
         <Tooltip>

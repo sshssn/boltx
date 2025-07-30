@@ -1,121 +1,105 @@
 #!/usr/bin/env node
 
-/**
- * Setup script for configuring multiple Gemini API keys
- * This helps handle rate limiting by automatically switching between keys
- */
-
 const fs = require('node:fs');
 const path = require('node:path');
-const readline = require('node:readline');
 
-const rl = readline.createInterface({
-  input: process.stdin,
-  output: process.stdout,
-});
+console.log('🔧 boltX API Key Setup Helper\n');
 
-const question = (query) =>
-  new Promise((resolve) => rl.question(query, resolve));
+// Check for environment files (prioritize .env.local for Next.js)
+const envLocalPath = path.join(process.cwd(), '.env.local');
+const envPath = path.join(process.cwd(), '.env');
 
-async function setupApiKeys() {
-  console.log(
-    '🔑 Setting up multiple Gemini API keys for better rate limit handling\n',
-  );
+const envLocalExists = fs.existsSync(envLocalPath);
+const envExists = fs.existsSync(envPath);
 
-  console.log(
-    'This script will help you configure multiple API keys to avoid rate limiting issues.',
-  );
-  console.log(
-    'You can get API keys from: https://aistudio.google.com/app/apikey\n',
-  );
-
-  const keys = [];
-
-  // Get primary key
-  const primaryKey = await question('Enter your primary Gemini API key: ');
-  if (primaryKey.trim()) {
-    keys.push(primaryKey.trim());
-  }
-
-  // Get additional keys
-  console.log(
-    '\n💡 Tip: You can add up to 3 additional keys for better reliability',
-  );
-
-  for (let i = 1; i <= 3; i++) {
-    const additionalKey = await question(
-      `Enter additional API key ${i} (or press Enter to skip): `,
-    );
-    if (additionalKey.trim()) {
-      keys.push(additionalKey.trim());
-    } else {
-      break;
-    }
-  }
-
-  if (keys.length === 0) {
-    console.log(
-      '\n❌ No API keys provided. Please run the script again with valid keys.',
-    );
-    rl.close();
-    return;
-  }
-
-  // Read existing .env.local file
-  const envPath = path.join(process.cwd(), '.env.local');
-  let envContent = '';
-
-  try {
-    envContent = fs.readFileSync(envPath, 'utf8');
-  } catch (error) {
-    console.log('📝 Creating new .env.local file...');
-  }
-
-  // Update or add API keys
-  let updatedContent = envContent;
-
-  // Remove existing GEMINI_API_KEY entries
-  updatedContent = updatedContent.replace(/GEMINI_API_KEY(_\d+)?=.*\n?/g, '');
-
-  // Add new keys
-  keys.forEach((key, index) => {
-    const keyName =
-      index === 0 ? 'GEMINI_API_KEY' : `GEMINI_API_KEY_${index + 1}`;
-    updatedContent += `${keyName}=${key}\n`;
-  });
-
-  // Write updated content
-  fs.writeFileSync(envPath, updatedContent);
-
-  console.log('\n✅ API keys configured successfully!');
-  console.log(`📁 Updated: ${envPath}`);
-  console.log(`🔑 Configured ${keys.length} API key(s)`);
-
-  if (keys.length > 1) {
-    console.log('\n🚀 Benefits of multiple keys:');
-    console.log('- Automatic fallback when rate limited');
-    console.log('- Better reliability and uptime');
-    console.log('- Distributed load across keys');
-  }
-
-  console.log('\n📋 Next steps:');
-  console.log('1. Restart your development server');
-  console.log('2. Test the application');
-  console.log('3. Monitor the console for key switching messages');
-
-  rl.close();
+// Read content from both files
+let envContent = '';
+if (envLocalExists) {
+  console.log('📝 Reading .env.local file...');
+  envContent = fs.readFileSync(envLocalPath, 'utf8');
+} else if (envExists) {
+  console.log('📝 Reading .env file...');
+  envContent = fs.readFileSync(envPath, 'utf8');
+} else {
+  console.log('📝 No environment files found. Creating .env.local...');
+  fs.writeFileSync(envLocalPath, '');
 }
 
-// Handle script termination
-process.on('SIGINT', () => {
-  console.log('\n\n❌ Setup cancelled');
-  rl.close();
-  process.exit(0);
+// Parse existing variables
+const existingVars = {};
+envContent.split('\n').forEach((line) => {
+  const [key, ...valueParts] = line.split('=');
+  if (key && valueParts.length > 0) {
+    existingVars[key.trim()] = valueParts.join('=').trim();
+  }
 });
 
-// Run the setup
-setupApiKeys().catch((error) => {
-  console.error('❌ Setup failed:', error.message);
-  rl.close();
-  process.exit(1);
+console.log('🔑 Setting up API keys for better reliability...\n');
+
+// Gemini API Keys
+console.log('📋 Gemini API Keys (Google AI Studio):');
+console.log('   Get your keys from: https://aistudio.google.com/app/apikey\n');
+
+const geminiKeys = ['GEMINI_API_KEY', 'GEMINI_API_KEY_2', 'GEMINI_API_KEY_3'];
+
+geminiKeys.forEach((key, index) => {
+  const currentValue = existingVars[key];
+  const status = currentValue ? '✅ Set' : '❌ Missing';
+  console.log(`   ${index + 1}. ${key}: ${status}`);
+  if (currentValue) {
+    console.log(`      Current: ${currentValue.substring(0, 10)}...`);
+  }
 });
+
+console.log('\n🌐 OpenRouter API Keys:');
+console.log('   Get your keys from: https://openrouter.ai\n');
+
+const openRouterKeys = [
+  'OPENROUTER_API_KEY',
+  'OPENROUTER_API_KEY_2',
+  'OPENROUTER_API_KEY_3',
+];
+
+openRouterKeys.forEach((key, index) => {
+  const currentValue = existingVars[key];
+  const status = currentValue ? '✅ Set' : '❌ Missing';
+  console.log(`   ${index + 1}. ${key}: ${status}`);
+  if (currentValue) {
+    console.log(`      Current: ${currentValue.substring(0, 10)}...`);
+  }
+});
+
+console.log('\n📊 Summary:');
+const totalKeys = geminiKeys.length + openRouterKeys.length;
+const setKeys = [...geminiKeys, ...openRouterKeys].filter(
+  (key) => existingVars[key],
+).length;
+console.log(`   Total API keys: ${totalKeys}`);
+console.log(`   Configured: ${setKeys}/${totalKeys}`);
+
+if (setKeys === 0) {
+  console.log('\n⚠️  No API keys found! You need at least:');
+  console.log('   - GEMINI_API_KEY (required)');
+  console.log('   - OPENROUTER_API_KEY (recommended for fallback)');
+} else if (setKeys < 3) {
+  console.log('\n💡 Recommendation: Add more API keys for better reliability');
+  console.log('   - Multiple keys help avoid rate limiting');
+  console.log('   - Automatic fallback when one key is rate limited');
+} else {
+  console.log(
+    '\n🎉 Great! You have multiple API keys configured for maximum reliability',
+  );
+}
+
+console.log('\n📝 To add API keys, edit your .env file and add:');
+console.log('   GEMINI_API_KEY=your_key_here');
+console.log('   GEMINI_API_KEY_2=your_second_key_here');
+console.log('   OPENROUTER_API_KEY=your_openrouter_key_here');
+console.log('   OPENROUTER_API_KEY_2=your_second_openrouter_key_here');
+
+console.log('\n🚀 The app will automatically:');
+console.log('   - Use multiple keys to avoid rate limiting');
+console.log('   - Fall back to alternative keys when one fails');
+console.log(
+  '   - Provide graceful error handling when all keys are rate limited',
+);

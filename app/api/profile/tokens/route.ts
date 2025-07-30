@@ -6,9 +6,58 @@ import { ChatSDKError } from '@/lib/errors';
 import { getClientIP } from '@/lib/utils';
 import { entitlementsByUserType } from '@/lib/ai/entitlements';
 
+// Simple in-memory rate limiting
+const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
+const RATE_LIMIT_WINDOW = 60000; // 1 minute
+const RATE_LIMIT_MAX_REQUESTS = 30; // 30 requests per minute
+
+function checkRateLimit(identifier: string): boolean {
+  const now = Date.now();
+  const limit = rateLimitMap.get(identifier);
+
+  if (!limit) {
+    rateLimitMap.set(identifier, {
+      count: 1,
+      resetTime: now + RATE_LIMIT_WINDOW,
+    });
+    return true;
+  }
+
+  if (now > limit.resetTime) {
+    rateLimitMap.set(identifier, {
+      count: 1,
+      resetTime: now + RATE_LIMIT_WINDOW,
+    });
+    return true;
+  }
+
+  if (limit.count >= RATE_LIMIT_MAX_REQUESTS) {
+    return false;
+  }
+
+  limit.count++;
+  return true;
+}
+
 export async function GET(req: NextRequest) {
   const session = await auth();
   const clientIP = getClientIP(req);
+  const identifier = session?.user?.id || clientIP || 'unknown';
+
+  // Check rate limit
+  if (!checkRateLimit(identifier)) {
+    return new Response(
+      JSON.stringify({
+        error: 'Rate limit exceeded',
+        details: 'Too many requests to tokens API',
+      }),
+      {
+        status: 429,
+        headers: { 'Content-Type': 'application/json' },
+      },
+    );
+  }
+
   const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
 
   let messagesUsed = 0;
@@ -47,6 +96,22 @@ export async function GET(req: NextRequest) {
 export async function POST(request: Request) {
   const session = await auth();
   const clientIP = getClientIP(request);
+  const identifier = session?.user?.id || clientIP || 'unknown';
+
+  // Check rate limit
+  if (!checkRateLimit(identifier)) {
+    return new Response(
+      JSON.stringify({
+        error: 'Rate limit exceeded',
+        details: 'Too many requests to tokens API',
+      }),
+      {
+        status: 429,
+        headers: { 'Content-Type': 'application/json' },
+      },
+    );
+  }
+
   const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
 
   if (!session?.user && !clientIP) {

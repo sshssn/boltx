@@ -1,12 +1,12 @@
 'use client';
 
-import { ChevronUp, LogIn, Settings, LogOut, User } from 'lucide-react';
+import { ChevronUp, LogIn, Settings, LogOut, User, Crown } from 'lucide-react';
 import Image from 'next/image';
 import type { User as UserType } from 'next-auth';
 import { signOut, useSession } from 'next-auth/react';
 import { useTheme } from 'next-themes';
 import { motion } from 'framer-motion';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 import {
   DropdownMenu,
@@ -34,11 +34,30 @@ export function SidebarUserNav({ user }: { user: UserType }) {
   const { theme, setTheme } = useTheme();
   const { isMobile, setOpenMobile } = useSidebar();
   const [isSigningOut, setIsSigningOut] = useState(false);
+  const [userPlan, setUserPlan] = useState<string>('free');
 
   const { username } = useUsername();
   const isGuest = guestRegex.test(data?.user?.email ?? '');
   const displayName = username || user?.email?.split('@')[0] || 'User';
   const userEmail = data?.user?.email || user?.email || 'guest@example.com';
+
+  // Fetch user plan
+  useEffect(() => {
+    if (status === 'loading' || !data?.user) return;
+
+    async function fetchUserPlan() {
+      try {
+        const res = await fetch('/api/profile/plan');
+        if (res.ok) {
+          const planData = await res.json();
+          setUserPlan(planData.plan || 'free');
+        }
+      } catch (error) {
+        console.error('Error fetching user plan:', error);
+      }
+    }
+    fetchUserPlan();
+  }, [data, status]);
 
   const handleSignOut = async () => {
     setIsSigningOut(true);
@@ -113,26 +132,40 @@ export function SidebarUserNav({ user }: { user: UserType }) {
               <UserAvatar
                 email={userEmail}
                 name={displayName}
-                size={32}
-                className="border-2 border-border/50 group-hover:border-border transition-colors"
+                size={36}
+                className="border-2 border-border/50 group-hover:border-border transition-colors flex-shrink-0"
               />
 
-              {/* User info */}
+              {/* User info with better layout */}
               <div className="flex-1 text-left min-w-0">
-                <div className="font-medium text-sm text-foreground truncate">
-                  {isGuest ? 'Guest User' : displayName}
+                <div className="flex items-center gap-2 mb-0.5">
+                  <div className="font-medium text-sm text-foreground truncate">
+                    {isGuest ? 'Guest User' : displayName}
+                  </div>
+                  {!isGuest && (
+                    <div className="flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium bg-primary/10 text-primary border border-primary/20">
+                      {userPlan === 'pro' ? 'Pro' : 'Free'}
+                    </div>
+                  )}
                 </div>
                 <div className="text-xs text-muted-foreground truncate">
                   {isGuest ? 'Limited access' : userEmail}
                 </div>
+                {/* Plan display line */}
+                {!isGuest && (
+                  <div className="text-xs text-muted-foreground/80 mt-0.5">
+                    {displayName} -{' '}
+                    {userPlan === 'pro' ? 'Pro Plan' : 'Free Plan'}
+                  </div>
+                )}
               </div>
 
               {/* Chevron */}
               <motion.div
-                className="text-muted-foreground group-hover:text-foreground transition-colors"
+                className="text-muted-foreground group-hover:text-foreground transition-colors flex-shrink-0"
                 whileHover={{ y: -1 }}
               >
-                <ChevronUp size={16} />
+                <ChevronUp size={14} />
               </motion.div>
             </motion.button>
           </DropdownMenuTrigger>
@@ -140,16 +173,39 @@ export function SidebarUserNav({ user }: { user: UserType }) {
           <DropdownMenuContent
             align="end"
             side={isMobile ? 'top' : 'right'}
-            className="w-56 p-2"
+            className="w-60 p-2"
             sideOffset={8}
           >
-            {/* User info header */}
-            <div className="p-2 mb-1">
-              <div className="font-medium text-sm truncate">
-                {isGuest ? 'Guest User' : displayName}
-              </div>
-              <div className="text-xs text-muted-foreground truncate">
-                {userEmail}
+            {/* Enhanced User info header */}
+            <div className="p-2 mb-1 bg-muted/30 rounded-lg">
+              <div className="flex items-center gap-2 mb-1">
+                <UserAvatar
+                  email={userEmail}
+                  name={displayName}
+                  size={32}
+                  className="border-2 border-border/50"
+                />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <div className="font-medium text-sm truncate">
+                      {isGuest ? 'Guest User' : displayName}
+                    </div>
+                    {!isGuest && (
+                      <div className="flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium bg-primary/10 text-primary border border-primary/20">
+                        {userPlan === 'pro' ? 'Pro' : 'Free'}
+                      </div>
+                    )}
+                  </div>
+                  <div className="text-xs text-muted-foreground truncate">
+                    {userEmail}
+                  </div>
+                  {!isGuest && (
+                    <div className="text-xs text-muted-foreground/80 mt-0.5">
+                      {displayName} -{' '}
+                      {userPlan === 'pro' ? 'Pro Plan' : 'Free Plan'}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 

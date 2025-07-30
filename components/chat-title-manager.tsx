@@ -8,7 +8,7 @@ function revealTitleAnimated(fullTitle: string, setTitle: (t: string) => void) {
     setTitle(fullTitle.slice(0, i + 1));
     i++;
     if (i >= fullTitle.length) clearInterval(interval);
-  }, 8); // Blazing fast character delay - reduced from 15ms to 8ms
+  }, 3); // Ultra-fast character delay - reduced to 3ms for instant feel
 }
 
 interface ChatTitleManagerProps {
@@ -29,9 +29,89 @@ export function ChatTitleManager({
   const titleGenerationTimeoutRef = useRef<NodeJS.Timeout>();
   const hasGeneratedTitleRef = useRef(false);
   const lastUserMessageRef = useRef('');
+  const serverTitleGeneratedRef = useRef(false);
+  const isGeneratingRef = useRef(false);
+
+  // Listen for server-side title updates to prevent conflicts
+  useEffect(() => {
+    const handleServerTitleUpdate = (event: CustomEvent) => {
+      if (event.detail?.chatId === chatId) {
+        serverTitleGeneratedRef.current = true;
+        hasGeneratedTitleRef.current = true;
+        isGeneratingRef.current = false;
+
+        // Don't override server-generated titles
+        if (event.detail?.title && event.detail.title !== 'New Thread...') {
+          onTitleChange(event.detail.title, false);
+
+          // Dispatch immediate update for sidebar
+          window.dispatchEvent(
+            new CustomEvent('chat-status-update', {
+              detail: {
+                chatId,
+                title: event.detail.title,
+                status: 'completed',
+                isRevealing: false,
+              },
+            }),
+          );
+        }
+      }
+    };
+
+    const handleChatCreated = (event: CustomEvent) => {
+      if (event.detail?.chatId === chatId) {
+        // Dispatch immediate "New Thread" status
+        window.dispatchEvent(
+          new CustomEvent('chat-status-update', {
+            detail: {
+              chatId,
+              title: 'New Thread...',
+              status: 'generating-title',
+              isRevealing: false,
+            },
+          }),
+        );
+      }
+    };
+
+    window.addEventListener(
+      'title-generated',
+      handleServerTitleUpdate as EventListener,
+    );
+    window.addEventListener(
+      'threadTitleUpdated',
+      handleServerTitleUpdate as EventListener,
+    );
+    window.addEventListener('chat-created', handleChatCreated as EventListener);
+
+    return () => {
+      window.removeEventListener(
+        'title-generated',
+        handleServerTitleUpdate as EventListener,
+      );
+      window.removeEventListener(
+        'threadTitleUpdated',
+        handleServerTitleUpdate as EventListener,
+      );
+      window.removeEventListener(
+        'chat-created',
+        handleChatCreated as EventListener,
+      );
+    };
+  }, [chatId, onTitleChange]);
 
   const generateTitle = useCallback(async () => {
-    if (!userMessage || userMessage.trim().length === 0) {
+    if (
+      !userMessage ||
+      userMessage.trim().length === 0 ||
+      isGeneratingRef.current
+    ) {
+      return;
+    }
+
+    // Don't regenerate if server already generated a title
+    if (serverTitleGeneratedRef.current) {
       return;
     }
 
@@ -43,6 +123,8 @@ export function ChatTitleManager({
       return;
     }
 
+    isGeneratingRef.current = true;
+
     // Set generating state immediately
     onTitleChange('New Thread...', true);
 
@@ -53,8 +135,25 @@ export function ChatTitleManager({
       }),
     );
 
+    // Dispatch status update for sidebar
+    window.dispatchEvent(
+      new CustomEvent('chat-status-update', {
+        detail: {
+          chatId,
+          title: 'New Thread...',
+          status: 'generating-title',
+          isRevealing: false,
+        },
+      }),
+    );
+
+    // Call the title generation API with faster timeout
+    const controller = new AbortController();
+    let timeoutId: NodeJS.Timeout | undefined;
+
+    timeoutId = setTimeout(() => controller.abort(), 2000); // 2 second timeout
+
     try {
-      // Call the title generation API
       const response = await fetch('/api/chat/title', {
         method: 'POST',
         headers: {
@@ -65,7 +164,12 @@ export function ChatTitleManager({
           userMessage,
           aiResponse,
         }),
+        signal: controller.signal,
       });
+
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
 
       if (!response.ok) {
         throw new Error(`Title generation failed: ${response.status}`);
@@ -83,8 +187,9 @@ export function ChatTitleManager({
       // Update state
       hasGeneratedTitleRef.current = true;
       lastUserMessageRef.current = userMessage;
+      isGeneratingRef.current = false;
 
-      // Typewriter effect for title reveal with blazing fast speed
+      // Typewriter effect for title reveal with ultra-fast speed
       revealTitleAnimated(title, (animatedTitle) => {
         onTitleChange(animatedTitle, false);
 
@@ -94,6 +199,18 @@ export function ChatTitleManager({
             detail: {
               chatId,
               title: animatedTitle,
+              isRevealing: true,
+            },
+          }),
+        );
+
+        // Dispatch status update for sidebar
+        window.dispatchEvent(
+          new CustomEvent('chat-status-update', {
+            detail: {
+              chatId,
+              title: animatedTitle,
+              status: 'completed',
               isRevealing: true,
             },
           }),
@@ -110,8 +227,63 @@ export function ChatTitleManager({
           },
         }),
       );
+
+      // Final status update
+      window.dispatchEvent(
+        new CustomEvent('chat-status-update', {
+          detail: {
+            chatId,
+            title,
+            status: 'completed',
+            isRevealing: false,
+          },
+        }),
+      );
     } catch (error) {
+      // Clear timeout if it hasn't been cleared yet
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+
+      // Handle AbortError specifically (timeout or manual abort)
+      if (error instanceof Error && error.name === 'AbortError') {
+        console.log('Title generation aborted (timeout or manual abort)');
+        isGeneratingRef.current = false;
+
+        // Use fallback title for aborted requests
+        const fallbackTitle =
+          userMessage.length > 30
+            ? `${userMessage.substring(0, 30)}...`
+            : userMessage || 'New Chat';
+
+        onTitleChange(fallbackTitle, false);
+
+        // Dispatch fallback title events
+        window.dispatchEvent(
+          new CustomEvent('title-generated', {
+            detail: {
+              chatId,
+              title: fallbackTitle,
+              isRevealing: false,
+            },
+          }),
+        );
+
+        window.dispatchEvent(
+          new CustomEvent('chat-status-update', {
+            detail: {
+              chatId,
+              title: fallbackTitle,
+              status: 'completed',
+              isRevealing: false,
+            },
+          }),
+        );
+        return;
+      }
+
       console.error('Title generation error:', error);
+      isGeneratingRef.current = false;
 
       // Fallback: use a simple title based on user message
       const fallbackTitle =
@@ -120,6 +292,28 @@ export function ChatTitleManager({
           : userMessage || 'New Chat';
 
       onTitleChange(fallbackTitle, false);
+
+      // Dispatch fallback title events
+      window.dispatchEvent(
+        new CustomEvent('title-generated', {
+          detail: {
+            chatId,
+            title: fallbackTitle,
+            isRevealing: false,
+          },
+        }),
+      );
+
+      window.dispatchEvent(
+        new CustomEvent('chat-status-update', {
+          detail: {
+            chatId,
+            title: fallbackTitle,
+            status: 'completed',
+            isRevealing: false,
+          },
+        }),
+      );
 
       // Try to save the fallback title to database
       try {
@@ -148,10 +342,10 @@ export function ChatTitleManager({
         clearTimeout(titleGenerationTimeoutRef.current);
       }
 
-      // Reduced delay for faster response
+      // Immediate response for better UX
       titleGenerationTimeoutRef.current = setTimeout(() => {
         generateTitle();
-      }, 200); // Reduced from 500ms to 200ms for faster response
+      }, 50); // Reduced to 50ms for instant response
     }
 
     return () => {
@@ -165,6 +359,8 @@ export function ChatTitleManager({
   useEffect(() => {
     hasGeneratedTitleRef.current = false;
     lastUserMessageRef.current = '';
+    serverTitleGeneratedRef.current = false;
+    isGeneratingRef.current = false;
   }, [chatId]);
 
   // Cleanup on unmount
