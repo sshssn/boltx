@@ -57,6 +57,13 @@
       "when": 1753644549368,
       "tag": "0007_brainy_nighthawk",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1753911608843,
+      "tag": "0009_daffy_strong_guy",
+      "breakpoints": true
     }
   ]
 }

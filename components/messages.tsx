@@ -16,6 +16,7 @@ import type { ChatMessage } from '@/lib/types';
 import { useDataStream } from './data-stream-provider';
 import { useSession } from 'next-auth/react';
 import { ChevronDown } from 'lucide-react';
+import { WebSearchLoading } from './web-search-loading';
 
 interface MessagesProps {
   chatId: string;
@@ -29,7 +30,7 @@ interface MessagesProps {
   extraPaddingBottom?: boolean;
   onGuestLimit?: (limit: number, used: number) => void;
   limitReached?: boolean;
-  onContinue?: () => void;
+  isWebSearchMode?: boolean;
 }
 
 // Simple Thinking Dots Component
@@ -102,7 +103,7 @@ function PureMessages({
   extraPaddingBottom,
   onGuestLimit,
   limitReached = false,
-  onContinue,
+  isWebSearchMode = false,
 }: MessagesProps) {
   const {
     containerRef: messagesContainerRef,
@@ -193,12 +194,13 @@ function PureMessages({
   return (
     <div
       ref={chatContainerRef}
-      className={`flex flex-col overflow-y-auto relative w-full flex-1 ${
+      className={`flex flex-col gap-y-2 overflow-y-auto relative w-full flex-1 text-base leading-relaxed pt-4 ${
         extraPaddingBottom ? 'pb-32' : ''
       }`}
       style={{
         scrollbarWidth: 'thin',
         scrollbarColor: 'rgb(156 163 175) transparent',
+        scrollPaddingTop: '16px',
       }}
     >
       {messages.length === 0 && <Greeting />}
@@ -206,31 +208,46 @@ function PureMessages({
       {/* Network error display removed - handled by chat component */}
 
       {/* Messages */}
-      {messages.map((message, index) => (
-        <PreviewMessage
-          key={message.id}
-          chatId={chatId}
-          message={message}
-          isLoading={status === 'streaming' && messages.length - 1 === index}
-          vote={
-            votes
-              ? votes.find((vote) => vote.messageId === message.id)
-              : undefined
-          }
-          setMessages={setMessages}
-          regenerate={regenerate}
-          isReadonly={isReadonly}
-          requiresScrollPadding={
-            hasSentMessage && index === messages.length - 1
-          }
-          isStreaming={status === 'streaming' && index === messages.length - 1}
-          style={index === 0 ? { marginTop: '1.2rem' } : {}}
-          limitReached={limitReached}
-          onContinue={onContinue}
-        />
-      ))}
+      {messages.map((message, index) => {
+        // Show separator after every user message
+        const shouldShowSeparator =
+          message.role === 'user' && index < messages.length - 1; // Don't show after the last message
 
-      {/* Glassmorphism typing animation - only show when submitted, not when streaming */}
+        return (
+          <div key={message.id}>
+            <PreviewMessage
+              chatId={chatId}
+              message={message}
+              isLoading={
+                status === 'streaming' && messages.length - 1 === index
+              }
+              vote={
+                votes
+                  ? votes.find((vote) => vote.messageId === message.id)
+                  : undefined
+              }
+              setMessages={setMessages}
+              regenerate={regenerate}
+              isReadonly={isReadonly}
+              requiresScrollPadding={
+                hasSentMessage && index === messages.length - 1
+              }
+              isStreaming={
+                status === 'streaming' && index === messages.length - 1
+              }
+              style={index === 0 ? { marginTop: '1.2rem' } : {}}
+              limitReached={limitReached}
+            />
+            {shouldShowSeparator && (
+              <div className="w-full mx-auto max-w-3xl px-4 my-4">
+                <div className="w-full h-px bg-white/10 dark:bg-zinc-400/10 backdrop-blur-sm border border-white/5 dark:border-zinc-400/5 rounded-full" />
+              </div>
+            )}
+          </div>
+        );
+      })}
+
+      {/* Loading animation - show web search loading when in web search mode */}
       {status === 'submitted' && (
         <div className="w-full mx-auto max-w-3xl px-4 group/message my-6">
           <div className="flex gap-4 w-full">
@@ -240,30 +257,34 @@ function PureMessages({
                   data-testid="message-content"
                   className="flex flex-col gap-4 w-full"
                 >
-                  {/* Simple animated dots - no full width container */}
-                  <div className="flex items-center gap-1 md:gap-1.5">
-                    <div
-                      className="size-2 md:size-2.5 bg-zinc-600 dark:bg-zinc-300 rounded-full animate-bounce"
-                      style={{
-                        animationDelay: '0ms',
-                        animationDuration: '1.4s',
-                      }}
-                    />
-                    <div
-                      className="size-2 md:size-2.5 bg-zinc-600 dark:bg-zinc-300 rounded-full animate-bounce"
-                      style={{
-                        animationDelay: '200ms',
-                        animationDuration: '1.4s',
-                      }}
-                    />
-                    <div
-                      className="size-2 md:size-2.5 bg-zinc-600 dark:bg-zinc-300 rounded-full animate-bounce"
-                      style={{
-                        animationDelay: '400ms',
-                        animationDuration: '1.4s',
-                      }}
-                    />
-                  </div>
+                  {isWebSearchMode ? (
+                    <WebSearchLoading />
+                  ) : (
+                    /* Simple animated dots - no full width container */
+                    <div className="flex items-center gap-1 md:gap-1.5">
+                      <div
+                        className="size-2 md:size-2.5 bg-zinc-600 dark:bg-zinc-300 rounded-full animate-bounce"
+                        style={{
+                          animationDelay: '0ms',
+                          animationDuration: '1.4s',
+                        }}
+                      />
+                      <div
+                        className="size-2 md:size-2.5 bg-zinc-600 dark:bg-zinc-300 rounded-full animate-bounce"
+                        style={{
+                          animationDelay: '200ms',
+                          animationDuration: '1.4s',
+                        }}
+                      />
+                      <div
+                        className="size-2 md:size-2.5 bg-zinc-600 dark:bg-zinc-300 rounded-full animate-bounce"
+                        style={{
+                          animationDelay: '400ms',
+                          animationDuration: '1.4s',
+                        }}
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

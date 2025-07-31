@@ -32,7 +32,16 @@ import { useScrollToBottom } from '@/hooks/use-scroll-to-bottom';
 import type { VisibilityType } from './visibility-selector';
 import type { Attachment, ChatMessage } from '@/lib/types';
 
-import { X, Upload, FileText, Image, File, Copy, Zap } from 'lucide-react';
+import {
+  X,
+  Upload,
+  FileText,
+  Image,
+  File,
+  Copy,
+  Zap,
+  Globe,
+} from 'lucide-react';
 import { useSidebar } from './ui/sidebar';
 import { useMessageLimit } from './message-limit-provider';
 
@@ -120,6 +129,7 @@ function PureMultimodalInput({
   selectedVisibilityType,
   disabled = false,
   limitReached = false,
+  session,
 }: {
   chatId: string;
   input: string;
@@ -135,12 +145,14 @@ function PureMultimodalInput({
   selectedVisibilityType: VisibilityType;
   disabled?: boolean;
   limitReached?: boolean;
+  session?: any;
 }) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { width } = useWindowSize();
   const { open: sidebarOpen, isMobile } = useSidebar();
   const [showPasteIndicator, setShowPasteIndicator] = useState(false);
   const [isThinkingMode, setIsThinkingMode] = useState(false);
+  const [isWebSearchMode, setIsWebSearchMode] = useState(false);
   const { incrementMessageCount, remaining, hasReachedLimit } =
     useMessageLimit();
 
@@ -251,6 +263,7 @@ function PureMultimodalInput({
         createdAt: new Date().toISOString(),
         reasoning: isThinkingMode,
         preferredModel: isThinkingMode ? 'deepseek-r1' : undefined,
+        webSearch: isWebSearchMode,
       } as any, // Type assertion for custom metadata
     });
 
@@ -259,6 +272,7 @@ function PureMultimodalInput({
     resetHeight();
     setInput('');
     setIsThinkingMode(false); // Reset thinking mode after sending
+    setIsWebSearchMode(false); // Reset web search mode after sending
 
     setTimeout(() => {
       const event = new CustomEvent('refreshMessageCount');
@@ -281,6 +295,7 @@ function PureMultimodalInput({
     incrementMessageCount,
     resetHeight,
     isThinkingMode,
+    isWebSearchMode,
   ]);
 
   const uploadFile = async (file: File) => {
@@ -596,6 +611,7 @@ function PureMultimodalInput({
               'text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 dark:placeholder:text-zinc-400',
               'px-3 py-2 pr-12 md:px-5 md:py-5 md:pr-28 text-sm md:text-base leading-6 md:leading-7',
               'scrollbar-thin scrollbar-thumb-zinc-300 dark:scrollbar-thumb-zinc-600',
+              'font-sans',
               disabled && 'cursor-not-allowed opacity-50',
             )}
             style={{
@@ -677,7 +693,56 @@ function PureMultimodalInput({
                         type="button"
                         size="sm"
                         variant="ghost"
-                        onClick={() => setIsThinkingMode(!isThinkingMode)}
+                        onClick={() => {
+                          if (isWebSearchMode) {
+                            setIsWebSearchMode(false);
+                            toast.success('Web search mode deactivated.');
+                          } else {
+                            setIsWebSearchMode(true);
+                            setIsThinkingMode(false); // Deactivate reasoning mode
+                            toast.success(
+                              'Web search mode activated! Your query will search the internet for current information.',
+                            );
+                          }
+                        }}
+                        className={cx(
+                          'h-7 w-7 md:h-10 md:w-10 rounded-full p-0 touch-manipulation',
+                          'transition-all duration-200',
+                          isWebSearchMode
+                            ? 'bg-blue-500/20 hover:bg-blue-500/30 text-blue-600 dark:text-blue-400 border border-blue-200/50 dark:border-blue-700/50'
+                            : 'bg-zinc-100/80 hover:bg-zinc-200/80 dark:bg-zinc-800/80 dark:hover:bg-zinc-700/80 text-zinc-600 dark:text-zinc-400 border border-zinc-200/50 dark:border-zinc-700/50',
+                        )}
+                        disabled={limitReached || !session?.user}
+                        aria-label={
+                          session?.user
+                            ? 'Search the web'
+                            : 'Sign in to use web search'
+                        }
+                      >
+                        <Globe size={12} />
+                      </ShadcnButton>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      {session?.user
+                        ? 'Search the web'
+                        : 'Sign in to use web search'}
+                    </TooltipContent>
+                  </Tooltip>
+
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <ShadcnButton
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => {
+                          if (isThinkingMode) {
+                            setIsThinkingMode(false);
+                          } else {
+                            setIsThinkingMode(true);
+                            setIsWebSearchMode(false); // Deactivate web search mode
+                          }
+                        }}
                         className={cx(
                           'h-7 w-7 md:h-10 md:w-10 rounded-full p-0 touch-manipulation',
                           'transition-all duration-200',
@@ -737,9 +802,11 @@ function PureMultimodalInput({
           <div className="absolute bottom-1.5 left-3 md:bottom-3 md:left-5 text-xs text-zinc-400 dark:text-zinc-500 select-none pointer-events-none">
             {uploadQueue.length > 0
               ? `Uploading ${uploadQueue.length} file${uploadQueue.length > 1 ? 's' : ''}...`
-              : isThinkingMode
-                ? 'Reasoning mode: DeepSeek R1 will respond'
-                : 'Shift + Enter for new line'}
+              : isWebSearchMode
+                ? 'Web search mode: Will search the internet for current information'
+                : isThinkingMode
+                  ? 'Reasoning mode: DeepSeek R1 will respond'
+                  : 'Shift + Enter for new line'}
           </div>
         </div>
       </div>

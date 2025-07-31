@@ -35,6 +35,8 @@ export type CustomUIDataTypes = {
   imageDelta: string;
   sheetDelta: string;
   codeDelta: string;
+  pdfDelta: string;
+  pdfUrl: { url: string; fileName: string };
   suggestion: Suggestion;
   appendMessage: string;
   id: string;

@@ -5,37 +5,54 @@ import { updateChatTitleById, getChatById } from '@/lib/db/queries';
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  { params }: { params: { id: string } }
 ) {
   try {
-    const { title } = await request.json();
-    const { id: chatId } = await params;
-
-    // Check authentication
     const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!session?.user?.id) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
     }
 
-    // Verify chat exists and user has access
-    const chat = await getChatById({ id: chatId });
+    const { title } = await request.json();
+    
+    if (!title || typeof title !== 'string' || title.trim().length === 0) {
+      return NextResponse.json(
+        { error: 'Title is required and cannot be empty' },
+        { status: 400 }
+      );
+    }
+
+    // Check if chat exists and belongs to user
+    const chat = await getChatById(params.id);
     if (!chat) {
-      return NextResponse.json({ error: 'Chat not found' }, { status: 404 });
+      return NextResponse.json(
+        { error: 'Chat not found' },
+        { status: 404 }
+      );
     }
 
     if (chat.userId !== session.user.id) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 403 }
+      );
     }
 
-    // Update chat title in database
-    await updateChatTitleById({ chatId, title });
+    // Update the chat title
+    await updateChatTitleById({
+      chatId: params.id,
+      title: title.trim(),
+    });
 
-    return NextResponse.json({ success: true, title });
+    return NextResponse.json({ success: true, title: title.trim() });
   } catch (error) {
-    console.error('Failed to update chat title:', error);
+    console.error('Error updating chat title:', error);
     return NextResponse.json(
-      { error: 'Failed to update title' },
-      { status: 500 },
+      { error: 'Internal server error' },
+      { status: 500 }
     );
   }
 }

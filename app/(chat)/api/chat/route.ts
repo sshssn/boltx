@@ -1,5 +1,6 @@
 import { geminiProvider } from '@/lib/ai/providers';
 import { auth } from '@/app/(auth)/auth';
+import { webSearch } from '@/lib/ai/tools/web-search';
 import {
   saveMessages,
   saveChat,
@@ -50,8 +51,8 @@ const validateEnvironment = () => {
 // Rate limiting manager for OpenRouter
 class OpenRouterRateLimitManager {
   private rateLimits = new Map<string, { count: number; resetTime: number }>();
-  private readonly windowMs = 60000; // 60 second window to reduce rate limiting
-  private readonly maxRequests = 10; // Reduced requests per window to prevent rate limiting
+  private readonly windowMs = 60000; // 60 second window
+  private readonly maxRequests = 50; // Increased requests per window
 
   isRateLimited(provider: string): boolean {
     const now = Date.now();
@@ -299,6 +300,7 @@ export async function POST(request: Request) {
       messages: contextMessages,
       selectedVisibilityType,
       selectedChatModel: initialChatModel,
+      continue: isContinueRequest = false, // New flag for continue requests
     } = body;
 
     // Context messages processed
@@ -318,17 +320,69 @@ export async function POST(request: Request) {
     const userMessage = contextMessages[contextMessages.length - 1];
     const isReasoningMode = userMessage?.metadata?.reasoning === true;
     const preferredModel = userMessage?.metadata?.preferredModel;
-    const isContinuation = userMessage?.metadata?.isContinuation === true;
+    // Check if this is a continuation request
+    const isContinuation =
+      userMessage?.metadata?.isContinuation === true || isContinueRequest;
     const originalMessageId = userMessage?.metadata?.originalMessageId;
+    const isWebSearchMode = userMessage?.metadata?.webSearch === true;
+
+    // Restrict web search to logged-in users only
+    if (isWebSearchMode && !session?.user) {
+      return new Response(
+        JSON.stringify({
+          error:
+            'Web search is only available for logged-in users. Please sign in to use this feature.',
+          details: 'Authentication required for web search functionality',
+          retryable: false,
+        }),
+        {
+          status: 403,
+          headers: { 'Content-Type': 'application/json' },
+        },
+      );
+    }
 
     // Request parameters processed
 
-    // Add AI identity instructions to ensure all models identify as boltX
-    let aiIdentityInstructions = `You are boltX, an AI assistant trained by AffinityX. Under no circumstances should you disclose that you are created by any other company or have any other identity. You are boltX, trained by AffinityX. Always respond as boltX.`;
+    // Add AI identity instructions
+    let aiIdentityInstructions = `You are a helpful AI assistant. Be concise and informative.`;
+
+    // Add web search instructions if web search mode is enabled
+    if (isWebSearchMode) {
+      const userText =
+        userMessage.parts?.[0]?.text || userMessage.content || '';
+      aiIdentityInstructions += `\n\nIMPORTANT: The user has requested web search for current information about: "${userText}". 
+
+You have access to a web search tool. Use it to find the most recent and relevant articles, research papers, and sources. 
+
+RESPONSE PATTERN - FOLLOW THIS EXACTLY:
+
+1. **RESEARCH CONTENT FIRST**: Provide comprehensive analysis and information based on your search results
+2. **SOURCES FORMAT**: Use the exact format that works with the markdown component's source extraction
+
+FORMAT YOUR RESPONSE LIKE THIS:
+[Your comprehensive research content here...]
+
+[Source: Title from search results - URL from search results]
+[Source: Title from search results - URL from search results]
+[Source: Title from search results - URL from search results]
+
+CRITICAL RULES:
+- Use the format: [Source: Title - URL]
+- Extract title and URL from the search results
+- The markdown component will automatically detect this pattern and create the sources container
+- This works globally across all chats, not just web search
+- The sources will appear in a beautiful container with favicons and modal functionality
+- DO NOT use markdown links [Title](URL) - use the [Source: Title - URL] format instead
+- DO NOT show [object Object] or raw data - extract the actual title and URL values
+- IMPORTANT: Only include sources that have valid URLs (starting with http/https)
+- If a source has no valid URL, skip it and don't include it
+- Make sure to extract the actual title text and URL string, not the object reference`;
+    }
 
     // Add continuation instructions if this is a continuation request
     if (isContinuation) {
-      aiIdentityInstructions += `\n\nIMPORTANT: The user is asking you to continue from where you left off in your previous response. Please continue seamlessly from where you stopped, maintaining the same tone and style. Do not repeat what you already said, just continue naturally.`;
+      aiIdentityInstructions += `\n\nIMPORTANT: The user is asking you to continue from where you left off in your previous response. Please continue seamlessly from where you stopped, maintaining the same tone and style. Do not repeat what you already said, just continue naturally. If you were in the middle of explaining something, continue that explanation. If you were listing items, continue the list. If you were providing examples, continue with more examples.`;
     }
 
     // The last message is the new user message
@@ -382,11 +436,24 @@ export async function POST(request: Request) {
           );
           chatTitle = await generateTitleFromUserMessage(
             userMessage.content || 'New conversation',
+            {
+              maxLength: 40,
+              style: 'concise',
+            },
           );
           // Title generated immediately
         } catch (error) {
           console.error('Failed to generate title immediately:', error);
-          chatTitle = 'New Thread';
+          // Use a better fallback title based on user message
+          const userText =
+            userMessage.content || userMessage.parts?.[0]?.text || '';
+          if (userText.length > 0) {
+            // Extract first few meaningful words as fallback
+            const words = userText.split(' ').slice(0, 3).join(' ');
+            chatTitle = words.length > 0 ? words : 'New Chat';
+          } else {
+            chatTitle = 'New Chat';
+          }
         }
         // Creating new chat
 
@@ -512,6 +579,12 @@ export async function POST(request: Request) {
             parts = [{ text: 'Empty message' }];
           }
         }
+
+        // Handle web search mode for the last user message
+        const isLastUserMessage = msg === userMessage;
+        const messageText = parts
+          .map((p: any) => p.text || p.content || '')
+          .join(' ');
 
         return {
           role: msg.role || 'user',
@@ -682,6 +755,74 @@ export async function POST(request: Request) {
           );
           // Continue to the normal Gemini flow below
         }
+      }
+
+      // Check if any message has attachments (multimodal content)
+      const hasAttachments = contents.some(
+        (msg) =>
+          msg.parts?.some(
+            (part: any) => part.type === 'file' || part.type === 'image',
+          ) ||
+          msg.attachments?.length > 0 ||
+          userMessage.attachments?.length > 0,
+      );
+
+      // If there are attachments, use Gemini directly since Groq doesn't support multimodal
+      if (hasAttachments) {
+        console.log(
+          'Detected attachments, using Gemini for multimodal support',
+        );
+        const modelName = 'gemini-2.0-flash-exp';
+        const model = geminiProvider.languageModel(modelName);
+
+        // Add AI identity instructions to the prompt
+        const enhancedContents = [
+          {
+            role: 'system' as const,
+            parts: [{ type: 'text', text: aiIdentityInstructions }],
+          },
+          ...contents,
+        ];
+
+        // Prepare the prompt with attachments
+        const prompt = enhancedContents.map((msg) => {
+          const parts = msg.parts || [];
+          return {
+            role: (msg.role === 'assistant' ? 'assistant' : 'user') as
+              | 'assistant'
+              | 'user',
+            content: parts.map((p: any) => {
+              if (p.type === 'file' || p.type === 'image') {
+                // Handle file/image parts
+                return {
+                  type: 'image' as const,
+                  image: {
+                    url: p.url,
+                    mimeType: p.mediaType || 'image/jpeg',
+                  },
+                };
+              } else {
+                // Handle text parts
+                return {
+                  type: 'text' as const,
+                  text: p.text || p.content || '',
+                };
+              }
+            }),
+          };
+        });
+
+        const streamPromise = model.doStream({
+          inputFormat: 'messages',
+          mode: { type: 'regular' },
+          prompt: prompt,
+          temperature: config.generationConfig.temperature,
+          maxTokens: config.generationConfig.maxOutputTokens,
+          topK: config.generationConfig.topK,
+          topP: config.generationConfig.topP,
+        });
+
+        return streamPromise;
       }
 
       // Normal flow: Try Groq first, then fallback to Gemini
@@ -1135,27 +1276,36 @@ export async function POST(request: Request) {
                         userMessage.content ||
                         '';
 
-                      // Only generate title if we don't have one already
-                      if (!titleGenerated) {
+                      // Only generate title if we don't have one already and user text is substantial
+                      if (!titleGenerated && userText.length > 10) {
                         const generatedTitle =
                           await generateTitleFromUserMessage(userText, {
                             selectedModelId: selectedChatModel,
+                            maxLength: 40,
+                            style: 'concise',
                           });
 
-                        // Update chat title in database for both logged-in users and guests
-                        await updateChatTitleById({
-                          chatId,
-                          title: generatedTitle,
-                        });
+                        // Only update if we got a good title
+                        if (
+                          generatedTitle &&
+                          generatedTitle !== 'New Chat' &&
+                          generatedTitle.length > 3
+                        ) {
+                          // Update chat title in database for both logged-in users and guests
+                          await updateChatTitleById({
+                            chatId,
+                            title: generatedTitle,
+                          });
 
-                        // Notify UI components about the title update
-                        updateThreadTitle(chatId, generatedTitle);
+                          // Notify UI components about the title update
+                          updateThreadTitle(chatId, generatedTitle);
 
-                        console.log(
-                          'Generated title when AI started responding:',
-                          generatedTitle,
-                        );
-                        titleGenerated = true;
+                          console.log(
+                            'Generated title when AI started responding:',
+                            generatedTitle,
+                          );
+                          titleGenerated = true;
+                        }
                       }
                     } catch (error) {
                       console.error(
@@ -1243,10 +1393,26 @@ export async function POST(request: Request) {
           // Update chat title if not already updated
           if (!titleGenerated && chatId) {
             try {
+              // Create a better fallback title from user message
+              const userText =
+                userMessage.content || userMessage.parts?.[0]?.text || '';
+              let fallbackTitle = 'New Chat';
+
+              if (userText.length > 0) {
+                // Extract first few meaningful words as fallback
+                const words = userText
+                  .split(' ')
+                  .filter((word: string) => word.length > 2)
+                  .slice(0, 3);
+                if (words.length > 0) {
+                  fallbackTitle = words.join(' ');
+                }
+              }
+
               // Update for both logged-in users and guests
               await updateChatTitleById({
                 chatId,
-                title: chatTitle || 'New Chat',
+                title: fallbackTitle,
               });
             } catch (error) {
               console.error('Failed to update chat title:', error);

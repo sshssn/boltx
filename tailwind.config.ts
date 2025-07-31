@@ -10,9 +10,21 @@ const config: Config = {
   theme: {
     extend: {
       fontFamily: {
-        jetbrains: ['JetBrains Mono', 'monospace'],
+        // Global UI font
         sans: ['Inter', 'system-ui', 'sans-serif'],
-        mono: ['JetBrains Mono', 'monospace'],
+        
+        // Code blocks & AI outputs (monospaced)
+        mono: ['JetBrains Mono', 'Fira Code', 'Courier New', 'monospace'],
+        jetbrains: ['JetBrains Mono', 'Fira Code', 'Courier New', 'monospace'],
+        
+        // Article-style AI responses
+        article: ['IBM Plex Sans', 'Georgia', 'sans-serif'],
+        
+        // Tables & structured data
+        table: ['Roboto Mono', 'Consolas', 'monospace'],
+        
+        // PDF/Canvas export font
+        print: ['Merriweather', 'Georgia', 'serif'],
       },
       screens: {
         'toast-mobile': '600px',

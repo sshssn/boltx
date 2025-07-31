@@ -14,6 +14,9 @@ export const user = pgTable("User", {
 	dailyLimit: integer("daily_limit").default(20),
 	messagesSentToday: integer("messages_sent_today").default(0),
 	lastReset: date("last_reset"),
+	stripeCustomerId: varchar({ length: 255 }),
+	plan: varchar({ length: 20 }).default('free'),
+	lastUsernameChange: timestamp({ mode: 'string' }),
 },
 (table) => {
 	return {

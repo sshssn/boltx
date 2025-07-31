@@ -63,8 +63,8 @@ export function MessageLimitProvider({
       const lastCall = (fetchFromAPI as any).lastCall || 0;
       const timeSinceLastCall = now - lastCall;
 
-      if (timeSinceLastCall < 2000) {
-        // Minimum 2 seconds between calls
+      if (timeSinceLastCall < 5000) {
+        // Minimum 5 seconds between calls to reduce API load
         return null;
       }
 
@@ -253,7 +253,7 @@ export function MessageLimitProvider({
       } catch (error) {
         console.error('Periodic sync failed:', error);
       }
-    }, 600000); // Sync every 10 minutes instead of 5 minutes
+    }, 300000); // Sync every 5 minutes to reduce API calls
 
     return () => clearInterval(syncInterval);
   }, [refreshUsage]);

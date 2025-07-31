@@ -32,6 +32,8 @@ import { ChatTitleManager } from './chat-title-manager';
 import { GlobalMessageLimit } from '@/components/global-message-limit';
 import { CompactUsageCounter } from '@/components/compact-usage-counter';
 import { LoaderIcon } from './icons';
+import { WebSearchLoading } from './web-search-loading';
+import { generateUUID } from '@/lib/utils';
 
 interface ChatProps {
   id: string;
@@ -54,6 +56,12 @@ function ErrorDisplay({
       return 'Rate limit exceeded. Please try again in a moment.';
     }
     if (error?.status === 403) {
+      if (
+        error?.message?.includes('web search') ||
+        error?.message?.includes('authentication')
+      ) {
+        return 'Web search requires authentication. Please sign in to use this feature.';
+      }
       return 'Access denied. Please check your API configuration.';
     }
     if (error?.status >= 500) {
@@ -150,6 +158,7 @@ export function Chat({
   const [votes, setVotes] = useState<Vote[]>([]);
   const [currentTitle, setCurrentTitle] = useState<string>('New Chat');
   const [isTitleGenerating, setIsTitleGenerating] = useState<boolean>(false);
+  const [isWebSearchMode, setIsWebSearchMode] = useState<boolean>(false);
 
   // Get message limit data for the main chat component
   const { hasReachedLimit } = useMessageLimit();
@@ -394,10 +403,35 @@ export function Chat({
   };
 
   const handleContinue = () => {
-    if (messages.length > 0) {
+    if (messages.length > 0 && status === 'streaming') {
       const lastMessage = messages[messages.length - 1];
       if (lastMessage.role === 'assistant') {
-        regenerate();
+        // Send a continue request to the API
+        const continueMessage = {
+          id: generateUUID(),
+          role: 'user' as const,
+          content: 'Continue your response from where you left off.',
+          parts: [
+            {
+              type: 'text' as const,
+              text: 'Continue your response from where you left off.',
+            },
+          ],
+          createdAt: new Date(),
+          metadata: { continue: true },
+        };
+
+        // Add the continue flag to the message
+        const messageWithContinue = {
+          ...continueMessage,
+          continue: true, // This will be picked up by the API
+        };
+
+        handleNewMessage(messageWithContinue);
+
+        toast.success('Nudging AI to continue...', {
+          duration: 2000,
+        });
       }
     }
   };
@@ -439,6 +473,10 @@ export function Chat({
     if (status !== 'error') {
       setLastError(null);
     }
+
+    // Check if this is a web search message
+    const isWebSearch = message?.metadata?.webSearch === true;
+    setIsWebSearchMode(isWebSearch);
 
     // Clear any cached state to prevent loops
     if (typeof window !== 'undefined') {
@@ -493,6 +531,7 @@ export function Chat({
         flex flex-col min-w-0 h-screen chat-container
         bg-white dark:bg-zinc-950
         transition-all duration-300
+        text-base leading-relaxed
         ${isMobile ? 'pb-safe' : ''}
       `}
       >
@@ -544,7 +583,7 @@ export function Chat({
                 onGuestLimit={handleGuestLimit}
                 votes={votes}
                 limitReached={hasReachedLimit}
-                onContinue={handleContinue}
+                isWebSearchMode={isWebSearchMode}
               />
 
               {/* Reset button for debugging */}
@@ -637,6 +676,7 @@ export function Chat({
                     selectedVisibilityType={initialVisibilityType}
                     disabled={inputDisabled}
                     limitReached={hasReachedLimit}
+                    session={session}
                   />
                 </div>
               )}

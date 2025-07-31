@@ -177,12 +177,11 @@ function cleanGeneratedTitle(title: string): string {
 function validateTitle(title: string): boolean {
   if (!title || title.length < 2) return false;
 
-  // Check for generic/useless titles
+  // Check for generic/useless titles - more lenient now
   const genericTitles = [
     'title',
-    'chat',
-    'conversation',
-    'new',
+    'new conversation title',
+    'new chat',
     'untitled',
     'help',
     'question',
@@ -194,9 +193,12 @@ function validateTitle(title: string): boolean {
     'issue',
   ];
 
-  const lowerTitle = title.toLowerCase();
+  const lowerTitle = title.toLowerCase().trim();
+
+  // Only reject if it's exactly a generic title or starts with "new conversation"
   return !genericTitles.some(
-    (generic) => lowerTitle === generic || lowerTitle.startsWith(`${generic} `),
+    (generic) =>
+      lowerTitle === generic || lowerTitle.startsWith('new conversation'),
   );
 }
 
@@ -212,13 +214,13 @@ function generateFallbackTitle(userMessage: string, maxLength = 35): string {
     .replace(/[^\w\s]/g, '')
     .split(/\s+/)
     .filter((word) => word.length > 2 && !LOWERCASE_WORDS.has(word))
-    .slice(0, 3);
+    .slice(0, 4); // Take up to 4 words for better titles
 
   if (words.length === 0) {
     return 'New Chat';
   }
 
-  // Create a simple title from the first few meaningful words
+  // Create a simple title from the meaningful words
   const title = words
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join(' ');
@@ -251,8 +253,8 @@ async function generateTitleWithGemini(
       GEMINI_API_KEY ? 'SET' : 'NOT SET',
     );
 
-    // Add AI identity instructions to the title generation prompt
-    const enhancedPrompt = `You are boltX, an AI assistant trained by AffinityX. Generate a short, descriptive title (max 5 words) for this conversation: ${prompt}`;
+    // Remove boltX branding from title generation prompt
+    const enhancedPrompt = `Generate a short, descriptive title (max 5 words) for this conversation: ${prompt}`;
 
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${GEMINI_API_KEY}`,
@@ -339,8 +341,8 @@ async function generateTitleWithOpenRouter(
       GROQ_API_KEY ? 'SET' : 'NOT SET',
     );
 
-    // Add AI identity instructions to the title generation prompt
-    const enhancedPrompt = `You are boltX, an AI assistant trained by AffinityX. Generate a short, descriptive title (max 5 words) for this conversation: ${prompt}`;
+    // Remove boltX branding from title generation prompt
+    const enhancedPrompt = `Generate a short, descriptive title (max 5 words) for this conversation: ${prompt}`;
 
     const response = await fetch(
       'https://api.groq.com/openai/v1/chat/completions',
@@ -420,8 +422,8 @@ async function generateTitleWithGroqFallback(
       GROQ_API_KEY_2 ? 'SET' : 'NOT SET',
     );
 
-    // Add AI identity instructions to the title generation prompt
-    const enhancedPrompt = `You are boltX, an AI assistant trained by AffinityX. Generate a short, descriptive title (max 5 words) for this conversation: ${prompt}`;
+    // Remove boltX branding from title generation prompt
+    const enhancedPrompt = `Generate a short, descriptive title (max 5 words) for this conversation: ${prompt}`;
 
     const response = await fetch(
       'https://openrouter.ai/api/v1/chat/completions',
@@ -483,7 +485,7 @@ async function generateAITitle(
 ): Promise<string> {
   const cleanMessage = userMessage.trim().substring(0, 400);
 
-  // Optimized prompt for concise, specific titles
+  // Improved prompt for more consistent titles
   const titlePrompt = `Generate a concise 2-4 word title for this request. Focus on the main topic, technology, or task. Use proper English and be specific.
 
 Examples:
@@ -492,6 +494,8 @@ Examples:
 - "CSS Grid Layout" for CSS layout help
 - "API Error Debugging" for API troubleshooting
 - "Database Query Optimization" for SQL performance
+- "Cybersecurity Essentials" for security topics
+- "Clean Energy Technology" for energy topics
 
 User request: "${cleanMessage}"
 
@@ -516,7 +520,8 @@ Title (2-4 words only):`;
         return truncatedTitle;
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
       console.warn(`Title generation failed:`, errorMessage);
 
       // Skip to next provider immediately on rate limit
@@ -545,6 +550,8 @@ Good examples:
 - "SQL Performance Issue" 
 - "Python Algorithm Help"
 - "API Integration Guide"
+- "Cybersecurity Essentials"
+- "Clean Energy Technology"
 
 ${context}
 
@@ -599,7 +606,8 @@ export async function generateTitleFromAIResponse(
         return contextualTitle;
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
       console.error('Contextual title generation failed:', errorMessage);
     }
   }

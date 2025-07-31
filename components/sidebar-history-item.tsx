@@ -79,6 +79,8 @@ const PureChatItem = ({
   const [currentTitle, setCurrentTitle] = useState(chat.title);
   const [isGeneratingTitle, setIsGeneratingTitle] = useState(false);
   const [isRevealingTitle, setIsRevealingTitle] = useState(false);
+  const [isRenaming, setIsRenaming] = useState(false);
+  const [newTitle, setNewTitle] = useState(chat.title);
 
   useEffect(() => {
     const handleTitleUpdate = (event: CustomEvent) => {
@@ -200,6 +202,49 @@ const PureChatItem = ({
         </Link>
       </SidebarMenuButton>
 
+      {/* Rename input overlay */}
+      {isRenaming && (
+        <div className="absolute inset-0 z-20 bg-background border border-border rounded-lg">
+          <input
+            type="text"
+            value={newTitle}
+            onChange={(e) => setNewTitle(e.target.value)}
+            onKeyDown={async (e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                try {
+                  const response = await fetch(`/api/chat/${chat.id}/title`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ title: newTitle.trim() }),
+                  });
+                  
+                  if (response.ok) {
+                    setCurrentTitle(newTitle.trim());
+                    toast.success('Chat renamed successfully!');
+                  } else {
+                    const error = await response.json();
+                    toast.error(error.error || 'Failed to rename chat');
+                  }
+                } catch (error) {
+                  toast.error('Failed to rename chat');
+                }
+                setIsRenaming(false);
+              } else if (e.key === 'Escape') {
+                setNewTitle(currentTitle);
+                setIsRenaming(false);
+              }
+            }}
+            onBlur={() => {
+              setNewTitle(currentTitle);
+              setIsRenaming(false);
+            }}
+            className="w-full h-full px-3 py-2 bg-transparent border-none outline-none text-sm font-medium"
+            autoFocus
+          />
+        </div>
+      )}
+
       {/* Show delete button on hover - improved positioning */}
       {isHovered && !isGeneratingTitle && (
         <DropdownMenu>
@@ -228,8 +273,8 @@ const PureChatItem = ({
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                // TODO: Implement rename functionality
-                toast.info('Rename functionality coming soon!');
+                setIsRenaming(true);
+                setNewTitle(currentTitle);
               }}
             >
               <svg

@@ -57,6 +57,8 @@ const PurePreviewMessage = ({
   );
 
   // Check if message was cut off (ends abruptly)
+  const [showNudgeButton, setShowNudgeButton] = useState(false);
+
   const isMessageCutOff =
     message.role === 'assistant' &&
     (() => {
@@ -66,22 +68,55 @@ const PurePreviewMessage = ({
         .join('')
         .trim();
 
-      // Check for common cut-off indicators
+      // Only consider it cut off if:
+      // 1. It's substantial content (more than 100 characters)
+      // 2. It ends with specific cut-off indicators
+      // 3. The AI is still actively streaming (not finished)
+      if (textContent.length < 100) return false;
+
+      // More specific cut-off indicators - only for obvious cases
       const cutOffIndicators = [
         /\.\.\.$/, // Ends with ellipsis
-        /-$/, // Ends with dash
-        /,$/, // Ends with comma
-        /:$/, // Ends with colon
-        /;$/, // Ends with semicolon
-        /\s+$/, // Ends with whitespace
-        /[^.!?]$/, // Doesn't end with proper punctuation
+        /-$/, // Ends with dash (but not in URLs)
+        /[^.!?]\s*$/, // Doesn't end with proper sentence punctuation
       ];
 
-      return (
-        cutOffIndicators.some((indicator) => indicator.test(textContent)) &&
-        textContent.length > 50
-      ); // Only consider it cut off if it's substantial
+      // Check if it ends with a cut-off indicator
+      const hasCutOffIndicator = cutOffIndicators.some((indicator) =>
+        indicator.test(textContent),
+      );
+
+      // Only show cut-off if it has a clear indicator AND is substantial
+      return hasCutOffIndicator && textContent.length > 200;
     })();
+
+  // Show nudge button only after 30 seconds delay and only if AI is still streaming
+  useEffect(() => {
+    if (isMessageCutOff && isLoading) {
+      const timer = setTimeout(() => {
+        setShowNudgeButton(true);
+      }, 30000); // 30 seconds delay
+
+      return () => {
+        clearTimeout(timer);
+        setShowNudgeButton(false);
+      };
+    } else {
+      // Immediately hide nudge button when:
+      // 1. Message is not cut off
+      // 2. AI is not loading (finished streaming)
+      // 3. Component unmounts
+      setShowNudgeButton(false);
+    }
+  }, [isMessageCutOff, isLoading]);
+
+  // Additional effect to hide nudge button when streaming ends
+  useEffect(() => {
+    if (!isLoading && showNudgeButton) {
+      // Hide nudge button immediately when AI finishes streaming
+      setShowNudgeButton(false);
+    }
+  }, [isLoading, showNudgeButton]);
 
   useDataStream();
 
@@ -89,7 +124,7 @@ const PurePreviewMessage = ({
     <AnimatePresence>
       <motion.div
         data-testid={`message-${message.role}`}
-        className="w-full mx-auto max-w-3xl px-4 group/message my-6"
+        className="w-full mx-auto max-w-3xl px-4 group/message my-2"
         initial={{ y: 5, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         data-role={message.role}
@@ -97,7 +132,7 @@ const PurePreviewMessage = ({
       >
         <div
           className={cn(
-            'flex gap-4 w-full group-data-[role=user]/message:ml-auto group-data-[role=user]/message:max-w-2xl',
+            'flex gap-2 w-full group-data-[role=user]/message:ml-auto group-data-[role=user]/message:max-w-md',
             {
               'w-full': mode === 'edit',
               'group-data-[role=user]/message:w-fit': mode !== 'edit',
@@ -113,8 +148,10 @@ const PurePreviewMessage = ({
           )}
 
           <div
-            className={cn('flex flex-col gap-4 w-full', {
-              'min-h-96': message.role === 'assistant' && requiresScrollPadding,
+            className={cn('flex flex-col w-full', {
+              'gap-4 min-h-96':
+                message.role === 'assistant' && requiresScrollPadding,
+              'gap-2': message.role === 'user',
             })}
           >
             {attachmentsFromMessage.length > 0 && (
@@ -152,14 +189,14 @@ const PurePreviewMessage = ({
               if (type === 'text') {
                 if (mode === 'view') {
                   return (
-                    <div key={key} className="flex flex-row gap-2 items-start">
+                    <div key={key} className="flex flex-row gap-1 items-start">
                       {message.role === 'user' && !isReadonly && (
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <Button
                               data-testid="message-edit-button"
                               variant="ghost"
-                              className="px-2 h-fit rounded-full text-indigo-500 hover:bg-indigo-50 hover:text-indigo-700 focus-visible:ring-2 focus-visible:ring-indigo-500 transition opacity-0 group-hover/message:opacity-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                              className="px-1 h-fit rounded-full text-indigo-500 hover:bg-indigo-50 hover:text-indigo-700 focus-visible:ring-2 focus-visible:ring-indigo-500 transition opacity-0 group-hover/message:opacity-100 disabled:opacity-50 disabled:cursor-not-allowed"
                               onClick={() => {
                                 setMode('edit');
                               }}
@@ -179,21 +216,30 @@ const PurePreviewMessage = ({
                       <div
                         data-testid="message-content"
                         className={cn('flex flex-col gap-4 w-full', {
-                          // User bubble: consistent glassmorphism styling like multimodal-input
-                          'bg-white/90 dark:bg-zinc-900/90 backdrop-blur-xl backdrop-saturate-150 border border-zinc-200/60 dark:border-zinc-700/60 shadow-lg shadow-black/5 dark:shadow-black/20 rounded-2xl px-4 py-3 text-zinc-900 dark:text-zinc-100':
+                          // User bubble: ChatGPT-style compact design
+                          'bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 shadow-sm rounded-lg px-1.5 py-px text-zinc-900 dark:text-zinc-100 text-sm leading-relaxed':
                             message.role === 'user',
                         })}
                       >
                         {message.role === 'assistant' ? (
                           <>
                             <Markdown>{sanitizeText(part.text)}</Markdown>
-                            {isMessageCutOff && (
-                              <div className="flex items-center gap-2 mt-2 p-2 bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
-                                <div className="size-2 bg-yellow-500 rounded-full animate-pulse" />
-                                <span className="text-sm text-yellow-700 dark:text-yellow-300">
-                                  Response was cut off. Use the Continue button
-                                  to resume.
-                                </span>
+                            {showNudgeButton && (
+                              <div className="flex items-center justify-between gap-3 mt-3 p-3 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                                <div className="flex items-center gap-2">
+                                  <div className="size-2 bg-blue-500 rounded-full animate-pulse" />
+                                  <span className="text-sm text-blue-700 dark:text-blue-300">
+                                    AI seems to be taking a while. Would you
+                                    like to nudge it to continue?
+                                  </span>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={onContinue}
+                                  className="px-3 py-1.5 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors font-medium"
+                                >
+                                  Continue
+                                </button>
                               </div>
                             )}
                           </>
@@ -207,7 +253,10 @@ const PurePreviewMessage = ({
 
                 if (mode === 'edit') {
                   return (
-                    <div key={key} className="flex flex-row gap-2 items-start">
+                    <div
+                      key={key}
+                      className="flex flex-row gap-1.5 items-start"
+                    >
                       <div className="size-8" />
 
                       <MessageEditor
@@ -369,13 +418,11 @@ const PurePreviewMessage = ({
 
             {!isReadonly && (
               <MessageActions
-                key={`action-${message.id}`}
                 chatId={chatId}
                 message={message}
                 vote={vote}
                 isLoading={isLoading}
                 regenerate={regenerate}
-                onContinue={isMessageCutOff ? onContinue : undefined}
               />
             )}
           </div>

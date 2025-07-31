@@ -7,7 +7,7 @@ import { updateDocumentPrompt } from '@/lib/ai/prompts';
 const createV2CompatibleModel = (v1Model: any) => ({
   ...v1Model,
   specificationVersion: 'v2' as const,
-  supportedUrls: { '*': [/.*/] },
+  supportedUrls: {}, // No web access - prevent hallucinated links
 });
 
 export const textDocumentHandler = createDocumentHandler<'text'>({

@@ -209,7 +209,7 @@ export function SidebarHistory({
     fallbackData: [],
     revalidateOnFocus: false,
     revalidateOnReconnect: false,
-    refreshInterval: 30000, // Refresh every 30 seconds instead of 5
+    refreshInterval: 60000, // Refresh every 60 seconds to reduce API calls
   });
 
   // Listen for new chat creation
