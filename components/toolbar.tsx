@@ -150,10 +150,12 @@ const ReadingLevelSelector = ({
 
   // Use simple array instead of nanoid to prevent temporal dead zone
   const randomArr = ['a', 'b', 'c', 'd', 'e', 'f'];
-  
-  // Initialize motion values at the top level
+
+  // Initialize motion values first
   const motionY = useMotionValue(-40 * 2);
   const dragConstraints = 5 * 40 + 2;
+
+  // THEN use them in useTransform (this was the issue!)
   const yToLevel = useTransform(motionY, [0, -dragConstraints], [0, 5]);
 
   const [currentLevel, setCurrentLevel] = useState(2);
