@@ -108,9 +108,22 @@ export function AppSidebar({
   const [search, setSearch] = useState('');
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [showFloatingSearch, setShowFloatingSearch] = useState(false);
+  const [sessionState, setSessionState] = useState<any>(null);
 
-  // Prefer SSR user prop, fallback to client session
-  const user = typeof userProp !== 'undefined' ? userProp : session?.user;
+  // Enhanced session management for mobile
+  useEffect(() => {
+    // Update session state when session changes
+    if (session) {
+      setSessionState(session);
+    } else if (status === 'loading') {
+      // Keep previous session state while loading
+    } else {
+      setSessionState(null);
+    }
+  }, [session, status]);
+
+  // Prefer SSR user prop, fallback to client session, then session state
+  const user = typeof userProp !== 'undefined' ? userProp : (session?.user || sessionState?.user);
   const userType = user?.type;
   const isRegularUser = userType === 'regular';
   const isAdminUser = userType === 'admin';
@@ -190,6 +203,18 @@ export function AppSidebar({
       );
     };
   }, []);
+
+  // Mobile-optimized sidebar behavior
+  if (isMobile) {
+    // On mobile, always show a minimal floating toggle when sidebar is closed
+    if (!open) {
+      return (
+        <div className="fixed left-4 top-4 z-50">
+          <SidebarToggle className="!shadow-lg !border !bg-white/95 dark:!bg-zinc-900/95 backdrop-blur-xl border-zinc-200/80 dark:border-zinc-700/80 hover:!bg-white/98 dark:hover:!bg-zinc-900/98 transition-all duration-200 !p-3 !h-12 !w-12 rounded-xl" />
+        </div>
+      );
+    }
+  }
 
   // Desktop/tablet floating controls when sidebar is closed
   if (!open && !isMobile) {

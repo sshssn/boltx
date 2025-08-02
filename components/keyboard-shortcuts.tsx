@@ -28,10 +28,18 @@ export function KeyboardShortcuts({
   const router = useRouter();
 
   // Use sidebar hook with fallback
-  const sidebarData = useSidebar();
-  const toggleSidebar = sidebarData?.toggleSidebar || (() => {
+  let toggleSidebar = () => {
     console.log('Sidebar not available - toggle ignored');
-  });
+  };
+  
+  try {
+    const sidebarData = useSidebar();
+    if (sidebarData?.toggleSidebar) {
+      toggleSidebar = sidebarData.toggleSidebar;
+    }
+  } catch (error) {
+    // Sidebar not available, use default function
+  }
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {

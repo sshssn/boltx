@@ -149,7 +149,18 @@ function PureMultimodalInput({
 }) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { width } = useWindowSize();
-  const { open: sidebarOpen, isMobile } = useSidebar();
+  // Safely use sidebar with fallback
+  let sidebarOpen = false;
+  let isMobile = false;
+  try {
+    const sidebarData = useSidebar();
+    sidebarOpen = sidebarData.open;
+    isMobile = sidebarData.isMobile;
+  } catch (error) {
+    // Sidebar not available, use defaults
+    sidebarOpen = false;
+    isMobile = false;
+  }
   const [showPasteIndicator, setShowPasteIndicator] = useState(false);
   const [isThinkingMode, setIsThinkingMode] = useState(false);
   const [isWebSearchMode, setIsWebSearchMode] = useState(false);
@@ -579,7 +590,7 @@ function PureMultimodalInput({
         </div>
       )}
 
-      {/* Main input container */}
+      {/* Main input container - Mobile Optimized */}
       <div
         className={cx('relative', disabled && 'pointer-events-none')}
         onDragEnter={handleDragEnter}
@@ -590,17 +601,20 @@ function PureMultimodalInput({
         <div
           className={cx(
             'relative flex items-end min-h-[44px] md:min-h-[80px] w-full',
-            // Consistent glassmorphism that doesn't change on focus
-            'bg-white/90 dark:bg-zinc-900/90',
+            // Mobile-optimized glassmorphism
+            'bg-white/95 dark:bg-zinc-900/95',
             'backdrop-blur-xl backdrop-saturate-150',
             'border border-zinc-200/60 dark:border-zinc-700/60',
             'shadow-lg shadow-black/5 dark:shadow-black/20',
             'rounded-xl md:rounded-2xl',
             'transition-all duration-200 ease-out',
-            // Subtle hover and focus effects without changing the main blur
-            'hover:bg-white/95 dark:hover:bg-zinc-900/95',
+            // Mobile-friendly hover and focus effects
+            'hover:bg-white/98 dark:hover:bg-zinc-900/98',
             'focus-within:border-zinc-300/80 dark:focus-within:border-zinc-600/80',
             'focus-within:shadow-xl focus-within:shadow-black/10',
+            // Mobile-specific optimizations
+            'touch-manipulation',
+            'safe-area-inset-bottom',
             isDragging &&
               'border-blue-400 dark:border-blue-500 bg-blue-50/30 dark:bg-blue-900/20',
           )}

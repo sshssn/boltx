@@ -139,6 +139,9 @@
     @media (max-width: 768px) {
         body {
             @apply bg-background text-foreground;
+            /* Prevent zoom on input focus */
+            -webkit-text-size-adjust: 100%;
+            -ms-text-size-adjust: 100%;
         }
         
         /* Ensure proper contrast on mobile */
@@ -149,11 +152,16 @@
         /* Fix mobile chat area visibility */
         .chat-container {
             @apply bg-background;
+            /* Mobile-specific viewport handling */
+            min-height: -webkit-fill-available;
+            height: 100dvh;
         }
         
         /* Ensure mobile chat area is properly visible */
         .chat-container .flex-1 {
             @apply bg-background;
+            /* Safe area handling for mobile */
+            padding-bottom: calc(120px + env(safe-area-inset-bottom));
         }
         
         /* Ensure sidebar doesn't overlap content */
@@ -164,6 +172,44 @@
         /* Fix mobile input areas */
         input, textarea {
             @apply bg-background text-foreground;
+            /* Prevent zoom on iOS */
+            font-size: 16px !important;
+            transform: scale(1);
+        }
+
+        /* Mobile-specific touch optimizations */
+        button, [role="button"] {
+            min-height: 44px;
+            min-width: 44px;
+        }
+
+        /* Mobile input optimizations */
+        .multimodal-input {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            z-index: 30;
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+
+        /* Mobile sidebar optimizations */
+        .sidebar-mobile {
+            width: 100vw;
+            max-width: 320px;
+        }
+
+        /* Mobile message optimizations */
+        .message-container {
+            padding-left: 16px;
+            padding-right: 16px;
+        }
+
+        /* Mobile keyboard handling */
+        @media (max-height: 600px) {
+            .chat-container .flex-1 {
+                padding-bottom: 80px;
+            }
         }
     }
 }

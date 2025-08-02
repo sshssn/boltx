@@ -9,8 +9,17 @@ import { useState } from 'react';
 
 export function CompactUsageCounter() {
   const { data: session } = useSession();
-  const { open } = useSidebar();
   const [isDismissed, setIsDismissed] = useState(false);
+  
+  // Safely use sidebar with fallback
+  let sidebarOpen = false;
+  try {
+    const { open } = useSidebar();
+    sidebarOpen = open;
+  } catch (error) {
+    // Sidebar not available, continue without it
+    sidebarOpen = false;
+  }
   
   let messagesUsed = 0;
   let messagesLimit = 0;
@@ -31,7 +40,7 @@ export function CompactUsageCounter() {
   }
 
   // Don't show if loading, if sidebar is open, if dismissed, or if guest hasn't used any messages
-  if (isLoading || open || isDismissed || (isGuest && messagesUsed === 0))
+  if (isLoading || sidebarOpen || isDismissed || (isGuest && messagesUsed === 0))
     return null;
 
   // Don't show if user has unlimited messages

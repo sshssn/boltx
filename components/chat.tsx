@@ -571,6 +571,7 @@ export function Chat({
         transition-all duration-300
         text-base leading-relaxed
         ${isMobile ? 'pb-safe' : ''}
+        relative
       `}
       >
         <div className="flex-1 flex flex-col relative overflow-hidden">
@@ -578,8 +579,9 @@ export function Chat({
             <div
               className={`
               flex-1 flex items-center justify-center p-4
-              ${isMobile ? 'pb-20' : 'pb-36'}
+              ${isMobile ? 'pb-24' : 'pb-36'}
               overflow-y-auto
+              safe-area-inset-bottom
             `}
             >
               <div className="w-full max-w-2xl">
@@ -607,22 +609,28 @@ export function Chat({
                 </div>
               )}
 
-              {/* Title display removed - sidebar shows the title */}
-
-              <Messages
-                chatId={id}
-                status={status}
-                messages={messages}
-                setMessages={setMessages}
-                regenerate={regenerate}
-                isReadonly={isReadonly}
-                isArtifactVisible={isArtifactVisible}
-                extraPaddingBottom
-                onGuestLimit={handleGuestLimit}
-                votes={votes}
-                limitReached={hasReachedLimit}
-                isWebSearchMode={isWebSearchMode}
-              />
+              {/* Messages Container - Mobile Optimized */}
+              <div className={`
+                flex-1 overflow-y-auto
+                ${isMobile ? 'pb-24' : 'pb-36'}
+                safe-area-inset-bottom
+                scroll-smooth
+              `}>
+                <Messages
+                  chatId={id}
+                  status={status}
+                  messages={messages}
+                  setMessages={setMessages}
+                  regenerate={regenerate}
+                  isReadonly={isReadonly}
+                  isArtifactVisible={isArtifactVisible}
+                  extraPaddingBottom
+                  onGuestLimit={handleGuestLimit}
+                  votes={votes}
+                  limitReached={hasReachedLimit}
+                  isWebSearchMode={isWebSearchMode}
+                />
+              </div>
 
               {/* Reset button for debugging */}
               {process.env.NODE_ENV === 'development' && (
@@ -643,10 +651,12 @@ export function Chat({
           {/* Enhanced Input Section - Mobile Optimized */}
           <div
             className={`
-            absolute inset-x-0 bottom-0 z-20
+            fixed inset-x-0 bottom-0 z-30
             bg-gradient-to-t from-white via-white to-transparent 
             dark:from-zinc-950 dark:via-zinc-950 dark:to-transparent
             ${isMobile ? 'pb-safe' : ''}
+            safe-area-inset-bottom
+            transition-all duration-300
           `}
           >
             {/* Error Display */}
