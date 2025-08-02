@@ -10,6 +10,7 @@ import { SessionProvider } from 'next-auth/react';
 import { auth } from './(auth)/auth';
 import { DashboardOverlay } from '@/components/dashboard-overlay';
 import { Analytics } from '@vercel/analytics/next';
+import { SpeedInsights } from '@vercel/speed-insights/next';
 import { MobileWarning } from '@/components/mobile-warning';
 
 export const metadata: Metadata = {
@@ -100,6 +101,7 @@ export default async function RootLayout({
                   </main>
                   <MobileWarning />
                   <Analytics />
+                  <SpeedInsights />
                 </GlobalShortcutsProvider>
               </ChatTitleUpdatesProvider>
             </OnboardingProvider>

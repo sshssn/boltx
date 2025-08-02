@@ -363,7 +363,7 @@ const smartTextProcessing = (text: string): string => {
   // Step 4: Fix currency and units
   processed = processed
     .replace(/\$(\d)/g, '$$$1') // Ensure $ is attached to numbers
-    .replace/(\d+)(USD|EUR|GBP|JPY|CAD)/gi, '$1 $2') // Add space before currency codes
+    .replace(/(\d+)(USD|EUR|GBP|JPY|CAD)/gi, '$1 $2') // Add space before currency codes
     .replace(/(\d+)(kg|lb|oz|g|mg|km|mi|ft|in|cm|mm|m)/g, '$1 $2'); // Add space before units
   
   // Step 5: Fix common word combinations that get stuck together
