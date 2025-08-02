@@ -9,8 +9,8 @@ async function setupAdmin() {
     const connection = postgres(process.env.POSTGRES_URL, { max: 1 });
     const db = drizzle(connection);
 
-    const adminEmail = 'sshssn@yahoo.com';
-    const adminPassword = 'Sarmad@9800_';
+    const adminEmail = process.env.ADMIN_EMAIL || 'admin@boltX.com';
+    const adminPassword = process.env.ADMIN_PASSWORD || 'ChangeMe123!';
 
     // Hash the password
     const hashedPassword = await hash(adminPassword, 10);

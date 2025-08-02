@@ -28,7 +28,7 @@ interface SearchResponse {
 }
 
 // Rate limiting for Brave API
-const BRAVE_API_KEY = 'BSAq4w05SU-XiQpz9SwEZr2CZL467AL';
+const BRAVE_API_KEY = process.env.BRAVE_API_KEY || 'BSAq4w05SU-XiQpz9SwEZr2CZL467AL';
 const DAILY_LIMIT = 50; // Increased from 5 to 50 calls per day for better UX
 
 // Simple in-memory rate limiting (in production, use Redis or database)
