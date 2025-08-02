@@ -123,11 +123,12 @@ export const {
             // Update the user object with existing user info
             user.id = existingUser.id;
             user.role = existingUser.role;
+            // Only set admin type if user is actually admin in database
             user.type = existingUser.role === 'admin' ? 'admin' : 'regular';
             user.username = existingUser.username;
             return true; // Allow sign in
           } else {
-            // Create new user
+            // Create new user as regular (not admin)
             const newUser = await createUser(
               user.email,
               '', // No password for OAuth users
@@ -138,7 +139,8 @@ export const {
               // Update the user object with our database user info
               user.id = newUser[0].id;
               user.role = newUser[0].role;
-              user.type = newUser[0].role === 'admin' ? 'admin' : 'regular';
+              // Always create as regular user, not admin
+              user.type = 'regular';
               return true;
             }
           }

@@ -23,7 +23,7 @@ export const user = pgTable('User', {
   plan: varchar('plan', { length: 20 }).default('free'), // 'free' or 'pro'
   lastUsernameChange: timestamp('lastUsernameChange'),
   // Admin role management
-  role: varchar('role', { length: 20 }).default('client'), // 'admin' or 'client'
+  role: varchar('role', { length: 20 }).default('regular'), // 'admin' or 'regular'
   // Legacy columns (keeping for backward compatibility)
   userType: text('user_type').default('free'),
   dailyLimit: integer('daily_limit').default(20),

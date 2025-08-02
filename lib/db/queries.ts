@@ -71,7 +71,7 @@ export async function createUser(
         email,
         password: hashedPassword,
         username: username || null,
-        role: 'client',
+        role: 'regular',
       })
       .returning({
         id: user.id,

@@ -21,7 +21,8 @@ export function UsageCounter() {
     return null;
   }
 
-  const { messagesUsed, messagesLimit, remaining, isGuest, isLoading } = messageLimitData;
+  const { messagesUsed, messagesLimit, remaining, isGuest, isLoading } =
+    messageLimitData;
 
   // Don't show if loading
   if (isLoading) return null;

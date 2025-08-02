@@ -35,7 +35,7 @@ export function MessageLimitProvider({
 }: { children: React.ReactNode }) {
   const { data: session } = useSession();
   const isGuest = !session?.user?.id; // Consider user guest if no session
-  const isRegular = session?.user?.role === 'client';
+  const isRegular = session?.user?.role === 'regular';
   const isAdmin = session?.user?.role === 'admin';
 
   const [messagesUsed, setMessagesUsed] = useState(0);

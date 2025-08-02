@@ -15,9 +15,9 @@ export default function LoginPage() {
       if (session.user.role === 'admin') {
         // Admin users go to admin dashboard
         router.replace('/admin');
-      } else if (session.user.role === 'client') {
-        // Regular users go to welcome page
-        router.replace('/welcome');
+      } else if (session.user.role === 'regular') {
+        // Regular users go to main chat page
+        router.replace('/');
       }
       // Don't redirect guest users - let them stay on auth page to sign in
     }

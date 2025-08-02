@@ -39,13 +39,14 @@ function getGravatarUrl(email: string) {
 // Compact usage display for sidebar
 function CompactUsageDisplay() {
   const messageLimitData = useMessageLimit();
-  
+
   // Check if the hook is available
   if (!messageLimitData) {
     return null;
   }
 
-  const { messagesUsed, messagesLimit, remaining, isGuest, isLoading } = messageLimitData;
+  const { messagesUsed, messagesLimit, remaining, isGuest, isLoading } =
+    messageLimitData;
 
   // Don't show if loading
   if (isLoading) return null;
@@ -123,7 +124,10 @@ export function AppSidebar({
   }, [session, status]);
 
   // Prefer SSR user prop, fallback to client session, then session state
-  const user = typeof userProp !== 'undefined' ? userProp : (session?.user || sessionState?.user);
+  const user =
+    typeof userProp !== 'undefined'
+      ? userProp
+      : session?.user || sessionState?.user;
   const userType = user?.type;
   const isRegularUser = userType === 'regular';
   const isAdminUser = userType === 'admin';

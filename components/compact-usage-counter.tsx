@@ -10,16 +10,8 @@ import { useState } from 'react';
 export function CompactUsageCounter() {
   const { data: session } = useSession();
   const [isDismissed, setIsDismissed] = useState(false);
-  
-  // Safely use sidebar with fallback
-  let sidebarOpen = false;
-  try {
-    const { open } = useSidebar();
-    sidebarOpen = open;
-  } catch (error) {
-    // Sidebar not available, continue without it
-    sidebarOpen = false;
-  }
+  const sidebarData = useSidebar();
+  const sidebarOpen = sidebarData?.open || false;
   
   let messagesUsed = 0;
   let messagesLimit = 0;
