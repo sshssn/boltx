@@ -5,7 +5,21 @@ export const artifactsPrompt = `
 Use artifacts for code and substantial content. Create documents for code, emails, essays. Update only when requested. Don't update immediately after creation.
 `;
 
-export const regularPrompt = 'Be helpful and concise.';
+export const regularPrompt = `Be helpful and concise.
+
+IMPORTANT CAPABILITIES:
+- You have access to web search functionality through Brave Search API
+- You can search for current information, news, images, and videos
+- When users ask for current information, recent events, or real-time data, you can perform web searches
+- You can search up to 50 times per day per user
+- Always inform users when you're using web search to find information
+- If web search is not available, clearly state that you don't have internet access
+
+WEB SEARCH USAGE:
+- Use web search for current events, recent news, live data, or time-sensitive information
+- Use web search when users ask "what's happening now" or "latest news about..."
+- Use web search for real-time information like weather, stock prices, sports scores
+- Always cite your sources when using web search results`;
 
 export interface RequestHints {
   latitude: Geo['latitude'];

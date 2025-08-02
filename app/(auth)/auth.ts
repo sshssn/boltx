@@ -21,6 +21,7 @@ declare module 'next-auth' {
       role: string;
       type: UserType;
       username?: string | null;
+      image?: string | null;
     } & DefaultSession['user'];
   }
 
@@ -30,6 +31,7 @@ declare module 'next-auth' {
     username?: string | null;
     role: string;
     type: UserType;
+    image?: string | null;
   }
 }
 
@@ -39,7 +41,18 @@ declare module 'next-auth/jwt' {
     role: string;
     type: UserType;
     username?: string | null;
+    image?: string | null;
   }
+}
+
+// Debug environment variables in production
+if (process.env.NODE_ENV === 'production') {
+  console.log('Auth Environment Variables:', {
+    GITHUB_CLIENT_ID: process.env.GITHUB_CLIENT_ID ? 'SET' : 'MISSING',
+    GITHUB_CLIENT_SECRET: process.env.GITHUB_CLIENT_SECRET ? 'SET' : 'MISSING',
+    GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID ? 'SET' : 'MISSING',
+    GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET ? 'SET' : 'MISSING',
+  });
 }
 
 export const {
@@ -57,19 +70,27 @@ export const {
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
   providers: [
-    GitHubProvider({
-      clientId: process.env.GITHUB_CLIENT_ID || '', // Set in .env.local
-      clientSecret: process.env.GITHUB_CLIENT_SECRET || '', // Set in .env.local
-      authorization: {
-        params: {
-          prompt: 'consent',
-        },
-      },
-    }),
-    GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID || '', // Set in .env.local
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET || '', // Set in .env.local
-    }),
+    ...(process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET
+      ? [
+          GitHubProvider({
+            clientId: process.env.GITHUB_CLIENT_ID,
+            clientSecret: process.env.GITHUB_CLIENT_SECRET,
+            authorization: {
+              params: {
+                prompt: 'consent',
+              },
+            },
+          }),
+        ]
+      : []),
+    ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
+      ? [
+          GoogleProvider({
+            clientId: process.env.GOOGLE_CLIENT_ID,
+            clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+          }),
+        ]
+      : []),
     Credentials({
       credentials: {},
       async authorize({ email, password }: any) {
@@ -120,11 +141,37 @@ export const {
           if (existingUsers.length > 0) {
             // User exists, update their information
             const existingUser = existingUsers[0];
+
+            // CRITICAL SECURITY FIX: Only allow OAuth login if the existing user
+            // was also created via OAuth (has no password) or if they explicitly
+            // linked their account. This prevents OAuth users from hijacking admin accounts.
+
+            // If the existing user has a password, they created their account via credentials
+            // OAuth users should not be able to access credential-based accounts
+            if (existingUser.password) {
+              console.warn(
+                `OAuth login attempt for credential-based account: ${user.email}`,
+              );
+              return false; // Block the login
+            }
+
             // Update the user object with existing user info
             user.id = existingUser.id;
             user.role = existingUser.role;
-            // Only set admin type if user is actually admin in database
-            user.type = existingUser.role === 'admin' ? 'admin' : 'regular';
+
+            // ADDITIONAL SECURITY: OAuth users should never get admin privileges
+            // This is a double-check to ensure OAuth users cannot become admin
+            if (existingUser.role === 'admin') {
+              console.warn(
+                `OAuth user attempting to access admin account: ${user.email}`,
+              );
+              // For OAuth users, downgrade admin to regular user
+              user.role = 'regular';
+              user.type = 'regular';
+            } else {
+              user.type = existingUser.role === 'admin' ? 'admin' : 'regular';
+            }
+
             user.username = existingUser.username;
             return true; // Allow sign in
           } else {
@@ -139,8 +186,19 @@ export const {
               // Update the user object with our database user info
               user.id = newUser[0].id;
               user.role = newUser[0].role;
-              // Always create as regular user, not admin
+              // SECURITY: Always create OAuth users as regular, never admin
               user.type = 'regular';
+
+              // Double-check that the role is not admin
+              if (newUser[0].role === 'admin') {
+                console.error(
+                  `CRITICAL: OAuth user created with admin role: ${user.email}`,
+                );
+                // Force downgrade to regular
+                user.role = 'regular';
+                user.type = 'regular';
+              }
+
               return true;
             }
           }
@@ -158,6 +216,21 @@ export const {
         token.type = user.type;
         token.role = user.role;
         token.username = user.username;
+        token.image = user.image;
+
+        // FINAL SECURITY CHECK: Ensure OAuth users never get admin privileges
+        if (
+          account?.provider &&
+          (account.provider === 'google' || account.provider === 'github')
+        ) {
+          if (token.role === 'admin') {
+            console.warn(
+              `JWT: OAuth user with admin role detected, downgrading: ${user.email}`,
+            );
+            token.role = 'regular';
+            token.type = 'regular';
+          }
+        }
       }
 
       return token;
@@ -168,6 +241,19 @@ export const {
         session.user.type = token.type;
         session.user.role = token.role;
         session.user.username = token.username;
+        session.user.image = token.image;
+
+        // FINAL SESSION SECURITY CHECK: Double-check that OAuth users are not admin
+        // This is the last line of defense
+        if (session.user.role === 'admin') {
+          // Check if this is an OAuth session by looking at the token
+          // If we can't determine the provider, we'll be extra cautious
+          console.warn(
+            `Session: Admin role detected for user: ${session.user.email}`,
+          );
+          // For now, we'll log this but not automatically downgrade
+          // as it might be a legitimate admin user
+        }
       }
 
       return session;

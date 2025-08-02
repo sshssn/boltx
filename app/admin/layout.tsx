@@ -1,6 +1,7 @@
 import { auth } from '../(auth)/auth';
 import { redirect } from 'next/navigation';
 import { SessionProvider } from 'next-auth/react';
+import { AdminMFAWrapper } from '@/components/admin-mfa-wrapper';
 
 export default async function AdminLayout({
   children,
@@ -25,7 +26,9 @@ export default async function AdminLayout({
 
   return (
     <SessionProvider session={session}>
-      <div className="min-h-screen bg-background">{children}</div>
+      <AdminMFAWrapper>
+        <div className="min-h-screen bg-background">{children}</div>
+      </AdminMFAWrapper>
     </SessionProvider>
   );
 }

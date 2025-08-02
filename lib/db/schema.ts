@@ -24,6 +24,10 @@ export const user = pgTable('User', {
   lastUsernameChange: timestamp('lastUsernameChange'),
   // Admin role management
   role: varchar('role', { length: 20 }).default('regular'), // 'admin' or 'regular'
+  // MFA (Multi-Factor Authentication) fields
+  mfaEnabled: boolean('mfaEnabled').default(false),
+  mfaSecret: varchar('mfaSecret', { length: 255 }), // TOTP secret key
+  mfaBackupCodes: json('mfaBackupCodes'), // Backup codes for account recovery
   // Legacy columns (keeping for backward compatibility)
   userType: text('user_type').default('free'),
   dailyLimit: integer('daily_limit').default(20),
@@ -44,6 +48,7 @@ export const chat = pgTable('Chat', {
   visibility: varchar('visibility', { enum: ['public', 'private'] })
     .notNull()
     .default('private'),
+  pinned: boolean('pinned').default(false),
 });
 
 export type Chat = InferSelectModel<typeof chat>;

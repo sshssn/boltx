@@ -5,6 +5,7 @@ import React, {
   useState,
   Children,
   isValidElement,
+  useRef,
 } from 'react';
 import ReactMarkdown, { type Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -302,6 +303,121 @@ function SourcesContainer({
   );
 }
 
+// IMPROVED TEXT PROCESSING FUNCTIONS
+
+// Check if text looks incomplete (cut off)
+const isIncompleteText = (text: string): boolean => {
+  const trimmed = text.trim();
+  if (!trimmed) return false;
+  
+  // Check for common incomplete patterns
+  const incompletePatterns = [
+    /\w+\s*$/, // ends with partial word
+    /[,;]\s*$/, // ends with comma or semicolon
+    /\b(and|or|but|the|a|an|in|on|at|to|for|of|with|by)\s*$/i, // ends with common connecting words
+    /\d+\.\s*$/, // ends with number and period (incomplete list item)
+    /:\s*$/, // ends with colon
+    /\([^)]*$/, // unclosed parentheses
+    /\[[^\]]*$/, // unclosed brackets
+    /"[^"]*$/, // unclosed quotes
+  ];
+  
+  return incompletePatterns.some(pattern => pattern.test(trimmed));
+};
+
+// Smart text cleaning and formatting
+const smartTextProcessing = (text: string): string => {
+  if (!text || typeof text !== 'string') return '';
+  
+  let processed = text;
+  
+  // Step 1: Handle incomplete text by adding ellipsis if needed
+  if (isIncompleteText(processed)) {
+    processed = processed.trim() + '...';
+  }
+  
+  // Step 2: Fix spacing between numbers and letters (the main issue you mentioned)
+  processed = processed
+    // Fix "results98" -> "results 98"
+    .replace(/([a-zA-Z])(\d)/g, '$1 $2')
+    // Fix "98results" -> "98 results"  
+    .replace(/(\d)([a-zA-Z])/g, '$1 $2')
+    // Fix "version2.0" -> "version 2.0"
+    .replace(/([a-zA-Z])(\d+\.?\d*)/g, '$1 $2')
+    // Fix "2.0version" -> "2.0 version"
+    .replace(/(\d+\.?\d*)([a-zA-Z])/g, '$1 $2')
+    // Fix "COVID19" -> "COVID 19" (but keep common abbreviations)
+    .replace(/([A-Z]{2,})(\d+)/g, (match, letters, numbers) => {
+      // Keep common tech terms together
+      const keepTogether = ['HTML5', 'CSS3', 'HTTP2', 'IPv4', 'IPv6', 'UTF8', 'MD5', 'SHA256'];
+      if (keepTogether.includes(match)) return match;
+      return `${letters} ${numbers}`;
+    });
+  
+  // Step 3: Fix percentage formatting
+  processed = processed
+    .replace(/(\d+)%/g, '$1%') // Keep percentages together
+    .replace(/(\d+)\s*-\s*(\d+)%/g, '$1-$2%') // Fix ranges like "10 - 20%" -> "10-20%"
+    .replace(/(\d+)percent/gi, '$1%'); // Convert "percent" to "%"
+  
+  // Step 4: Fix currency and units
+  processed = processed
+    .replace(/\$(\d)/g, '$$$1') // Ensure $ is attached to numbers
+    .replace/(\d+)(USD|EUR|GBP|JPY|CAD)/gi, '$1 $2') // Add space before currency codes
+    .replace(/(\d+)(kg|lb|oz|g|mg|km|mi|ft|in|cm|mm|m)/g, '$1 $2'); // Add space before units
+  
+  // Step 5: Fix common word combinations that get stuck together
+  processed = processed
+    .replace(/([a-z])([A-Z])/g, '$1 $2') // camelCase -> camel Case
+    .replace(/(\w)(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)/g, '$1 $2') // Fix months
+    .replace(/(\w)(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)/g, '$1 $2') // Fix days
+    .replace(/(\w)(AM|PM)/g, '$1 $2'); // Fix time
+  
+  // Step 6: Fix punctuation spacing
+  processed = processed
+    .replace(/([.!?])\s*([A-Z])/g, '$1 $2') // Ensure space after sentence endings
+    .replace(/([,;])\s*(\w)/g, '$1 $2') // Ensure space after commas and semicolons
+    .replace(/(\w)\s*([.!?])/g, '$1$2') // Remove space before sentence endings
+    .replace(/\s*([,;])/g, '$1') // Remove space before commas and semicolons
+    .replace(/([.!?]){2,}/g, '$1') // Remove multiple sentence endings
+    .replace(/\s*:\s*/g, ': ') // Normalize colon spacing
+    .replace(/\s*;\s*/g, '; '); // Normalize semicolon spacing
+  
+  // Step 7: Fix parentheses and brackets
+  processed = processed
+    .replace(/\s*\(\s*/g, ' (') // Space before opening parenthesis
+    .replace(/\s*\)\s*/g, ') ') // Space after closing parenthesis
+    .replace(/\s*\[\s*/g, ' [') // Space before opening bracket
+    .replace(/\s*\]\s*/g, '] '); // Space after closing bracket
+  
+  // Step 8: Fix quote spacing
+  processed = processed
+    .replace(/\s*"\s*/g, ' "') // Normalize quote spacing
+    .replace(/"\s*(\w)/g, '"$1') // Remove space after opening quote
+    .replace(/(\w)\s*"/g, '$1"'); // Remove space before closing quote
+  
+  // Step 9: Clean up multiple spaces and normalize whitespace
+  processed = processed
+    .replace(/\s+/g, ' ') // Multiple spaces -> single space
+    .replace(/\n\s+/g, '\n') // Remove spaces at start of lines
+    .replace(/\s+\n/g, '\n') // Remove spaces at end of lines
+    .replace(/\n{3,}/g, '\n\n') // Multiple newlines -> double newline
+    .replace(/^\s+|\s+$/g, ''); // Trim start and end
+  
+  // Step 10: Handle special cases and technical terms
+  processed = processed
+    .replace(/([Ww]eb)\s*([Ss]ite)/g, '$1$2') // website
+    .replace(/([Ee]mail)/g, 'email') // normalize email
+    .replace(/([Dd]ata)\s*([Bb]ase)/g, '$1$2') // database
+    .replace(/([Uu]ser)\s*([Nn]ame)/g, '$1$2') // username
+    .replace(/([Pp]ass)\s*([Ww]ord)/g, '$1$2') // password
+    .replace(/([Ff]ile)\s*([Nn]ame)/g, '$1$2') // filename
+    .replace(/([Uu]pdate)/g, 'update') // normalize update
+    .replace(/([Dd]ownload)/g, 'download'); // normalize download
+  
+  return processed;
+};
+
 // Extract and store links for the glass container
 const extractAndStoreLinks = (
   text: string,
@@ -348,27 +464,30 @@ const extractAndStoreLinks = (
   return { cleanText, sources };
 };
 
-// Ultimate web search formatter
+// Ultimate web search formatter with improved text processing
 const formatWebSearchResults = (
   text: string,
 ): {
   content: string;
   sources: Array<{ title: string; url: string; domain: string }>;
 } => {
+  // Apply smart text processing first
+  const processedText = smartTextProcessing(text);
+  
   // Don't format if it doesn't look like search results
   if (
-    !text.includes('Source:') &&
-    !text.includes('📊') &&
-    !text.includes('📰') &&
-    !text.includes('🏛️')
+    !processedText.includes('Source:') &&
+    !processedText.includes('📊') &&
+    !processedText.includes('📰') &&
+    !processedText.includes('🏛️')
   ) {
-    return { content: text, sources: [] };
+    return { content: processedText, sources: [] };
   }
 
-  // Extract links first
-  const { cleanText, sources } = extractAndStoreLinks(text);
+  // Extract links
+  const { cleanText, sources } = extractAndStoreLinks(processedText);
 
-  // Simply limit sources to 6 without any automatic filtering
+  // Limit sources to 6 without any automatic filtering
   const limitedSources = sources.slice(0, 6);
 
   // Remove any existing HTML containers
@@ -383,7 +502,7 @@ const formatWebSearchResults = (
     '',
   );
 
-  // Clean up formatting issues - output clean text without markdown
+  // Clean up formatting issues
   content = content
     // Remove asterisks and bullets
     .replace(/^\s*[•*]\s*\*/gm, '')
@@ -397,7 +516,7 @@ const formatWebSearchResults = (
     .replace(/(🏛️\s*)?Government Resources\s*:?\s*$/gm, '')
     .replace(/(🎓\s*)?Academic Sources\s*:?\s*$/gm, '')
 
-    // Fix numbered items with weird line breaks - keep as plain text
+    // Fix numbered items with weird line breaks
     .replace(
       /(\d+)\.\s*([A-Z][^\n]*?)\n([A-Z][^\n]*?)\n*:?\s*/g,
       (match, num, part1, part2) => {
@@ -406,7 +525,7 @@ const formatWebSearchResults = (
       },
     )
 
-    // Fix items split across multiple lines - keep as plain text
+    // Fix items split across multiple lines
     .replace(
       /(\d+)\.\s*([^\n:]+)\n([^\n:]+)\n*:?\s*/g,
       (match, num, part1, part2) => {
@@ -415,14 +534,8 @@ const formatWebSearchResults = (
       },
     )
 
-    // Handle "by Author:" patterns - keep as plain text
+    // Handle "by Author:" patterns
     .replace(/\n\s*by\s+([^:]+):\s*/gi, '\n\nBy: $1\n\n')
-
-    // Fix spacing issues
-    .replace(/(\w)(\d{4})/g, '$1 $2') // Add space before years
-    .replace(/(\d+)-(\d+)\s*%/g, '$1-$2%') // Fix percentage ranges
-    .replace(/of(\d+)%/g, ' of $1%') // Fix percentages
-    .replace(/by(\d{4})/g, 'by $1') // Fix years
 
     // Remove closing messages
     .replace(/I hope this information is helpful!\s*$/i, '')
@@ -432,56 +545,13 @@ const formatWebSearchResults = (
     .replace(/^\s*\n/gm, '\n')
     .trim();
 
+  // Apply final smart text processing to the cleaned content
+  content = smartTextProcessing(content);
+
   return { content, sources: limitedSources };
 };
 
-// Better text formatting
-const fixTextFormatting = (text: string): string => {
-  return (
-    text
-      // Fix spacing between words and numbers
-      .replace(/(\d)([A-Za-z])/g, '$1 $2') // Add space between number and letter
-      .replace(/([A-Za-z])(\d)/g, '$1 $2') // Add space between letter and number
-      .replace(/(\d)([^\d\s])/g, '$1 $2') // Add space between number and non-digit/non-space
-      .replace(/([^\d\s])(\d)/g, '$1 $2') // Add space between non-digit/non-space and number
-
-      // Fix spacing after sentence endings
-      .replace(/([.!?])\s*([A-Z])/g, '$1 $2')
-
-      // Fix spacing after punctuation
-      .replace(/([,;?!])(?![^\s])/g, '$1 ')
-
-      // Fix spacing around percentages
-      .replace(/(\d+)%/g, '$1 %')
-      .replace(/(\d+)-(\d+)%/g, '$1-$2 %')
-
-      // Fix spacing around years
-      .replace(/(\d{4})/g, (match) => {
-        // Only add space if it's not already surrounded by spaces
-        if (match.match(/^\d{4}$/)) return match;
-        return match;
-      })
-
-      // Normalize multiple spaces to single space
-      .replace(/[ \t]+/g, ' ')
-
-      // Remove leading spaces from lines
-      .replace(/\n[ \t]+/g, '\n')
-
-      // Normalize multiple newlines to double newlines
-      .replace(/\n{3,}/g, '\n\n')
-
-      // Fix spacing around dashes
-      .replace(/(\w)-(\w)/g, '$1 - $2')
-
-      // Fix spacing around colons
-      .replace(/(\w):(\w)/g, '$1: $2')
-
-      .trim()
-  );
-};
-
-// React Markdown Components
+// React Markdown Components (keeping your existing components but with improved text handling)
 const components: Partial<Components> = {
   code(props) {
     const { className = '', children, ...rest } = props;
@@ -533,7 +603,7 @@ const components: Partial<Components> = {
 
     return (
       <p
-        className="text-base leading-relaxed text-foreground my-2 font-article"
+        className="text-base leading-relaxed text-foreground my-2 font-article break-words"
         {...props}
       >
         {children}
@@ -565,7 +635,7 @@ const components: Partial<Components> = {
 
   li({ children, ...props }) {
     return (
-      <li className="text-base leading-relaxed font-article" {...props}>
+      <li className="text-base leading-relaxed font-article break-words" {...props}>
         {children}
       </li>
     );
@@ -589,12 +659,12 @@ const components: Partial<Components> = {
 
   a({ children, href, ...props }) {
     // For web search results, just show the text without making it a link
-    return <span className="text-foreground font-article">{children}</span>;
+    return <span className="text-foreground font-article break-words">{children}</span>;
   },
 
   h1: ({ children, ...props }) => (
     <h1
-      className="text-3xl font-bold text-foreground mt-6 mb-3 border-b border-border pb-2 font-article"
+      className="text-3xl font-bold text-foreground mt-6 mb-3 border-b border-border pb-2 font-article break-words"
       {...props}
     >
       {children}
@@ -692,7 +762,7 @@ const components: Partial<Components> = {
 
     return (
       <h2
-        className="text-2xl font-bold text-foreground mt-5 mb-2 border-b border-border pb-1 flex items-center font-article"
+        className="text-2xl font-bold text-foreground mt-5 mb-2 border-b border-border pb-1 flex items-center font-article break-words"
         {...props}
       >
         {icon}
@@ -701,25 +771,25 @@ const components: Partial<Components> = {
     );
   },
   h3: ({ children, ...props }) => (
-    <h3 className="text-xl font-semibold text-foreground mt-4 mb-2" {...props}>
+    <h3 className="text-xl font-semibold text-foreground mt-4 mb-2 break-words" {...props}>
       {children}
     </h3>
   ),
   h4: ({ children, ...props }) => (
-    <h4 className="text-lg font-semibold text-foreground mt-3 mb-2" {...props}>
+    <h4 className="text-lg font-semibold text-foreground mt-3 mb-2 break-words" {...props}>
       {children}
     </h4>
   ),
   h5: ({ children, ...props }) => (
     <h5
-      className="text-base font-semibold text-foreground mt-3 mb-1"
+      className="text-base font-semibold text-foreground mt-3 mb-1 break-words"
       {...props}
     >
       {children}
     </h5>
   ),
   h6: ({ children, ...props }) => (
-    <h6 className="text-sm font-semibold text-foreground mt-2 mb-1" {...props}>
+    <h6 className="text-sm font-semibold text-foreground mt-2 mb-1 break-words" {...props}>
       {children}
     </h6>
   ),
@@ -727,7 +797,7 @@ const components: Partial<Components> = {
   blockquote({ children, ...props }) {
     return (
       <blockquote
-        className="border-l-4 border-primary pl-4 py-2 my-3 bg-muted italic text-muted-foreground font-article"
+        className="border-l-4 border-primary pl-4 py-2 my-3 bg-muted italic text-muted-foreground font-article break-words"
         {...props}
       >
         {children}
@@ -792,7 +862,7 @@ const components: Partial<Components> = {
   th({ children, ...props }) {
     return (
       <th
-        className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider font-table"
+        className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider font-table break-words"
         {...props}
       >
         {children}
@@ -803,7 +873,7 @@ const components: Partial<Components> = {
   td({ children, ...props }) {
     return (
       <td
-        className="px-6 py-4 whitespace-nowrap text-sm text-card-foreground font-table"
+        className="px-6 py-4 whitespace-nowrap text-sm text-card-foreground font-table break-words"
         {...props}
       >
         {children}
@@ -840,8 +910,7 @@ const NonMemoizedMarkdown = ({
 }: { children: string; showSources?: boolean }) => {
   if (!children) return null;
 
-  const cleanedText = fixTextFormatting(children);
-  const { content, sources } = formatWebSearchResults(cleanedText);
+  const { content, sources } = formatWebSearchResults(children);
 
   return (
     <div className="prose prose-gray dark:prose-invert max-w-none">
@@ -862,10 +931,10 @@ export const Markdown = memo(
     prev.children === next.children && prev.showSources === next.showSources,
 );
 
-// Typewriter Component
+// IMPROVED Typewriter Component with proper streaming and cut-off handling
 export function MarkdownTypewriter({
   children,
-  speed = 25,
+  speed = 15, // Faster default speed
   isStreaming = false,
   showSources = true,
 }: {
@@ -876,41 +945,87 @@ export function MarkdownTypewriter({
 }) {
   const [displayedText, setDisplayedText] = useState('');
   const [isComplete, setIsComplete] = useState(false);
+  const timeoutRef = useRef<NodeJS.Timeout>();
+  const indexRef = useRef(0);
+  
   const fullText = children || '';
 
   useEffect(() => {
+    // Clear any existing timeout
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+    
     if (!fullText) {
       setDisplayedText('');
       setIsComplete(true);
       return;
     }
 
+    // If not streaming or text is very short, show immediately
+    if (!isStreaming || fullText.length < 50) {
+      setDisplayedText(fullText);
+      setIsComplete(true);
+      return;
+    }
+
+    // Reset state for new streaming
     setDisplayedText('');
     setIsComplete(false);
+    indexRef.current = 0;
 
-    let currentIndex = 0;
-    const interval = setInterval(() => {
-      if (currentIndex < fullText.length) {
-        setDisplayedText((prev) => fullText.slice(0, currentIndex + 1));
-        currentIndex++;
+    const streamText = () => {
+      if (indexRef.current < fullText.length) {
+        // Stream by words instead of characters for better performance
+        const words = fullText.split(/(\s+)/);
+        let wordIndex = 0;
+        let currentText = '';
+        
+        const streamWords = () => {
+          if (wordIndex < words.length) {
+            currentText += words[wordIndex];
+            setDisplayedText(currentText);
+            wordIndex++;
+            
+            // Adjust speed based on word length and type
+            let delay = speed;
+            const currentWord = words[wordIndex - 1];
+            if (currentWord && currentWord.length > 8) delay *= 1.5; // Slower for long words
+            if (currentWord && /[.!?]/.test(currentWord)) delay *= 2; // Pause at sentence ends
+            
+            timeoutRef.current = setTimeout(streamWords, delay);
+          } else {
+            setIsComplete(true);
+          }
+        };
+        
+        streamWords();
       } else {
         setIsComplete(true);
-        clearInterval(interval);
       }
-    }, speed);
+    };
 
-    return () => clearInterval(interval);
-  }, [fullText, speed]);
+    // Start streaming with a small delay
+    timeoutRef.current = setTimeout(streamText, 100);
 
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, [fullText, speed, isStreaming]);
+
+  // If streaming is complete or not streaming, show full content
   if (isComplete || !isStreaming) {
     return <Markdown showSources={showSources}>{fullText}</Markdown>;
   }
 
+  // While streaming, show partial content with cursor
   return (
     <div className="relative">
       <Markdown showSources={false}>{displayedText}</Markdown>
-      {!isComplete && (
-        <span className="inline-block w-2 h-5 bg-blue-500 ml-1 animate-pulse" />
+      {!isComplete && displayedText && (
+        <span className="inline-block w-0.5 h-5 bg-primary ml-1 animate-pulse" />
       )}
     </div>
   );

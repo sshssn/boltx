@@ -86,23 +86,32 @@ export function getAvatarUrl(email: string, size = 200): string {
     return `https://github.com/${username}.png?size=${size}`;
   }
 
-  // For Google users, use Gravatar with better fallback
+  // For Google users, try to get their Google profile picture
   if (email.includes('@gmail.com') || email.includes('@googlemail.com')) {
-    return getGravatarUrl(email, { size, default: 'retro' });
+    // Try Gravatar first, then fallback to a better default
+    return getGravatarUrl(email, { size, default: 'mp' });
   }
 
-  // For Yahoo users, Gravatar works well
-  if (email.includes('@yahoo.com') || email.includes('@ymail.com')) {
-    return getGravatarUrl(email, { size, default: 'identicon' });
-  }
-
-  // For all other providers, use Gravatar with identicon fallback
-  return getGravatarUrl(email, { size, default: 'identicon' });
+  // For all other providers, use Gravatar with better fallback
+  return getGravatarUrl(email, { size, default: 'mp' });
 }
 
 /**
  * Get avatar URL for React components with proper sizing
  */
 export function getAvatarUrlForComponent(email: string, size = 32): string {
+  return getAvatarUrl(email, size);
+}
+
+/**
+ * Get avatar URL with user's actual profile picture if available
+ */
+export function getAvatarUrlWithUserImage(email: string, userImage?: string | null, size = 32): string {
+  // If user has a profile picture from OAuth provider, use it
+  if (userImage) {
+    return userImage;
+  }
+  
+  // Otherwise fallback to Gravatar
   return getAvatarUrl(email, size);
 }

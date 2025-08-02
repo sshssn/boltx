@@ -25,7 +25,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { GlobalMessageLimit } from '@/components/global-message-limit';
 import { UsageCounter } from '@/components/usage-counter';
 import { useUsername } from '@/hooks/use-username';
-import { getAvatarUrlForComponent } from '@/lib/gravatar';
+import { getAvatarUrlWithUserImage } from '@/lib/gravatar';
 import { useMessageLimit } from '@/components/message-limit-provider';
 import { MessageSquare, Zap } from 'lucide-react';
 
@@ -135,7 +135,7 @@ export function AppSidebar({
   const { username } = useUsername();
   const displayUsername = username || user?.name?.split(' ')[0] || '';
   const avatarUrl = user?.email
-    ? getAvatarUrlForComponent(user.email, 48)
+    ? getAvatarUrlWithUserImage(user.email, user.image, 48)
     : user?.image || undefined;
 
   // Persistent guest ID logic

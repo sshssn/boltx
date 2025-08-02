@@ -12,6 +12,7 @@ import {
   DropdownMenuTrigger,
 } from './ui/dropdown-menu';
 import { MoreHorizontalIcon, TrashIcon, LoaderIcon } from './icons';
+import { Pin, Download } from 'lucide-react';
 import { memo, useState, useEffect } from 'react';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 import { toast } from 'sonner';
@@ -218,7 +219,7 @@ const PureChatItem = ({
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ title: newTitle.trim() }),
                   });
-                  
+
                   if (response.ok) {
                     setCurrentTitle(newTitle.trim());
                     toast.success('Chat renamed successfully!');
@@ -270,6 +271,31 @@ const PureChatItem = ({
           >
             <DropdownMenuItem
               className="cursor-pointer focus:bg-accent/50"
+              onClick={async (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                try {
+                  const response = await fetch(`/api/chat/${chat.id}/pin`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                  });
+
+                  if (response.ok) {
+                    toast.success('Chat pinned successfully!');
+                  } else {
+                    const error = await response.json();
+                    toast.error(error.error || 'Failed to pin chat');
+                  }
+                } catch (error) {
+                  toast.error('Failed to pin chat');
+                }
+              }}
+            >
+              <Pin size={14} />
+              <span>Pin</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              className="cursor-pointer focus:bg-accent/50"
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
@@ -293,6 +319,40 @@ const PureChatItem = ({
               <span>Rename</span>
             </DropdownMenuItem>
             <DropdownMenuItem
+              className="cursor-pointer focus:bg-accent/50"
+              onClick={async (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                try {
+                  const response = await fetch(`/api/chat/${chat.id}/export`, {
+                    method: 'GET',
+                  });
+
+                  if (response.ok) {
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `${chat.title || 'chat'}.json`;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                    toast.success('Chat exported successfully!');
+                  } else {
+                    const error = await response.json();
+                    toast.error(error.error || 'Failed to export chat');
+                  }
+                } catch (error) {
+                  toast.error('Failed to export chat');
+                }
+              }}
+            >
+              <Download size={14} />
+              <span>Export</span>
+              <span className="ml-auto text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">BETA</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem
               className="cursor-pointer text-destructive focus:bg-destructive/15 focus:text-destructive"
               onClick={(e) => {
                 e.preventDefault();
@@ -301,7 +361,7 @@ const PureChatItem = ({
               }}
             >
               <TrashIcon size={14} />
-              <span>Delete chat</span>
+              <span>Delete</span>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

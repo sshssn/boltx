@@ -6,12 +6,29 @@ import { ChatSDKError } from '@/lib/errors';
 import { getClientIP } from '@/lib/utils';
 import { entitlementsByUserType } from '@/lib/ai/entitlements';
 
-// Simple in-memory rate limiting
-const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
+// Improved in-memory rate limiting with cleanup
+const rateLimitMap = new Map<
+  string,
+  { count: number; resetTime: number; lastRequest: number }
+>();
 const RATE_LIMIT_WINDOW = 60000; // 1 minute
-const RATE_LIMIT_MAX_REQUESTS = 30; // 30 requests per minute
+const RATE_LIMIT_MAX_REQUESTS = 60; // Increased from 30 to 60 requests per minute
+const CLEANUP_INTERVAL = 300000; // 5 minutes
 
-function checkRateLimit(identifier: string): boolean {
+// Cleanup old entries periodically
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, value] of rateLimitMap.entries()) {
+    if (now > value.resetTime + CLEANUP_INTERVAL) {
+      rateLimitMap.delete(key);
+    }
+  }
+}, CLEANUP_INTERVAL);
+
+function checkRateLimit(identifier: string): {
+  allowed: boolean;
+  retryAfter?: number;
+} {
   const now = Date.now();
   const limit = rateLimitMap.get(identifier);
 
@@ -19,24 +36,31 @@ function checkRateLimit(identifier: string): boolean {
     rateLimitMap.set(identifier, {
       count: 1,
       resetTime: now + RATE_LIMIT_WINDOW,
+      lastRequest: now,
     });
-    return true;
+    return { allowed: true };
   }
 
+  // Reset if window has passed
   if (now > limit.resetTime) {
     rateLimitMap.set(identifier, {
       count: 1,
       resetTime: now + RATE_LIMIT_WINDOW,
+      lastRequest: now,
     });
-    return true;
+    return { allowed: true };
   }
 
+  // Check if we're within rate limit
   if (limit.count >= RATE_LIMIT_MAX_REQUESTS) {
-    return false;
+    const retryAfter = Math.ceil((limit.resetTime - now) / 1000);
+    return { allowed: false, retryAfter };
   }
 
+  // Increment count and update last request time
   limit.count++;
-  return true;
+  limit.lastRequest = now;
+  return { allowed: true };
 }
 
 export async function GET(req: NextRequest) {
@@ -45,11 +69,13 @@ export async function GET(req: NextRequest) {
   const identifier = session?.user?.id || clientIP || 'unknown';
 
   // Check rate limit
-  if (!checkRateLimit(identifier)) {
+  const { allowed, retryAfter } = checkRateLimit(identifier);
+  if (!allowed) {
     return new Response(
       JSON.stringify({
         error: 'Rate limit exceeded',
         details: 'Too many requests to tokens API',
+        retryAfter,
       }),
       {
         status: 429,
@@ -65,7 +91,8 @@ export async function GET(req: NextRequest) {
 
   if (session?.user) {
     // Logged-in user - use entitlements based on user role
-    const userType = session.user.role === 'admin' ? 'admin' : (session.user.type || 'guest');
+    const userType =
+      session.user.role === 'admin' ? 'admin' : session.user.type || 'guest';
     messagesLimit =
       entitlementsByUserType[userType]?.maxMessagesPerDay ||
       entitlementsByUserType.guest.maxMessagesPerDay;
@@ -99,11 +126,13 @@ export async function POST(request: Request) {
   const identifier = session?.user?.id || clientIP || 'unknown';
 
   // Check rate limit
-  if (!checkRateLimit(identifier)) {
+  const { allowed, retryAfter } = checkRateLimit(identifier);
+  if (!allowed) {
     return new Response(
       JSON.stringify({
         error: 'Rate limit exceeded',
         details: 'Too many requests to tokens API',
+        retryAfter,
       }),
       {
         status: 429,
@@ -140,7 +169,10 @@ export async function POST(request: Request) {
       // Get limit based on user role
       let messagesLimit = entitlementsByUserType.guest.maxMessagesPerDay; // Default guest limit
       if (session?.user) {
-        const userType = session.user.role === 'admin' ? 'admin' : (session.user.type || 'guest');
+        const userType =
+          session.user.role === 'admin'
+            ? 'admin'
+            : session.user.type || 'guest';
         messagesLimit =
           entitlementsByUserType[userType]?.maxMessagesPerDay ||
           entitlementsByUserType.guest.maxMessagesPerDay;

@@ -914,11 +914,11 @@ CRITICAL RULES:
         return streamPromise;
       }
 
-      // Normal flow: Try Groq first, then fallback to Gemini
+      // Normal flow: Try Gemini first, then fallback to Meta, then Qwen
       while (attempts < maxAttempts) {
         try {
-          // Use Groq as primary model
-          console.log('🚀 Using Groq as primary provider...');
+          // Use Gemini as primary model
+          console.log('🚀 Using Gemini as primary provider...');
 
           // Add system message to contents for Groq
           const groqContents = [
@@ -1013,11 +1013,52 @@ CRITICAL RULES:
           };
         } catch (error: any) {
           attempts++;
-          console.error(`Groq attempt ${attempts} failed:`, error.message);
+          console.error(`Gemini attempt ${attempts} failed:`, error.message);
 
-          // If this is the last attempt, try Gemini fallback
+          // Try Meta fallback on first failure, then Qwen on second failure
+          if (attempts === 1) {
+            console.log('Gemini failed, trying Meta fallback...');
+            try {
+              // Use Meta Llama 3.1 as first fallback
+              const modelName = 'meta-llama/llama-3.1-8b-instruct:free';
+              console.log('Using Meta Llama 3.1 as fallback:', modelName);
+              
+              const response = await callOpenRouter(contents, {
+                model: modelName,
+                temperature: config.generationConfig.temperature,
+                maxTokens: config.generationConfig.maxOutputTokens,
+                stream: true,
+                topP: config.generationConfig.topP,
+              });
+
+              return response;
+            } catch (metaError: any) {
+              console.error('Meta fallback failed:', metaError.message);
+              attempts++;
+            }
+          }
+
+          // Try Qwen as final fallback
           if (attempts >= maxAttempts) {
-            console.log('Groq failed, trying Gemini fallback...');
+            console.log('Meta failed, trying Qwen fallback...');
+            try {
+              // Use Qwen 2.5 as final fallback
+              const modelName = 'qwen/qwen2.5-7b-instruct:free';
+              console.log('Using Qwen 2.5 as final fallback:', modelName);
+              
+              const response = await callOpenRouter(contents, {
+                model: modelName,
+                temperature: config.generationConfig.temperature,
+                maxTokens: config.generationConfig.maxOutputTokens,
+                stream: true,
+                topP: config.generationConfig.topP,
+              });
+
+              return response;
+            } catch (qwenError: any) {
+              console.error('Qwen fallback also failed:', qwenError.message);
+            }
+          }
             try {
               // Use Gemini Flash as fallback model
               const modelName = 'gemini-2.0-flash-exp';
@@ -1078,30 +1119,8 @@ CRITICAL RULES:
                 }
               });
 
-              console.log(
-                'Prepared Gemini fallback prompt:',
-                JSON.stringify(prompt, null, 2),
-              );
-
-              const streamPromise = model.doStream({
-                inputFormat: 'messages',
-                mode: { type: 'regular' },
-                prompt: prompt,
-                temperature: config.generationConfig.temperature,
-                maxTokens: config.generationConfig.maxOutputTokens,
-                topK: config.generationConfig.topK,
-                topP: config.generationConfig.topP,
-              });
-
-              console.log('Gemini fallback stream request sent');
-              return await Promise.race([streamPromise, timeoutPromise]);
-            } catch (geminiError: any) {
-              console.error(
-                'Gemini fallback also failed:',
-                geminiError.message,
-              );
               throw new Error(
-                `All providers failed. Groq error: ${error.message}. Gemini error: ${geminiError.message}`,
+                `All providers failed. Gemini error: ${error.message}. Meta error: ${metaError?.message}. Qwen error: ${qwenError?.message}`,
               );
             }
           }
@@ -1282,35 +1301,25 @@ CRITICAL RULES:
     // Create streaming response using AI SDK format with optimized headers
     const stream = new ReadableStream({
       async start(controller) {
-        let fullResponse = '';
-        let controllerClosed = false;
         const messageId = generateUUID();
+        let fullResponse = '';
 
         try {
-          // Generate proper title when AI starts responding (first chunk)
-          let titleGenerated = false;
+          // Send start message immediately
+          controller.enqueue(
+            new TextEncoder().encode(
+              `data: ${JSON.stringify({ type: 'text-start', id: messageId })}\n\n`,
+            ),
+          );
 
-          // Send start message using AI SDK format
-          if (!controllerClosed) {
-            try {
-              controller.enqueue(
-                new TextEncoder().encode(
-                  `data: ${JSON.stringify({ type: 'text-start', id: messageId })}\n\n`,
-                ),
-              );
-            } catch (enqueueError) {
-              console.error('Failed to enqueue start message:', enqueueError);
-              controllerClosed = true;
-            }
-          }
-
-          // Handle the response stream properly with improved error handling
+          // Handle the response stream with immediate flushing
           if (response?.stream) {
             const reader = response.stream.getReader();
             let hasReceivedContent = false;
+            let titleGenerated = false;
 
             try {
-              while (!controllerClosed) {
+              while (true) {
                 const { done, value } = await reader.read();
                 if (done) break;
 
@@ -1329,276 +1338,98 @@ CRITICAL RULES:
                   text = value.candidates[0].content.parts[0].text;
                 }
 
-                // Debug logging for empty responses
-                if (!text && value) {
-                  console.log(
-                    'Empty text from stream value:',
-                    JSON.stringify(value, null, 2),
-                  );
-                }
-
-                if (text && !controllerClosed) {
+                if (text) {
                   hasReceivedContent = true;
-                  // Send text immediately without buffering for faster streaming
-                  if (!controllerClosed) {
-                    try {
-                      controller.enqueue(
-                        new TextEncoder().encode(
-                          `data: ${JSON.stringify({ type: 'text-delta', id: messageId, delta: text })}\n\n`,
-                        ),
-                      );
-                    } catch (enqueueError) {
-                      console.error(
-                        'Failed to enqueue text delta:',
-                        enqueueError,
-                      );
-                      controllerClosed = true;
-                    }
-                  }
-
-                  fullResponse += text;
-
-                  // Generate title on first chunk (when AI starts responding) - moved after sending text
-                  if (!titleGenerated && chatId) {
-                    try {
-                      const userText =
-                        userMessage.parts?.[0]?.text ||
-                        userMessage.content ||
-                        '';
-
-                      // Only generate title if we don't have one already and user text is substantial
-                      if (!titleGenerated && userText.length > 10) {
-                        const generatedTitle =
-                          await generateTitleFromUserMessage(userText, {
-                            selectedModelId: selectedChatModel,
-                            maxLength: 40,
-                            style: 'concise',
-                          });
-
-                        // Only update if we got a good title
-                        if (
-                          generatedTitle &&
-                          generatedTitle !== 'New Chat' &&
-                          generatedTitle.length > 3
-                        ) {
-                          // Update chat title in database for both logged-in users and guests
-                          await updateChatTitleById({
-                            chatId,
-                            title: generatedTitle,
-                          });
-
-                          // Notify UI components about the title update
-                          updateThreadTitle(chatId, generatedTitle);
-
-                          console.log(
-                            'Generated title when AI started responding:',
-                            generatedTitle,
-                          );
-                          titleGenerated = true;
-                        }
-                      }
-                    } catch (error) {
-                      console.error(
-                        'Failed to generate title when AI started responding:',
-                        error,
-                      );
-                      // Continue without title generation if it fails
-                    }
-                  }
-                }
-              }
-            } catch (streamError) {
-              console.error('Stream reading error:', streamError);
-            } finally {
-              if (reader) {
-                reader.releaseLock();
-              }
-
-              // Check if we received any content from the AI
-              if (!hasReceivedContent) {
-                console.warn(
-                  'No content received from AI stream, providing fallback',
-                );
-                const fallbackResponse =
-                  "I apologize, but I'm having trouble generating a response right now. Please try rephrasing your question or try again in a moment.";
-
-                if (!controllerClosed) {
-                  try {
-                    controller.enqueue(
-                      new TextEncoder().encode(
-                        `data: ${JSON.stringify({ type: 'text-delta', id: messageId, delta: fallbackResponse })}\n\n`,
-                      ),
-                    );
-                    fullResponse = fallbackResponse;
-                  } catch (enqueueError) {
-                    console.error(
-                      'Failed to enqueue fallback response:',
-                      enqueueError,
-                    );
-                    controllerClosed = true;
-                  }
-                }
-              }
-            }
-          } else {
-            // Handle non-streaming response
-            console.warn(
-              'Response is not a stream, handling as regular response',
-            );
-            if (response?.response?.text) {
-              const text = response.response.text();
-              if (text && !controllerClosed) {
-                fullResponse = text;
-                try {
+                  
+                  // Send text immediately without any buffering
                   controller.enqueue(
                     new TextEncoder().encode(
                       `data: ${JSON.stringify({ type: 'text-delta', id: messageId, delta: text })}\n\n`,
                     ),
                   );
-                } catch (enqueueError) {
-                  console.error(
-                    'Failed to enqueue non-streaming text:',
-                    enqueueError,
-                  );
-                  controllerClosed = true;
-                }
-              }
-            }
-          }
 
-          // Update the assistant message with full response
-          if (fullResponse && assistantMessageId) {
-            try {
-              // Update for both logged-in users and guests
-              await updateMessageById({
-                messageId: assistantMessageId,
-                content: fullResponse,
-              });
-            } catch (error) {
-              console.error('Failed to update assistant message:', error);
-              // Continue even if update fails
-            }
-          }
+                  fullResponse += text;
 
-          // Update chat title if not already updated
-          if (!titleGenerated && chatId) {
-            try {
-              // Create a better fallback title from user message
-              const userText =
-                userMessage.content || userMessage.parts?.[0]?.text || '';
-              let fallbackTitle = 'New Chat';
-
-              if (userText.length > 0) {
-                // Extract first few meaningful words as fallback
-                const words = userText
-                  .split(' ')
-                  .filter((word: string) => word.length > 2)
-                  .slice(0, 3);
-                if (words.length > 0) {
-                  fallbackTitle = words.join(' ');
+                  // Generate title on first chunk (non-blocking)
+                  if (!titleGenerated && chatId && hasReceivedContent) {
+                    titleGenerated = true; // Prevent multiple calls
+                    
+                    // Generate title asynchronously without blocking the stream
+                    generateTitleFromUserMessage(
+                      userMessage.parts?.[0]?.text || userMessage.content || '',
+                      {
+                        selectedModelId: selectedChatModel,
+                        maxLength: 40,
+                        style: 'concise',
+                      },
+                    ).then(async (generatedTitle) => {
+                      if (
+                        generatedTitle &&
+                        generatedTitle !== 'New Chat' &&
+                        generatedTitle.length > 3
+                      ) {
+                        try {
+                          await updateChatTitleById({
+                            chatId,
+                            title: generatedTitle,
+                          });
+                          updateThreadTitle(chatId, generatedTitle);
+                        } catch (error) {
+                          console.error('Failed to update chat title:', error);
+                        }
+                      }
+                    }).catch((error) => {
+                      console.error('Title generation failed:', error);
+                    });
+                  }
                 }
               }
 
-              // Update for both logged-in users and guests
-              await updateChatTitleById({
-                chatId,
-                title: fallbackTitle,
-              });
-            } catch (error) {
-              console.error('Failed to update chat title:', error);
-              // Continue even if title update fails
-            }
-          }
-
-          // Validate response quality - be more lenient for short but valid responses
-          const trimmedResponse = fullResponse.trim();
-          if (trimmedResponse.length === 0) {
-            console.warn(
-              'Generated response is empty, providing fallback response',
-            );
-            // Instead of throwing an error, provide a helpful fallback response
-            const fallbackResponse =
-              "I apologize, but I'm having trouble generating a response right now. Please try rephrasing your question or try again in a moment.";
-
-            if (!controllerClosed) {
-              try {
-                controller.enqueue(
-                  new TextEncoder().encode(
-                    `data: ${JSON.stringify({ type: 'text-delta', id: messageId, delta: fallbackResponse })}\n\n`,
-                  ),
-                );
-                fullResponse = fallbackResponse;
-              } catch (enqueueError) {
-                console.error(
-                  'Failed to enqueue fallback response:',
-                  enqueueError,
-                );
-                controllerClosed = true;
-              }
-            }
-          }
-
-          // Only warn for very short responses but don't fail the request
-          if (trimmedResponse.length > 0 && trimmedResponse.length < 10) {
-            console.warn(
-              'Generated response very short, but continuing:',
-              trimmedResponse,
-            );
-          }
-
-          // Send text-end message
-          if (!controllerClosed) {
-            try {
+              // Send completion message
               controller.enqueue(
                 new TextEncoder().encode(
-                  `data: ${JSON.stringify({ type: 'text-end', id: messageId })}\n\n`,
+                  `data: ${JSON.stringify({ type: 'text-done', id: messageId })}\n\n`,
                 ),
               );
-            } catch (enqueueError) {
-              console.error(
-                'Failed to enqueue text-end message:',
-                enqueueError,
+            } catch (streamError) {
+              console.error('Stream reading error:', streamError);
+              
+              // Send error message to client
+              controller.enqueue(
+                new TextEncoder().encode(
+                  `data: ${JSON.stringify({ type: 'error', id: messageId, error: 'Stream error occurred' })}\n\n`,
+                ),
               );
-              controllerClosed = true;
+            } finally {
+              if (reader) {
+                reader.releaseLock();
+              }
             }
-          }
-
-          // Send completion signal
-          if (!controllerClosed) {
-            try {
-              controller.enqueue(new TextEncoder().encode(`data: [DONE]\n\n`));
-              controller.close();
-              controllerClosed = true;
-            } catch (enqueueError) {
-              console.error(
-                'Failed to enqueue completion signal:',
-                enqueueError,
-              );
-              controllerClosed = true;
-            }
+          } else {
+            // Fallback for non-streaming responses
+            const fallbackResponse = "I'm having trouble generating a response. Please try again.";
+            controller.enqueue(
+              new TextEncoder().encode(
+                `data: ${JSON.stringify({ type: 'text-delta', id: messageId, delta: fallbackResponse })}\n\n`,
+              ),
+            );
+            controller.enqueue(
+              new TextEncoder().encode(
+                `data: ${JSON.stringify({ type: 'text-done', id: messageId })}\n\n`,
+              ),
+            );
           }
         } catch (error) {
-          console.error('Stream processing error:', error);
-          if (!controllerClosed) {
-            try {
-              controller.enqueue(
-                new TextEncoder().encode(
-                  `data: ${JSON.stringify({
-                    type: 'error',
-                    errorText:
-                      error instanceof Error ? error.message : 'Unknown error',
-                  })}\n\n`,
-                ),
-              );
-              controller.close();
-              controllerClosed = true;
-            } catch (controllerError) {
-              console.error(
-                'Controller already closed during error:',
-                controllerError,
-              );
-            }
-          }
+          console.error('Stream controller error:', error);
+          
+          // Send error message
+          controller.enqueue(
+            new TextEncoder().encode(
+              `data: ${JSON.stringify({ type: 'error', id: messageId, error: 'Internal server error' })}\n\n`,
+            ),
+          );
+        } finally {
+          controller.close();
         }
       },
     });
@@ -1606,10 +1437,13 @@ CRITICAL RULES:
     return new Response(stream, {
       headers: {
         'Content-Type': 'text/plain; charset=utf-8',
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-        Connection: 'keep-alive',
+        'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0',
+        'Connection': 'keep-alive',
         'X-Accel-Buffering': 'no', // Disable nginx buffering
         'Transfer-Encoding': 'chunked',
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
       },
     });
   } catch (error) {

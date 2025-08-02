@@ -58,6 +58,7 @@ export function getShortTitle(title: string) {
 }
 
 type GroupedChats = {
+  pinned: Chat[];
   today: Chat[];
   yesterday: Chat[];
   lastWeek: Chat[];
@@ -79,6 +80,12 @@ const groupChatsByDate = (chats: Chat[]): GroupedChats => {
 
   return chats.reduce(
     (groups, chat) => {
+      // Check if chat is pinned first
+      if (chat.pinned) {
+        groups.pinned.push(chat);
+        return groups;
+      }
+
       const chatDate = new Date(chat.createdAt);
 
       if (isToday(chatDate)) {
@@ -96,6 +103,7 @@ const groupChatsByDate = (chats: Chat[]): GroupedChats => {
       return groups;
     },
     {
+      pinned: [],
       today: [],
       yesterday: [],
       lastWeek: [],
@@ -393,6 +401,27 @@ export function SidebarHistory({
             </SidebarGroupContent>
           </SidebarGroup>
         )} */}
+
+        {/* Pinned */}
+        {groupedChats.pinned.length > 0 && (
+          <SidebarGroup>
+            <SectionHeader>Pinned</SectionHeader>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {groupedChats.pinned.map((chat) => (
+                  <ChatItem
+                    key={chat.id}
+                    chat={chat}
+                    isActive={chat.id === id}
+                    onDelete={handleDeleteClick}
+                    setOpenMobile={setOpenMobile}
+                    onMouseEnter={() => preloadChat(chat.id)}
+                  />
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
 
         {/* Today */}
         {groupedChats.today.length > 0 && (

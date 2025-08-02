@@ -15,8 +15,16 @@ import { useMessages } from '@/hooks/use-messages';
 import type { ChatMessage } from '@/lib/types';
 import { useDataStream } from './data-stream-provider';
 import { useSession } from 'next-auth/react';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, Loader2 } from 'lucide-react';
 import { WebSearchLoading } from './web-search-loading';
+
+// Streaming indicator component
+const StreamingIndicator = () => (
+  <div className="flex items-center gap-2 text-sm text-muted-foreground animate-pulse">
+    <Loader2 className="h-4 w-4 animate-spin" />
+    <span>AI is thinking...</span>
+  </div>
+);
 
 interface MessagesProps {
   chatId: string;
@@ -260,30 +268,7 @@ function PureMessages({
                   {isWebSearchMode ? (
                     <WebSearchLoading />
                   ) : (
-                    /* Simple animated dots - no full width container */
-                    <div className="flex items-center gap-1 md:gap-1.5">
-                      <div
-                        className="size-2 md:size-2.5 bg-zinc-600 dark:bg-zinc-300 rounded-full animate-bounce"
-                        style={{
-                          animationDelay: '0ms',
-                          animationDuration: '1.4s',
-                        }}
-                      />
-                      <div
-                        className="size-2 md:size-2.5 bg-zinc-600 dark:bg-zinc-300 rounded-full animate-bounce"
-                        style={{
-                          animationDelay: '200ms',
-                          animationDuration: '1.4s',
-                        }}
-                      />
-                      <div
-                        className="size-2 md:size-2.5 bg-zinc-600 dark:bg-zinc-300 rounded-full animate-bounce"
-                        style={{
-                          animationDelay: '400ms',
-                          animationDuration: '1.4s',
-                        }}
-                      />
-                    </div>
+                    <StreamingIndicator />
                   )}
                 </div>
               </div>

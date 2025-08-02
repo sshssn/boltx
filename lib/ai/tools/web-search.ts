@@ -28,8 +28,8 @@ interface SearchResponse {
 }
 
 // Rate limiting for Brave API
-const BRAVE_API_KEY = process.env.BRAVE_API_KEY || 'BSAq4w05SU-XiQpz9SwEZr2CZL467AL';
-const DAILY_LIMIT = 50; // Increased from 5 to 50 calls per day for better UX
+const BRAVE_API_KEY = process.env.BRAVE_API_KEY;
+const DAILY_LIMIT = 7; // Increased from 5 to 7 calls per day for better UX
 
 // Simple in-memory rate limiting (in production, use Redis or database)
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
@@ -96,12 +96,12 @@ const fetchWithRetry = async (
   options: RequestInit = {},
   maxRetries: number = 3,
 ): Promise<Response> => {
-  let lastError: Error;
+  let lastError = new Error('Unknown error occurred');
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000); // Reduced to 5s timeout for faster response
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // Increased to 10s timeout
 
       const response = await fetch(url, {
         ...options,
@@ -122,11 +122,34 @@ const fetchWithRetry = async (
         return response;
       }
 
+      // Handle specific error codes with appropriate responses
+      if (response.status === 422) {
+        throw new Error(
+          `HTTP 422: Invalid request parameters. Please check your search query.`,
+        );
+      }
+
       // Handle rate limiting with exponential backoff
       if (response.status === 429) {
         const delay = Math.min(1000 * Math.pow(2, attempt), 8000);
         await new Promise((resolve) => setTimeout(resolve, delay));
         continue;
+      }
+
+      // Handle other client errors
+      if (response.status >= 400 && response.status < 500) {
+        throw new Error(
+          `HTTP ${response.status}: Client error - ${response.statusText}`,
+        );
+      }
+
+      // Handle server errors
+      if (response.status >= 500) {
+        if (attempt < maxRetries) {
+          const delay = Math.min(1000 * Math.pow(2, attempt), 5000);
+          await new Promise((resolve) => setTimeout(resolve, delay));
+          continue;
+        }
       }
 
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -179,6 +202,19 @@ export const webSearch = tool({
     safeSearch = true,
     userId = 'guest',
   }): Promise<SearchResponse> => {
+    // Check if Brave API key is configured
+    if (!BRAVE_API_KEY) {
+      return {
+        query: query || '',
+        results: [],
+        totalResults: 0,
+        searchTime: new Date().toISOString(),
+        error: 'Web search not configured',
+        message: 'Web search is not configured. Please contact support.',
+        suggestions: [],
+      };
+    }
+
     const startTime = Date.now();
 
     try {
@@ -348,6 +384,9 @@ export const webSearch = tool({
         } else if (error.message.includes('429')) {
           errorMessage =
             'Search rate limit exceeded. Please wait a moment and try again.';
+        } else if (error.message.includes('422')) {
+          errorMessage =
+            'Invalid search query. Please try a different search term.';
         }
       }
 
@@ -378,6 +417,19 @@ export async function performWebSearch({
   safeSearch?: boolean;
   userId?: string;
 }): Promise<SearchResponse> {
+  // Check if Brave API key is configured
+  if (!BRAVE_API_KEY) {
+    return {
+      query: query || '',
+      results: [],
+      totalResults: 0,
+      searchTime: new Date().toISOString(),
+      error: 'Web search not configured',
+      message: 'Web search is not configured. Please contact support.',
+      suggestions: [],
+    };
+  }
+
   const startTime = Date.now();
 
   try {
@@ -544,6 +596,9 @@ export async function performWebSearch({
       } else if (error.message.includes('429')) {
         errorMessage =
           'Search rate limit exceeded. Please wait a moment and try again.';
+      } else if (error.message.includes('422')) {
+        errorMessage =
+          'Invalid search query. Please try a different search term.';
       }
     }
 

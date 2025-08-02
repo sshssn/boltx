@@ -33,7 +33,7 @@ const MessageLimitContext = createContext<MessageLimitContextType | null>(null);
 export function MessageLimitProvider({
   children,
 }: { children: React.ReactNode }) {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const isGuest = !session?.user?.id; // Consider user guest if no session
   const isRegular = session?.user?.role === 'regular';
   const isAdmin = session?.user?.role === 'admin';
@@ -41,6 +41,7 @@ export function MessageLimitProvider({
   const [messagesUsed, setMessagesUsed] = useState(0);
   const [messagesLimit, setMessagesLimit] = useState(10); // Default guest limit from entitlements
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   // Get default limit based on user type
   const getDefaultLimit = useCallback(() => {
@@ -61,6 +62,52 @@ export function MessageLimitProvider({
     const today = new Date().toDateString();
     const lastDate = Cookies.get(MESSAGE_DATE_COOKIE);
     return lastDate !== today;
+  }, []);
+
+  // Save to cookies with error handling
+  const saveToCookies = useCallback((limit: number, used: number) => {
+    try {
+      const today = new Date().toDateString();
+      Cookies.set(MESSAGE_LIMIT_COOKIE, limit.toString(), { expires: 1 });
+      Cookies.set(MESSAGE_USED_COOKIE, used.toString(), { expires: 1 });
+      Cookies.set(MESSAGE_DATE_COOKIE, today, { expires: 1 });
+      Cookies.set(MESSAGE_LAST_SYNC_COOKIE, Date.now().toString(), {
+        expires: 1,
+      });
+    } catch (error) {
+      console.error('Error saving to cookies:', error);
+    }
+  }, []);
+
+  // Load from cookies with validation and anti-tampering check
+  const loadFromCookies = useCallback(() => {
+    try {
+      const limit = Cookies.get(MESSAGE_LIMIT_COOKIE);
+      const used = Cookies.get(MESSAGE_USED_COOKIE);
+      const lastSync = Cookies.get(MESSAGE_LAST_SYNC_COOKIE);
+
+      if (limit && used && lastSync) {
+        const limitNum = Number.parseInt(limit, 10);
+        const usedNum = Number.parseInt(used, 10);
+        const lastSyncNum = Number.parseInt(lastSync, 10);
+
+        // Validate data integrity
+        if (
+          !Number.isNaN(limitNum) &&
+          !Number.isNaN(usedNum) &&
+          !Number.isNaN(lastSyncNum) &&
+          usedNum >= 0 &&
+          limitNum > 0 &&
+          lastSyncNum > 0
+        ) {
+          return { limit: limitNum, used: usedNum };
+        }
+      }
+      return null;
+    } catch (error) {
+      console.error('Error loading from cookies:', error);
+      return null;
+    }
   }, []);
 
   // Fetch from API with retry logic and debouncing
@@ -95,6 +142,16 @@ export function MessageLimitProvider({
           };
         }
 
+        // Handle rate limiting
+        if (response.status === 429) {
+          const retryAfter = response.headers.get('retry-after');
+          const delay = retryAfter
+            ? Number.parseInt(retryAfter, 10) * 1000
+            : 5000;
+          await new Promise((resolve) => setTimeout(resolve, delay));
+          return null;
+        }
+
         // Retry on server errors
         if (response.status >= 500 && retryCount < 2) {
           await new Promise(
@@ -117,97 +174,11 @@ export function MessageLimitProvider({
     [getDefaultLimit],
   );
 
-  // Load from cookies with validation and anti-tampering check
-  const loadFromCookies = useCallback(() => {
-    try {
-      const limitCookie = Cookies.get(MESSAGE_LIMIT_COOKIE);
-      const usedCookie = Cookies.get(MESSAGE_USED_COOKIE);
-      const dateCookie = Cookies.get(MESSAGE_DATE_COOKIE);
-      const hashCookie = Cookies.get('boltX_message_hash');
-
-      const today = new Date().toDateString();
-
-      if (limitCookie && usedCookie && dateCookie === today) {
-        const limit = Number.parseInt(limitCookie, 10);
-        const used = Number.parseInt(usedCookie, 10);
-
-        if (!Number.isNaN(limit) && !Number.isNaN(used) && used >= 0) {
-          // Validate hash to prevent tampering
-          const expectedHash = btoa(`${limit}-${used}-${today}`).slice(0, 8);
-          if (hashCookie === expectedHash) {
-            return { limit, used };
-          } else {
-            console.warn(
-              'Message limit cookie hash mismatch - possible tampering detected',
-            );
-            // Clear tampered cookies
-            Cookies.remove(MESSAGE_LIMIT_COOKIE);
-            Cookies.remove(MESSAGE_USED_COOKIE);
-            Cookies.remove(MESSAGE_DATE_COOKIE);
-            Cookies.remove('boltX_message_hash');
-          }
-        }
-      }
-    } catch (error) {
-      console.error('Error loading from cookies:', error);
-    }
-    return null;
-  }, []);
-
-  // Save to cookies with better error handling and anti-tampering
-  const saveToCookies = useCallback((limit: number, used: number) => {
-    try {
-      const today = new Date().toDateString();
-      const lastSync = new Date().toISOString();
-
-      // Add hash to prevent tampering
-      const hash = btoa(`${limit}-${used}-${today}`).slice(0, 8);
-
-      Cookies.set(MESSAGE_LIMIT_COOKIE, limit.toString(), {
-        expires: 1,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
-      });
-      Cookies.set(MESSAGE_USED_COOKIE, used.toString(), {
-        expires: 1,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
-      });
-      Cookies.set(MESSAGE_DATE_COOKIE, today, {
-        expires: 1,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
-      });
-      Cookies.set(MESSAGE_LAST_SYNC_COOKIE, lastSync, {
-        expires: 1,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
-      });
-      // Add integrity hash
-      Cookies.set('boltX_message_hash', hash, {
-        expires: 1,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
-      });
-    } catch (error) {
-      console.error('Error saving to cookies:', error);
-    }
-  }, []);
-
-  // Refresh usage from API with optimistic updates
-  const refreshUsage = useCallback(async () => {
-    const apiData = await fetchFromAPI();
-    if (apiData) {
-      setMessagesUsed(apiData.used);
-      setMessagesLimit(apiData.limit);
-      saveToCookies(apiData.limit, apiData.used);
-    }
-  }, [fetchFromAPI, saveToCookies]);
-
   // Initialize with better logic
   useEffect(() => {
     const initialize = async () => {
       setIsLoading(true);
+      setError(null);
 
       try {
         // Check if it's a new day first
@@ -247,6 +218,7 @@ export function MessageLimitProvider({
         }
       } catch (error) {
         console.error('Error initializing message limit:', error);
+        setError('Failed to initialize message limit');
         // Final fallback
         const defaultLimit = getDefaultLimit();
         setMessagesUsed(0);
@@ -257,8 +229,10 @@ export function MessageLimitProvider({
       }
     };
 
-    // Initialize for all users (both logged-in and guests)
-    initialize();
+    // Only initialize when session status is not loading
+    if (status !== 'loading') {
+      initialize();
+    }
   }, [
     loadFromCookies,
     fetchFromAPI,
@@ -266,6 +240,7 @@ export function MessageLimitProvider({
     getDefaultLimit,
     isNewDay,
     isGuest,
+    status,
   ]);
 
   // Update limit when user type changes
@@ -273,51 +248,15 @@ export function MessageLimitProvider({
     const defaultLimit = getDefaultLimit();
     setMessagesLimit(defaultLimit);
     saveToCookies(defaultLimit, messagesUsed);
-  }, [isGuest, isRegular, getDefaultLimit, messagesUsed, saveToCookies]);
+  }, [messagesLimit, saveToCookies, isGuest]);
 
-  // Periodic sync for all users - further reduced frequency
-  useEffect(() => {
-    const syncInterval = setInterval(async () => {
-      try {
-        await refreshUsage();
-      } catch (error) {
-        console.error('Periodic sync failed:', error);
-      }
-    }, 600000); // Sync every 10 minutes to further reduce API calls
-
-    return () => clearInterval(syncInterval);
-  }, [refreshUsage]);
-
-  const incrementMessageCount = useCallback(() => {
+  const incrementMessageCount = () => {
     setMessagesUsed((prev) => {
       const newUsed = prev + 1;
       saveToCookies(messagesLimit, newUsed);
-
-      // For guests, trigger usage display immediately after first message
-      if (isGuest && prev === 0) {
-        // Force a re-render to show usage counter
-        setTimeout(() => {
-          window.dispatchEvent(new CustomEvent('message-sent'));
-        }, 50); // Reduced from 100ms to 50ms for faster response
-      }
-
-      // Only sync with API for logged-in users, and debounce the calls
-      if (!isGuest) {
-        // Debounce API calls to prevent spam - increased debounce time
-        setTimeout(() => {
-          fetch('/api/profile/tokens', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ increment: true }),
-          }).catch((error) => {
-            console.error('Failed to sync message count:', error);
-          });
-        }, 10000); // 10 second debounce to reduce API spam
-      }
-
       return newUsed;
     });
-  }, [messagesLimit, saveToCookies, isGuest]);
+  };
 
   const resetForNewDay = useCallback(() => {
     const defaultLimit = getDefaultLimit();
@@ -325,6 +264,19 @@ export function MessageLimitProvider({
     setMessagesLimit(defaultLimit);
     saveToCookies(defaultLimit, 0);
   }, [getDefaultLimit, saveToCookies]);
+
+  const refreshUsage = useCallback(async () => {
+    try {
+      const apiData = await fetchFromAPI();
+      if (apiData) {
+        setMessagesUsed(apiData.used);
+        setMessagesLimit(apiData.limit);
+        saveToCookies(apiData.limit, apiData.used);
+      }
+    } catch (error) {
+      console.error('Error refreshing usage:', error);
+    }
+  }, [fetchFromAPI, saveToCookies]);
 
   const value = {
     messagesUsed,
@@ -339,10 +291,18 @@ export function MessageLimitProvider({
     refreshUsage,
     // Add helper for rate limit message
     getRateLimitMessage: () => {
-      const traceId = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+      const traceId =
+        Math.random().toString(36).substring(2, 15) +
+        Math.random().toString(36).substring(2, 15);
       return `You've reached your rate limit. Please try again later.\n\nIf the issue persists, contact support and provide the following:\nTrace ID: ${traceId}`;
     },
   };
+
+  // Error boundary - if there's an error, render children without context
+  if (error) {
+    console.error('MessageLimitProvider error:', error);
+    return <>{children}</>;
+  }
 
   return (
     <MessageLimitContext.Provider value={value}>
@@ -354,7 +314,23 @@ export function MessageLimitProvider({
 export function useMessageLimit() {
   const context = useContext(MessageLimitContext);
   if (!context) {
-    throw new Error('useMessageLimit must be used within MessageLimitProvider');
+    // Instead of throwing an error, return a fallback context
+    console.warn(
+      'useMessageLimit must be used within MessageLimitProvider - using fallback',
+    );
+    return {
+      messagesUsed: 0,
+      messagesLimit: 10,
+      remaining: 10,
+      isGuest: true,
+      isRegular: false,
+      incrementMessageCount: () => {},
+      resetForNewDay: () => {},
+      isLoading: false,
+      hasReachedLimit: false,
+      refreshUsage: async () => {},
+      getRateLimitMessage: () => 'Rate limit message not available',
+    };
   }
   return context;
 }

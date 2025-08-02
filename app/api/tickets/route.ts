@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/app/(auth)/auth';
 import { db } from '@/lib/db';
 import { ticket } from '@/lib/db/schema';
-import { eq, asc, desc, and, like, or } from 'drizzle-orm';
+import { eq, asc, desc, and, like, or, count } from 'drizzle-orm';
 import { generateUUID } from '@/lib/utils';
 
 export async function POST(request: NextRequest) {
@@ -157,11 +157,34 @@ export async function GET(request: NextRequest) {
 
     // Get total count for pagination
     const countResult = await db
-      .select({ count: db.fn.count() })
+      .select({ count: count() })
       .from(ticket)
       .where(and(...conditions));
 
-    const totalCount = Number(countResult[0]?.count || 0);
+    // Ensure we have a valid count result with proper error handling
+    let totalCount = 0;
+    try {
+      if (
+        countResult &&
+        countResult.length > 0 &&
+        countResult[0] &&
+        typeof countResult[0].count === 'number'
+      ) {
+        totalCount = Number(countResult[0].count);
+      } else if (
+        countResult &&
+        countResult.length > 0 &&
+        countResult[0] &&
+        countResult[0].count !== null &&
+        countResult[0].count !== undefined
+      ) {
+        totalCount = Number(countResult[0].count);
+      }
+    } catch (error) {
+      console.error('Error parsing count result:', error);
+      totalCount = 0;
+    }
+
     const totalPages = Math.ceil(totalCount / limit);
 
     // Get tickets with pagination

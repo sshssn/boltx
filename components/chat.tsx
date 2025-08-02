@@ -169,6 +169,26 @@ export function Chat({
       setLastError(error);
       handleApiError(error);
     },
+    experimental_streamData: true,
+    experimental_onFunctionCall: () => {
+      // Handle function calls if needed
+    },
+    onFinish: (message) => {
+      // Handle message completion
+      console.log('Message finished streaming:', message);
+    },
+    onResponse: (response) => {
+      // Handle response start
+      console.log('Response started');
+    },
+    body: {
+      id,
+      selectedChatModel: initialChatModel,
+      message: messages[messages.length - 1], // Send only the latest message
+    },
+    headers: {
+      'Content-Type': 'application/json',
+    },
   });
 
   const [input, setInput] = useState('');
@@ -610,12 +630,14 @@ export function Chat({
               )}
 
               {/* Messages Container - Mobile Optimized */}
-              <div className={`
+              <div
+                className={`
                 flex-1 overflow-y-auto
                 ${isMobile ? 'pb-24' : 'pb-36'}
                 safe-area-inset-bottom
                 scroll-smooth
-              `}>
+              `}
+              >
                 <Messages
                   chatId={id}
                   status={status}
@@ -707,8 +729,9 @@ export function Chat({
             <div
               className={`
               flex mx-auto gap-2 w-full
-              ${isMobile ? 'px-3' : 'px-6 md:max-w-4xl'}
+              ${isMobile ? 'px-3' : 'px-6'}
               ${isMobile ? 'pb-4' : 'pb-4'}
+              max-w-4xl mx-auto
             `}
             >
               {!isReadonly && (
