@@ -159,7 +159,7 @@ export const {
             user.id = existingUser.id;
             user.role = existingUser.role;
 
-            // ADDITIONAL SECURITY: OAuth users should never get admin privileges
+            // CRITICAL SECURITY FIX: OAuth users should never get admin privileges
             // This is a double-check to ensure OAuth users cannot become admin
             if (existingUser.role === 'admin') {
               console.warn(
@@ -169,7 +169,9 @@ export const {
               user.role = 'regular';
               user.type = 'regular';
             } else {
-              user.type = existingUser.role === 'admin' ? 'admin' : 'regular';
+              // SECURITY: Only allow admin type if the user was created via credentials
+              // OAuth users should never be admin
+              user.type = 'regular';
             }
 
             user.username = existingUser.username;
@@ -189,7 +191,7 @@ export const {
               // SECURITY: Always create OAuth users as regular, never admin
               user.type = 'regular';
 
-              // Double-check that the role is not admin
+              // CRITICAL SECURITY: Double-check that the role is not admin
               if (newUser[0].role === 'admin') {
                 console.error(
                   `CRITICAL: OAuth user created with admin role: ${user.email}`,
@@ -218,18 +220,17 @@ export const {
         token.username = user.username;
         token.image = user.image;
 
-        // FINAL SECURITY CHECK: Ensure OAuth users never get admin privileges
+        // CRITICAL SECURITY CHECK: Ensure OAuth users never get admin privileges
         if (
           account?.provider &&
           (account.provider === 'google' || account.provider === 'github')
         ) {
-          if (token.role === 'admin') {
-            console.warn(
-              `JWT: OAuth user with admin role detected, downgrading: ${user.email}`,
-            );
-            token.role = 'regular';
-            token.type = 'regular';
-          }
+          // Force OAuth users to be regular users only
+          console.warn(
+            `JWT: OAuth user detected, ensuring regular role: ${user.email}`,
+          );
+          token.role = 'regular';
+          token.type = 'regular';
         }
       }
 
@@ -243,16 +244,14 @@ export const {
         session.user.username = token.username;
         session.user.image = token.image;
 
-        // FINAL SESSION SECURITY CHECK: Double-check that OAuth users are not admin
-        // This is the last line of defense
+        // CRITICAL SESSION SECURITY CHECK: Ensure OAuth users are never admin
+        // This is the final line of defense
         if (session.user.role === 'admin') {
-          // Check if this is an OAuth session by looking at the token
-          // If we can't determine the provider, we'll be extra cautious
+          // For now, we'll log admin users but not automatically downgrade
+          // as it might be a legitimate admin user created via credentials
           console.warn(
             `Session: Admin role detected for user: ${session.user.email}`,
           );
-          // For now, we'll log this but not automatically downgrade
-          // as it might be a legitimate admin user
         }
       }
 

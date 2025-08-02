@@ -88,6 +88,13 @@ export async function middleware(request: NextRequest) {
   const isGuest = guestRegex.test(token?.email ?? '');
   const isAdmin = token?.type === 'admin' || token?.role === 'admin';
 
+  // CRITICAL SECURITY FIX: Only allow specific admin emails to access admin features
+  // This prevents any user from being treated as admin
+  const allowedAdminEmails = process.env.ALLOWED_ADMIN_EMAILS?.split(',') || [];
+  const isAllowedAdmin =
+    allowedAdminEmails.length > 0 &&
+    allowedAdminEmails.includes(token?.email || '');
+
   // Debug logging for admin detection
   if (pathname === '/admin') {
     console.log('Admin access attempt:', {
@@ -95,12 +102,13 @@ export async function middleware(request: NextRequest) {
       type: token?.type,
       role: token?.role,
       isAdmin,
+      isAllowedAdmin,
       pathname,
     });
   }
 
-  // Check maintenance mode (except for admin users and admin page)
-  if (!isAdmin && pathname !== '/maintenance' && pathname !== '/admin') {
+  // Check maintenance mode (except for allowed admin users and admin page)
+  if (!isAllowedAdmin && pathname !== '/maintenance' && pathname !== '/admin') {
     try {
       // Add timeout to prevent hanging requests
       const controller = new AbortController();
@@ -130,9 +138,14 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // Admin users can always access admin page, even during maintenance
-  if (isAdmin && pathname === '/admin') {
+  // Only allowed admin users can access admin page, even during maintenance
+  if (isAllowedAdmin && pathname === '/admin') {
     return NextResponse.next();
+  }
+
+  // Block non-admin users from accessing admin page
+  if (pathname === '/admin' && !isAllowedAdmin) {
+    return NextResponse.redirect(new URL('/', request.url));
   }
 
   // Allow admin users to access the homepage (chat)

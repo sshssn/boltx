@@ -130,8 +130,6 @@ const Tool = ({
   );
 };
 
-const randomArr = [...Array(6)].map((x) => nanoid(5));
-
 const ReadingLevelSelector = ({
   setSelectedTool,
   sendMessage,
@@ -150,6 +148,7 @@ const ReadingLevelSelector = ({
     'Graduate',
   ];
 
+  const randomArr = [...Array(6)].map((x) => nanoid(5));
   const y = useMotionValue(-40 * 2);
   const dragConstraints = 5 * 40 + 2;
   const yToLevel = useTransform(y, [0, -dragConstraints], [0, 5]);
