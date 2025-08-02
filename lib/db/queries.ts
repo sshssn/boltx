@@ -12,8 +12,11 @@ import {
   lt,
   type SQL,
 } from 'drizzle-orm';
-import { drizzle } from 'drizzle-orm/postgres-js';
-import postgres from 'postgres';
+import { measureDatabaseQuery } from '../performance';
+import { db } from '../db';
+
+// Export db for other modules to use
+export { db };
 
 import {
   user,
@@ -37,24 +40,20 @@ import { generateHashedPassword } from './utils';
 import type { VisibilityType } from '@/components/visibility-selector';
 import { ChatSDKError } from '../errors';
 
-// Optionally, if not using email/pass login, you can
-// use the Drizzle adapter for Auth.js / NextAuth
-// https://authjs.dev/reference/adapter/drizzle
-
-// biome-ignore lint: Forbidden non-null assertion.
-const client = postgres(process.env.POSTGRES_URL!);
-const db = drizzle(client);
-export { db };
-
 export async function getUser(email: string): Promise<Array<User>> {
-  try {
-    return await db.select().from(user).where(eq(user.email, email));
-  } catch (error) {
-    throw new ChatSDKError(
-      'bad_request:database',
-      'Failed to get user by email',
-    );
-  }
+  return measureDatabaseQuery('getUser', async () => {
+    try {
+      // Use Drizzle ORM query builder instead of raw SQL
+      const result = await db.select().from(user).where(eq(user.email, email));
+      return result as Array<User>;
+    } catch (error) {
+      console.error('[GET USER ERROR]', error); // Log the actual error
+      throw new ChatSDKError(
+        'bad_request:database',
+        'Failed to get user by email',
+      );
+    }
+  });
 }
 
 export async function createUser(
@@ -65,12 +64,24 @@ export async function createUser(
   const hashedPassword = generateHashedPassword(password);
 
   try {
-    return await db.insert(user).values({
-      email,
-      password: hashedPassword,
-      username: username || null,
-    });
+    // Use Drizzle ORM query builder instead of raw SQL
+    const result = await db
+      .insert(user)
+      .values({
+        email,
+        password: hashedPassword,
+        username: username || null,
+        role: 'client',
+      })
+      .returning({
+        id: user.id,
+        email: user.email,
+        username: user.username,
+        role: user.role,
+      });
+    return result;
   } catch (error) {
+    console.error('[CREATE USER ERROR]', error); // Log the actual error
     throw new ChatSDKError('bad_request:database', 'Failed to create user');
   }
 }
@@ -80,10 +91,20 @@ export async function createGuestUser() {
   const password = generateHashedPassword(generateUUID());
 
   try {
-    return await db.insert(user).values({ email, password }).returning({
-      id: user.id,
-      email: user.email,
-    });
+    // Use Drizzle ORM query builder instead of raw SQL
+    const result = await db
+      .insert(user)
+      .values({
+        email,
+        password,
+        username: email,
+        role: 'guest',
+      })
+      .returning({
+        id: user.id,
+        email: user.email,
+      });
+    return result;
   } catch (error) {
     console.error('[GUEST USER CREATION ERROR]', error); // Log the actual error
     throw new ChatSDKError(
@@ -538,8 +559,7 @@ export async function getMessageCountByUserId({
           gte(message.createdAt, twentyFourHoursAgo),
           eq(message.role, 'user'),
         ),
-      )
-      .execute();
+      );
 
     return stats?.count ?? 0;
   } catch (error) {
@@ -575,8 +595,7 @@ export async function getStreamIdsByChatId({ chatId }: { chatId: string }) {
       .select({ id: stream.id })
       .from(stream)
       .where(eq(stream.chatId, chatId))
-      .orderBy(asc(stream.createdAt))
-      .execute();
+      .orderBy(asc(stream.createdAt));
 
     return streamIds.map(({ id }) => id);
   } catch (error) {

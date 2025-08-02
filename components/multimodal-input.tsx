@@ -153,8 +153,18 @@ function PureMultimodalInput({
   const [showPasteIndicator, setShowPasteIndicator] = useState(false);
   const [isThinkingMode, setIsThinkingMode] = useState(false);
   const [isWebSearchMode, setIsWebSearchMode] = useState(false);
-  const { incrementMessageCount, remaining, hasReachedLimit } =
-    useMessageLimit();
+  let incrementMessageCount = () => {};
+  let remaining = 0;
+  let hasReachedLimit = false;
+  try {
+    const messageLimitData = useMessageLimit();
+    incrementMessageCount = messageLimitData.incrementMessageCount;
+    remaining = messageLimitData.remaining;
+    hasReachedLimit = messageLimitData.hasReachedLimit;
+  } catch (error) {
+    // MessageLimitProvider not available (e.g., for admin users)
+    // Admin users have no limits
+  }
 
   useEffect(() => {
     if (textareaRef.current) {
@@ -232,6 +242,13 @@ function PureMultimodalInput({
   const submitForm = useCallback(() => {
     if (!input.trim() && attachments.length === 0) {
       toast.error('Please enter a message or attach a file');
+      return;
+    }
+
+    // Check if user has reached limit
+    if (hasReachedLimit) {
+      // Don't send message, just show the rate limit message
+      // The chat component will handle displaying the message
       return;
     }
 
@@ -710,7 +727,9 @@ function PureMultimodalInput({
                           'transition-all duration-200',
                           isWebSearchMode
                             ? 'bg-blue-500/20 hover:bg-blue-500/30 text-blue-600 dark:text-blue-400 border border-blue-200/50 dark:border-blue-700/50'
-                            : 'bg-zinc-100/80 hover:bg-zinc-200/80 dark:bg-zinc-800/80 dark:hover:bg-zinc-700/80 text-zinc-600 dark:text-zinc-400 border border-zinc-200/50 dark:border-zinc-700/50',
+                            : !session?.user
+                              ? 'bg-zinc-100/50 dark:bg-zinc-800/50 text-zinc-400 dark:text-zinc-500 border border-zinc-200/30 dark:border-zinc-700/30 cursor-not-allowed'
+                              : 'bg-zinc-100/80 hover:bg-zinc-200/80 dark:bg-zinc-800/80 dark:hover:bg-zinc-700/80 text-zinc-600 dark:text-zinc-400 border border-zinc-200/50 dark:border-zinc-700/50',
                         )}
                         disabled={limitReached || !session?.user}
                         aria-label={
@@ -725,7 +744,7 @@ function PureMultimodalInput({
                     <TooltipContent>
                       {session?.user
                         ? 'Search the web'
-                        : 'Sign in to use web search'}
+                        : 'Sign in to use web search for free'}
                     </TooltipContent>
                   </Tooltip>
 
@@ -748,22 +767,28 @@ function PureMultimodalInput({
                           'transition-all duration-200',
                           isThinkingMode
                             ? 'bg-purple-500/20 hover:bg-purple-500/30 text-purple-600 dark:text-purple-400 border border-purple-200/50 dark:border-purple-700/50'
-                            : 'bg-zinc-100/80 hover:bg-zinc-200/80 dark:bg-zinc-800/80 dark:hover:bg-zinc-700/80 text-zinc-600 dark:text-zinc-400 border border-zinc-200/50 dark:border-zinc-700/50',
+                            : !session?.user
+                              ? 'bg-zinc-100/50 dark:bg-zinc-800/50 text-zinc-400 dark:text-zinc-500 border border-zinc-200/30 dark:border-zinc-700/30 cursor-not-allowed'
+                              : 'bg-zinc-100/80 hover:bg-zinc-200/80 dark:bg-zinc-800/80 dark:hover:bg-zinc-700/80 text-zinc-600 dark:text-zinc-400 border border-zinc-200/50 dark:border-zinc-700/50',
                         )}
-                        disabled={limitReached}
+                        disabled={limitReached || !session?.user}
                         aria-label={
-                          isThinkingMode
-                            ? 'Disable reasoning mode'
-                            : 'Enable thinking model'
+                          session?.user
+                            ? (isThinkingMode
+                                ? 'Disable reasoning mode'
+                                : 'Enable thinking model')
+                            : 'Sign in to use reasoning mode'
                         }
                       >
                         <Zap size={12} />
                       </ShadcnButton>
                     </TooltipTrigger>
                     <TooltipContent>
-                      {isThinkingMode
-                        ? 'Disable reasoning mode'
-                        : 'Thinking Model'}
+                      {session?.user
+                        ? (isThinkingMode
+                            ? 'Disable reasoning mode'
+                            : 'Thinking Model')
+                        : 'Sign in to use reasoning mode for free'}
                     </TooltipContent>
                   </Tooltip>
 

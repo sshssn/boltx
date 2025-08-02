@@ -8,6 +8,7 @@ interface SearchResult {
   source: string;
   favicon?: string;
   timestamp?: string;
+  type?: 'web' | 'news' | 'images' | 'videos' | 'goggles';
 }
 
 interface SearchResponse {
@@ -25,6 +26,32 @@ interface SearchResponse {
   }[];
   suggestions?: string[];
 }
+
+// Rate limiting for Brave API
+const BRAVE_API_KEY = 'BSAq4w05SU-XiQpz9SwEZr2CZL467AL';
+const DAILY_LIMIT = 50; // Increased from 5 to 50 calls per day for better UX
+
+// Simple in-memory rate limiting (in production, use Redis or database)
+const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
+
+const checkRateLimit = (userId: string): boolean => {
+  const now = Date.now();
+  const today = new Date().toDateString();
+  const key = `${userId}-${today}`;
+
+  const limit = rateLimitMap.get(key);
+  if (!limit || now > limit.resetTime) {
+    rateLimitMap.set(key, { count: 1, resetTime: now + 24 * 60 * 60 * 1000 });
+    return true;
+  }
+
+  if (limit.count >= DAILY_LIMIT) {
+    return false;
+  }
+
+  limit.count++;
+  return true;
+};
 
 // Utility functions for robust processing
 const sanitizeText = (text: string): string => {
@@ -74,7 +101,7 @@ const fetchWithRetry = async (
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+      const timeoutId = setTimeout(() => controller.abort(), 5000); // Reduced to 5s timeout for faster response
 
       const response = await fetch(url, {
         ...options,
@@ -113,18 +140,23 @@ const fetchWithRetry = async (
     }
   }
 
-  throw lastError!;
+  throw lastError;
 };
 
 export const webSearch = tool({
   description:
-    'Search the web for current information and articles using DuckDuckGo. Returns formatted results with sources, snippets, and metadata for display in AI applications.',
+    'Search the web for current information using Brave Search API. Supports web search, news, images, and videos. Limited to 5 calls per day for registered users.',
   inputSchema: z.object({
     query: z
       .string()
       .min(1, 'Query cannot be empty')
       .max(500, 'Query too long')
       .describe('The search query to find articles and information about'),
+    searchType: z
+      .enum(['web', 'news', 'images', 'videos', 'goggles'])
+      .default('web')
+      .optional()
+      .describe('Type of search to perform'),
     limit: z
       .number()
       .min(1)
@@ -137,176 +169,118 @@ export const webSearch = tool({
       .default(true)
       .optional()
       .describe('Enable safe search filtering'),
+    userId: z.string().optional().describe('User ID for rate limiting'),
   }),
 
   execute: async ({
     query,
+    searchType = 'web',
     limit = 10,
     safeSearch = true,
+    userId = 'guest',
   }): Promise<SearchResponse> => {
     const startTime = Date.now();
 
     try {
+      // Check rate limit
+      if (!checkRateLimit(userId || 'guest')) {
+        return {
+          query: query || '',
+          results: [],
+          totalResults: 0,
+          searchTime: new Date().toISOString(),
+          error: 'Rate limit exceeded',
+          message:
+            'You have reached your daily search limit (5 searches per day). Please try again tomorrow.',
+          suggestions: [],
+        };
+      }
+
       // Validate and sanitize input
       const cleanQuery = sanitizeText(query).substring(0, 500);
       if (!cleanQuery) {
         throw new Error('Invalid or empty search query');
       }
 
-      // Build search URLs for multiple endpoints
-      const searchUrls = [
-        // Primary: DuckDuckGo Instant Answer API
-        `https://api.duckduckgo.com/?q=${encodeURIComponent(cleanQuery)}&format=json&no_html=1&skip_disambig=1&safe_search=${safeSearch ? 'strict' : 'off'}`,
+      // Use Brave Search API with the provided key
+      const braveSearchUrl = 'https://api.search.brave.com/res/v1/web/search';
+      const searchParams = new URLSearchParams({
+        q: cleanQuery,
+        count: limit.toString(),
+        search_lang: 'en_US',
+        ui_lang: 'en',
+        country: 'US',
+        safesearch: safeSearch ? 'strict' : 'off',
+        api_key: BRAVE_API_KEY,
+      });
 
-        // Fallback: Alternative endpoint structure
-        `https://api.duckduckgo.com/?q=${encodeURIComponent(cleanQuery)}&format=json&pretty=1&no_redirect=1&safe_search=${safeSearch ? 'strict' : 'off'}`,
-      ];
-
-      let searchData: any = null;
-      let usedEndpoint = '';
-
-      // Try each endpoint until one works
-      for (const searchUrl of searchUrls) {
-        try {
-          const response = await fetchWithRetry(searchUrl);
-          searchData = await response.json();
-          usedEndpoint = searchUrl;
-          break;
-        } catch (error) {
-          console.warn(`Failed to fetch from ${searchUrl}:`, error);
-          continue;
-        }
+      // Add search type specific parameters
+      if (searchType === 'news') {
+        searchParams.append('news', '1');
+      } else if (searchType === 'images') {
+        searchParams.append('images', '1');
+      } else if (searchType === 'videos') {
+        searchParams.append('videos', '1');
       }
 
-      if (!searchData) {
-        throw new Error('All search endpoints failed');
+      const response = await fetchWithRetry(
+        `${braveSearchUrl}?${searchParams}`,
+        {
+          headers: {
+            Accept: 'application/json',
+          },
+        },
+      );
+
+      const searchData = await response.json();
+
+      if (!searchData || !searchData.web || !searchData.web.results) {
+        throw new Error('Invalid response from Brave Search API');
       }
 
       const results: SearchResult[] = [];
       const processedUrls = new Set<string>();
 
-      // Process Abstract (main result)
-      if (
-        searchData.Abstract &&
-        searchData.AbstractURL &&
-        isValidUrl(searchData.AbstractURL)
-      ) {
-        const abstractUrl = searchData.AbstractURL;
-        if (!processedUrls.has(abstractUrl)) {
+      // Process Brave Search results based on search type
+      const searchResults =
+        searchType === 'news' && searchData.news?.results
+          ? searchData.news.results
+          : searchType === 'images' && searchData.images?.results
+            ? searchData.images.results
+            : searchType === 'videos' && searchData.videos?.results
+              ? searchData.videos.results
+              : searchData.web.results || [];
+
+      // Process results
+      searchResults.slice(0, limit).forEach((result: any) => {
+        if (
+          result.url &&
+          isValidUrl(result.url) &&
+          !processedUrls.has(result.url)
+        ) {
           results.push({
-            title: sanitizeText(
-              searchData.AbstractSource ||
-                searchData.Heading ||
-                'Featured Result',
-            ),
-            url: abstractUrl,
-            snippet: sanitizeText(searchData.Abstract),
-            source: extractDomain(abstractUrl),
-            favicon: generateFaviconUrl(abstractUrl),
+            title: sanitizeText(result.title || 'Untitled'),
+            url: result.url,
+            snippet: sanitizeText(result.description || ''),
+            source: extractDomain(result.url),
+            favicon: result.profile?.favicon || generateFaviconUrl(result.url),
             timestamp: new Date().toISOString(),
+            type: searchType,
           });
-          processedUrls.add(abstractUrl);
+          processedUrls.add(result.url);
         }
-      }
+      });
 
-      // Process Definition if available
-      if (
-        searchData.Definition &&
-        searchData.DefinitionURL &&
-        isValidUrl(searchData.DefinitionURL)
-      ) {
-        const defUrl = searchData.DefinitionURL;
-        if (!processedUrls.has(defUrl) && results.length < limit) {
-          results.push({
-            title: sanitizeText(searchData.DefinitionSource || 'Definition'),
-            url: defUrl,
-            snippet: sanitizeText(searchData.Definition),
-            source: extractDomain(defUrl),
-            favicon: generateFaviconUrl(defUrl),
-            timestamp: new Date().toISOString(),
-          });
-          processedUrls.add(defUrl);
-        }
-      }
-
-      // Process Related Topics
-      if (searchData.RelatedTopics && Array.isArray(searchData.RelatedTopics)) {
-        searchData.RelatedTopics.filter(
-          (topic: any) => topic && topic.Text && topic.FirstURL,
-        )
-          .slice(0, limit - results.length)
-          .forEach((topic: any) => {
-            const topicUrl = topic.FirstURL;
-            if (isValidUrl(topicUrl) && !processedUrls.has(topicUrl)) {
-              const title = sanitizeText(
-                topic.Text.split(' - ')[0] || topic.Text,
-              );
-              if (title) {
-                results.push({
-                  title,
-                  url: topicUrl,
-                  snippet: sanitizeText(topic.Text),
-                  source: extractDomain(topicUrl),
-                  favicon: generateFaviconUrl(topicUrl),
-                  timestamp: new Date().toISOString(),
-                });
-                processedUrls.add(topicUrl);
-              }
-            }
-          });
-      }
-
-      // Process Results array if available
-      if (searchData.Results && Array.isArray(searchData.Results)) {
-        searchData.Results.filter(
-          (result: any) => result && result.Text && result.FirstURL,
-        )
-          .slice(0, limit - results.length)
-          .forEach((result: any) => {
-            const resultUrl = result.FirstURL;
-            if (isValidUrl(resultUrl) && !processedUrls.has(resultUrl)) {
-              const title = sanitizeText(
-                result.Text.split(' - ')[0] || result.Text,
-              );
-              if (title) {
-                results.push({
-                  title,
-                  url: resultUrl,
-                  snippet: sanitizeText(result.Text),
-                  source: extractDomain(resultUrl),
-                  favicon: generateFaviconUrl(resultUrl),
-                  timestamp: new Date().toISOString(),
-                });
-                processedUrls.add(resultUrl);
-              }
-            }
-          });
-      }
-
-      // Add direct answer as a result if available
-      if (searchData.Answer) {
-        const answerText = sanitizeText(searchData.Answer);
-        if (answerText && results.length < limit) {
-          results.push({
-            title: 'Direct Answer',
-            url: searchData.AbstractURL || '',
-            snippet: answerText,
-            source: 'DuckDuckGo',
-            favicon: '',
-            timestamp: new Date().toISOString(),
-          });
-        }
-      }
-
-      // Generate search suggestions based on related topics
+      // Generate search suggestions based on Brave Search suggestions
       const suggestions: string[] = [];
-      if (searchData.RelatedTopics) {
-        searchData.RelatedTopics.slice(0, 3).forEach((topic: any) => {
-          if (topic.Text) {
-            const suggestion = sanitizeText(topic.Text.split(' - ')[0]);
-            if (suggestion && suggestion !== cleanQuery) {
-              suggestions.push(suggestion);
-            }
+      if (
+        searchData.web.suggestions &&
+        Array.isArray(searchData.web.suggestions)
+      ) {
+        searchData.web.suggestions.slice(0, 3).forEach((suggestion: string) => {
+          const cleanSuggestion = sanitizeText(suggestion);
+          if (cleanSuggestion && cleanSuggestion !== cleanQuery) {
+            suggestions.push(cleanSuggestion);
           }
         });
       }
@@ -320,7 +294,7 @@ export const webSearch = tool({
           query: cleanQuery,
           results: [],
           totalResults: 0,
-          message: `No specific results found for "${cleanQuery}". Try rephrasing your search or using different keywords.`,
+          message: `No ${searchType} results found for "${cleanQuery}". Try rephrasing your search or using different keywords.`,
           searchTime,
           suggestions:
             suggestions.length > 0
@@ -346,7 +320,7 @@ export const webSearch = tool({
         results: results.slice(0, limit),
         totalResults: results.length,
         searchTime,
-        message: `Found ${results.length} relevant result${results.length === 1 ? '' : 's'} for "${cleanQuery}" in ${executionTime}ms.`,
+        message: `Found ${results.length} relevant ${searchType} result${results.length === 1 ? '' : 's'} for "${cleanQuery}" in ${executionTime}ms.`,
         formattedSources,
         suggestions,
       };
@@ -389,3 +363,198 @@ export const webSearch = tool({
     }
   },
 });
+
+// Direct web search function for use outside of AI SDK
+export async function performWebSearch({
+  query,
+  searchType = 'web',
+  limit = 10,
+  safeSearch = true,
+  userId = 'guest',
+}: {
+  query: string;
+  searchType?: 'web' | 'news' | 'images' | 'videos' | 'goggles';
+  limit?: number;
+  safeSearch?: boolean;
+  userId?: string;
+}): Promise<SearchResponse> {
+  const startTime = Date.now();
+
+  try {
+    // Check rate limit
+    if (!checkRateLimit(userId)) {
+      return {
+        query: query || '',
+        results: [],
+        totalResults: 0,
+        searchTime: new Date().toISOString(),
+        error: 'Rate limit exceeded',
+        message:
+          'You have reached your daily search limit (5 searches per day). Please try again tomorrow.',
+        suggestions: [],
+      };
+    }
+
+    // Validate and sanitize input
+    const cleanQuery = sanitizeText(query).substring(0, 500);
+    if (!cleanQuery) {
+      throw new Error('Invalid or empty search query');
+    }
+
+    // Use Brave Search API with the provided key
+    const braveSearchUrl = 'https://api.search.brave.com/res/v1/web/search';
+    const searchParams = new URLSearchParams({
+      q: cleanQuery,
+      count: limit.toString(),
+      search_lang: 'en_US',
+      ui_lang: 'en',
+      country: 'US',
+      safesearch: safeSearch ? 'strict' : 'off',
+      api_key: BRAVE_API_KEY,
+    });
+
+    // Add search type specific parameters
+    if (searchType === 'news') {
+      searchParams.append('news', '1');
+    } else if (searchType === 'images') {
+      searchParams.append('images', '1');
+    } else if (searchType === 'videos') {
+      searchParams.append('videos', '1');
+    }
+
+    const response = await fetchWithRetry(`${braveSearchUrl}?${searchParams}`, {
+      headers: {
+        Accept: 'application/json',
+      },
+    });
+
+    const searchData = await response.json();
+
+    if (!searchData || !searchData.web || !searchData.web.results) {
+      throw new Error('Invalid response from Brave Search API');
+    }
+
+    const results: SearchResult[] = [];
+    const processedUrls = new Set<string>();
+
+    // Process Brave Search results based on search type
+    const searchResults =
+      searchType === 'news' && searchData.news?.results
+        ? searchData.news.results
+        : searchType === 'images' && searchData.images?.results
+          ? searchData.images.results
+          : searchType === 'videos' && searchData.videos?.results
+            ? searchData.videos.results
+            : searchData.web.results || [];
+
+    // Process results
+    searchResults.slice(0, limit).forEach((result: any) => {
+      if (
+        result.url &&
+        isValidUrl(result.url) &&
+        !processedUrls.has(result.url)
+      ) {
+        results.push({
+          title: sanitizeText(result.title || 'Untitled'),
+          url: result.url,
+          snippet: sanitizeText(result.description || ''),
+          source: extractDomain(result.url),
+          favicon: result.profile?.favicon || generateFaviconUrl(result.url),
+          timestamp: new Date().toISOString(),
+          type: searchType,
+        });
+        processedUrls.add(result.url);
+      }
+    });
+
+    // Generate search suggestions based on Brave Search suggestions
+    const suggestions: string[] = [];
+    if (
+      searchData.web.suggestions &&
+      Array.isArray(searchData.web.suggestions)
+    ) {
+      searchData.web.suggestions.slice(0, 3).forEach((suggestion: string) => {
+        const cleanSuggestion = sanitizeText(suggestion);
+        if (cleanSuggestion && cleanSuggestion !== cleanQuery) {
+          suggestions.push(cleanSuggestion);
+        }
+      });
+    }
+
+    const searchTime = new Date().toISOString();
+    const executionTime = Date.now() - startTime;
+
+    // Handle no results case
+    if (results.length === 0) {
+      return {
+        query: cleanQuery,
+        results: [],
+        totalResults: 0,
+        message: `No ${searchType} results found for "${cleanQuery}". Try rephrasing your search or using different keywords.`,
+        searchTime,
+        suggestions:
+          suggestions.length > 0
+            ? suggestions
+            : [
+                `${cleanQuery} news`,
+                `${cleanQuery} 2025`,
+                `what is ${cleanQuery}`,
+              ],
+      };
+    }
+
+    // Format sources for frontend display
+    const formattedSources = results.map((result) => ({
+      title: result.title,
+      url: result.url,
+      snippet: result.snippet,
+      favicon: result.favicon,
+    }));
+
+    return {
+      query: cleanQuery,
+      results: results.slice(0, limit),
+      totalResults: results.length,
+      searchTime,
+      message: `Found ${results.length} relevant ${searchType} result${results.length === 1 ? '' : 's'} for "${cleanQuery}" in ${executionTime}ms.`,
+      formattedSources,
+      suggestions,
+    };
+  } catch (error) {
+    const executionTime = Date.now() - startTime;
+    console.error('Web search error:', error);
+
+    // Determine error type for better user messaging
+    let errorMessage =
+      'Search service temporarily unavailable. Please try again later.';
+
+    if (error instanceof Error) {
+      if (
+        error.message.includes('AbortError') ||
+        error.message.includes('timeout')
+      ) {
+        errorMessage =
+          'Search request timed out. Please try a more specific query.';
+      } else if (
+        error.message.includes('network') ||
+        error.message.includes('fetch')
+      ) {
+        errorMessage =
+          'Network connection error. Please check your internet and try again.';
+      } else if (error.message.includes('429')) {
+        errorMessage =
+          'Search rate limit exceeded. Please wait a moment and try again.';
+      }
+    }
+
+    return {
+      query: query || '',
+      results: [],
+      totalResults: 0,
+      searchTime: new Date().toISOString(),
+      error: error instanceof Error ? error.message : 'Unknown error',
+      message: errorMessage,
+      suggestions: [],
+    };
+  }
+}

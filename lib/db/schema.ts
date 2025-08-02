@@ -22,6 +22,8 @@ export const user = pgTable('User', {
   stripeCustomerId: varchar('stripeCustomerId', { length: 255 }),
   plan: varchar('plan', { length: 20 }).default('free'), // 'free' or 'pro'
   lastUsernameChange: timestamp('lastUsernameChange'),
+  // Admin role management
+  role: varchar('role', { length: 20 }).default('client'), // 'admin' or 'client'
   // Legacy columns (keeping for backward compatibility)
   userType: text('user_type').default('free'),
   dailyLimit: integer('daily_limit').default(20),
@@ -217,3 +219,50 @@ export const messageUsage = pgTable('MessageUsage', {
 });
 
 export type MessageUsage = InferSelectModel<typeof messageUsage>;
+
+// New tables for admin functionality
+
+export const ticket = pgTable('Ticket', {
+  id: uuid('id').primaryKey().notNull().defaultRandom(),
+  userId: uuid('userId')
+    .notNull()
+    .references(() => user.id),
+  type: varchar('type', { length: 20 }).notNull(), // 'bug', 'feature', 'support'
+  subject: text('subject').notNull(),
+  description: text('description').notNull(),
+  status: varchar('status', { length: 20 }).notNull().default('open'), // 'open', 'in_progress', 'resolved', 'closed'
+  priority: varchar('priority', { length: 20 }).notNull().default('medium'), // 'low', 'medium', 'high', 'urgent'
+  attachments: json('attachments').default('[]'), // JSON array of file attachments
+  createdAt: timestamp('createdAt').notNull().defaultNow(),
+  updatedAt: timestamp('updatedAt').notNull().defaultNow(),
+  resolvedAt: timestamp('resolvedAt'),
+  assignedTo: uuid('assignedTo').references(() => user.id), // admin assigned to handle
+});
+
+export type Ticket = InferSelectModel<typeof ticket>;
+
+export const ticketReply = pgTable('TicketReply', {
+  id: uuid('id').primaryKey().notNull().defaultRandom(),
+  ticketId: uuid('ticketId')
+    .notNull()
+    .references(() => ticket.id, { onDelete: 'cascade' }),
+  userId: uuid('userId')
+    .notNull()
+    .references(() => user.id),
+  content: text('content').notNull(),
+  isAdminReply: boolean('isAdminReply').notNull().default(false),
+  createdAt: timestamp('createdAt').notNull().defaultNow(),
+});
+
+export type TicketReply = InferSelectModel<typeof ticketReply>;
+
+export const adminMetadata = pgTable('AdminMetadata', {
+  id: uuid('id').primaryKey().notNull().defaultRandom(),
+  key: varchar('key', { length: 100 }).notNull().unique(),
+  value: json('value'),
+  description: text('description'),
+  createdAt: timestamp('createdAt').notNull().defaultNow(),
+  updatedAt: timestamp('updatedAt').notNull().defaultNow(),
+});
+
+export type AdminMetadata = InferSelectModel<typeof adminMetadata>;

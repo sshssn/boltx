@@ -1,11 +1,6 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/app/(auth)/auth';
-import { drizzle } from 'drizzle-orm/postgres-js';
-import postgres from 'postgres';
-
-if (!process.env.POSTGRES_URL) throw new Error('POSTGRES_URL is not set');
-const client = postgres(process.env.POSTGRES_URL);
-const db = drizzle(client);
+import { db } from '@/lib/db';
 
 // WARNING: This is a placeholder. You should add an 'apiKey' field to the user table in schema and migrations for production use.
 

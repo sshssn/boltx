@@ -4,6 +4,28 @@ import { Label } from './ui/label';
 import { Eye, EyeOff } from 'lucide-react';
 import { useState } from 'react';
 
+// Email validation for major providers
+const ALLOWED_EMAIL_DOMAINS = [
+  'gmail.com',
+  'googlemail.com',
+  'icloud.com',
+  'me.com',
+  'mac.com',
+  'yahoo.com',
+  'yahoo.co.uk',
+  'yahoo.ca',
+  'outlook.com',
+  'hotmail.com',
+  'live.com',
+  'msn.com',
+  'microsoft.com',
+];
+
+const validateEmail = (email: string): boolean => {
+  const domain = email.split('@')[1]?.toLowerCase();
+  return ALLOWED_EMAIL_DOMAINS.includes(domain);
+};
+
 export function AuthForm({
   action,
   children,
@@ -22,6 +44,18 @@ export function AuthForm({
   subtitle?: string;
 }) {
   const [showPassword, setShowPassword] = useState(false);
+  const [emailError, setEmailError] = useState('');
+
+  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const email = e.target.value;
+    if (email && !validateEmail(email)) {
+      setEmailError(
+        'Please use a supported email provider (Gmail, iCloud, Yahoo, Microsoft)',
+      );
+    } else {
+      setEmailError('');
+    }
+  };
 
   return (
     <div className="w-full max-w-md mx-auto px-4">
@@ -84,14 +118,25 @@ export function AuthForm({
             <Input
               id="email"
               name="email"
-              className="w-full"
+              className={`w-full ${emailError ? 'border-red-500 focus:border-red-500' : ''}`}
               type="email"
               placeholder="you@example.com"
               autoComplete="email"
               required
               autoFocus={mode === 'signin'}
               defaultValue={defaultEmail}
+              onChange={handleEmailChange}
+              pattern="[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$"
+              title="Please enter a valid email address from a supported provider"
             />
+            {emailError && (
+              <p className="text-xs text-red-500 dark:text-red-400">
+                {emailError}
+              </p>
+            )}
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+              Supported providers: Gmail, iCloud, Yahoo, Microsoft
+            </p>
           </div>
 
           {/* Password field */}
@@ -131,6 +176,18 @@ export function AuthForm({
 
           {/* Form actions */}
           <div className="pt-2">{children}</div>
+
+          {/* Reset password link - only for signin mode */}
+          {mode === 'signin' && (
+            <div className="text-center pt-2">
+              <a
+                href="/auth/forgot-password"
+                className="text-sm text-primary hover:text-primary/80 transition-colors duration-200 underline-offset-4 hover:underline"
+              >
+                Forgot your password?
+              </a>
+            </div>
+          )}
         </Form>
       </div>
     </div>

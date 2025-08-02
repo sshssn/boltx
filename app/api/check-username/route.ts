@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db/queries';
+import { db } from '@/lib/db';
 import { user } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 
@@ -23,9 +23,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Check if username already exists
+    // Check if username already exists using Drizzle ORM
     const existingUser = await db
-      .select()
+      .select({ id: user.id })
       .from(user)
       .where(eq(user.username, username))
       .limit(1);

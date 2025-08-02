@@ -1,9 +1,7 @@
 import { config } from 'dotenv';
 import { defineConfig } from 'drizzle-kit';
 
-config({
-  path: '.env.local',
-});
+config({ path: '.env.local' });
 
 export default defineConfig({
   schema: './lib/db/schema.ts',
@@ -11,6 +9,6 @@ export default defineConfig({
   dialect: 'postgresql',
   dbCredentials: {
     // biome-ignore lint: Forbidden non-null assertion.
-    url: process.env.POSTGRES_URL!,
+    url: process.env.DATABASE_URL!,
   },
 });

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -18,8 +18,8 @@ import {
   Rocket,
   Shield,
   Zap as ZapIcon,
+  X,
 } from 'lucide-react';
-import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 
 interface OnboardingStep {
@@ -113,14 +113,16 @@ export function Onboarding() {
     if (currentStep < onboardingSteps.length - 1) {
       setCurrentStep(currentStep + 1);
     } else {
-      // Complete onboarding and redirect to homepage
-      localStorage.setItem('onboarding-completed', 'true');
+      // Complete onboarding and redirect to chat
+      localStorage.setItem('boltX-onboarding-completed', 'true');
+      sessionStorage.removeItem('boltX-onboarding-seen');
       router.push('/');
     }
   };
 
   const skipOnboarding = () => {
-    localStorage.setItem('onboarding-completed', 'true');
+    localStorage.setItem('boltX-onboarding-completed', 'true');
+    sessionStorage.removeItem('boltX-onboarding-seen');
     router.push('/');
   };
 
@@ -128,13 +130,13 @@ export function Onboarding() {
   const progress = ((currentStep + 1) / onboardingSteps.length) * 100;
 
   return (
-    <AnimatePresence>
+    <>
       {isVisible && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-50 bg-gradient-to-br from-[#181c2a] via-[#232329] to-[#181c2a] flex items-center justify-center p-4"
+          className="fixed inset-0 z-50 bg-background flex items-center justify-center p-4"
         >
           {/* Background Pattern */}
           <div className="absolute inset-0 overflow-hidden">
@@ -143,6 +145,17 @@ export function Onboarding() {
           </div>
 
           <div className="relative w-full max-w-4xl">
+            {/* Close Button */}
+            <motion.button
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.1 }}
+              onClick={skipOnboarding}
+              className="absolute -top-4 -right-4 z-10 size-10 rounded-full bg-background/80 backdrop-blur-sm border border-border hover:bg-background transition-colors flex items-center justify-center text-muted-foreground hover:text-foreground"
+            >
+              <X className="size-4" />
+            </motion.button>
+
             {/* Header */}
             <div className="text-center mb-8">
               <motion.div
@@ -151,13 +164,7 @@ export function Onboarding() {
                 transition={{ delay: 0.2 }}
                 className="flex items-center justify-center mb-6"
               >
-                <Image
-                  src="/images/dark.svg"
-                  alt="BoltX"
-                  width={120}
-                  height={40}
-                  className="h-8 w-auto"
-                />
+                <div className="text-2xl font-bold text-foreground">BoltX</div>
               </motion.div>
 
               <motion.div
@@ -166,10 +173,7 @@ export function Onboarding() {
                 transition={{ delay: 0.3 }}
                 className="flex items-center justify-center gap-2 mb-4"
               >
-                <Badge
-                  variant="secondary"
-                  className="bg-white/10 text-white border-white/20"
-                >
+                <Badge variant="secondary">
                   <Rocket className="size-3 mr-1" />
                   Welcome aboard!
                 </Badge>
@@ -181,8 +185,13 @@ export function Onboarding() {
                 transition={{ delay: 0.4 }}
                 className="mb-6"
               >
-                <Progress value={progress} className="w-64 mx-auto h-2" />
-                <p className="text-zinc-400 text-sm mt-2">
+                <div className="w-64 mx-auto h-2 bg-muted rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-primary transition-all duration-300" 
+                    style={{ width: `${progress}%` } as React.CSSProperties}
+                  />
+                </div>
+                <p className="text-muted-foreground text-sm mt-2">
                   Step {currentStep + 1} of {onboardingSteps.length}
                 </p>
               </motion.div>
@@ -197,7 +206,7 @@ export function Onboarding() {
               transition={{ duration: 0.5 }}
               className="relative"
             >
-              <Card className="bg-white/90 dark:bg-zinc-900/90 backdrop-blur-xl backdrop-saturate-150 border border-zinc-200/60 dark:border-zinc-700/60 shadow-2xl shadow-black/10 dark:shadow-black/30">
+              <Card className="backdrop-blur-xl border shadow-2xl">
                 <CardContent className="p-8">
                   <div className="grid lg:grid-cols-2 gap-8 items-center">
                     {/* Left Side - Content */}
@@ -206,7 +215,7 @@ export function Onboarding() {
                         initial={{ scale: 0.8, opacity: 0 }}
                         animate={{ scale: 1, opacity: 1 }}
                         transition={{ delay: 0.5 }}
-                        className={`inline-flex items-center justify-center size-16 rounded-2xl ${currentStepData.gradient} ${currentStepData.color.replace('from-', 'text-').replace(' to-', '')}`}
+                        className={`inline-flex items-center justify-center size-16 rounded-2xl ${currentStepData.gradient} text-white`}
                       >
                         {currentStepData.icon}
                       </motion.div>
@@ -218,15 +227,15 @@ export function Onboarding() {
                         className="space-y-4"
                       >
                         <div>
-                          <h2 className="text-3xl font-bold text-zinc-900 dark:text-white mb-2">
+                          <h2 className="text-3xl font-bold text-foreground mb-2">
                             {currentStepData.title}
                           </h2>
-                          <p className="text-xl text-zinc-600 dark:text-zinc-400 font-medium">
+                          <p className="text-xl text-muted-foreground font-medium">
                             {currentStepData.subtitle}
                           </p>
                         </div>
 
-                        <p className="text-zinc-600 dark:text-zinc-400 leading-relaxed">
+                        <p className="text-muted-foreground leading-relaxed">
                           {currentStepData.description}
                         </p>
                       </motion.div>
@@ -237,7 +246,7 @@ export function Onboarding() {
                         transition={{ delay: 0.7 }}
                         className="space-y-3"
                       >
-                        <h4 className="font-semibold text-zinc-900 dark:text-white flex items-center gap-2">
+                        <h4 className="font-semibold text-foreground flex items-center gap-2">
                           <Star className="w-4 h-4 text-yellow-500" />
                           Key Features
                         </h4>
@@ -248,7 +257,7 @@ export function Onboarding() {
                               initial={{ x: -20, opacity: 0 }}
                               animate={{ x: 0, opacity: 1 }}
                               transition={{ delay: 0.8 + index * 0.1 }}
-                              className="flex items-center gap-3 text-sm text-zinc-600 dark:text-zinc-400"
+                              className="flex items-center gap-3 text-sm text-muted-foreground"
                             >
                               <CheckCircle className="w-4 h-4 text-green-500 shrink-0" />
                               {feature}
@@ -266,12 +275,10 @@ export function Onboarding() {
                       className="relative"
                     >
                       <div
-                        className={`w-full h-80 rounded-2xl ${currentStepData.gradient} border border-white/20 flex items-center justify-center`}
+                        className={`w-full h-80 rounded-2xl ${currentStepData.gradient} border flex items-center justify-center`}
                       >
                         <div className="text-center space-y-4">
-                          <div
-                            className={`text-6xl ${currentStepData.color.replace('from-', 'text-').replace(' to-', '')}`}
-                          >
+                          <div className="text-6xl text-white">
                             {currentStepData.icon}
                           </div>
                           <div className="space-y-2">
@@ -322,7 +329,7 @@ export function Onboarding() {
               <Button
                 variant="ghost"
                 onClick={skipOnboarding}
-                className="text-zinc-400 hover:text-zinc-300"
+                className="text-muted-foreground hover:text-foreground"
               >
                 Skip for now
               </Button>
@@ -335,8 +342,8 @@ export function Onboarding() {
                       onClick={() => setCurrentStep(index)}
                       className={`size-2 rounded-full transition-all ${
                         index === currentStep
-                          ? 'bg-white scale-125'
-                          : 'bg-white/30 hover:bg-white/50'
+                          ? 'bg-primary scale-125'
+                          : 'bg-muted hover:bg-muted-foreground'
                       }`}
                       whileHover={{ scale: 1.2 }}
                       whileTap={{ scale: 0.9 }}
@@ -365,6 +372,6 @@ export function Onboarding() {
           </div>
         </motion.div>
       )}
-    </AnimatePresence>
+    </>
   );
 }

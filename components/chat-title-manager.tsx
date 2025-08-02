@@ -8,7 +8,7 @@ function revealTitleAnimated(fullTitle: string, setTitle: (t: string) => void) {
     setTitle(fullTitle.slice(0, i + 1));
     i++;
     if (i >= fullTitle.length) clearInterval(interval);
-  }, 3); // Ultra-fast character delay - reduced to 3ms for instant feel
+  }, 1); // Minimal character delay for instant feel
 }
 
 interface ChatTitleManagerProps {

@@ -27,7 +27,7 @@ export default async function Layout({
         strategy="beforeInteractive"
       />
       <DataStreamProvider>
-        <MessageLimitProvider>
+        {session?.user?.role === 'admin' ? (
           <ChatCacheProvider>
             <SidebarProvider defaultOpen={!isCollapsed}>
               <AppSidebar user={session?.user} />
@@ -36,7 +36,18 @@ export default async function Layout({
               </SidebarInset>
             </SidebarProvider>
           </ChatCacheProvider>
-        </MessageLimitProvider>
+        ) : (
+          <MessageLimitProvider>
+            <ChatCacheProvider>
+              <SidebarProvider defaultOpen={!isCollapsed}>
+                <AppSidebar user={session?.user} />
+                <SidebarInset className="flex-1 min-w-0">
+                  <div className="flex flex-col h-dvh">{children}</div>
+                </SidebarInset>
+              </SidebarProvider>
+            </ChatCacheProvider>
+          </MessageLimitProvider>
+        )}
       </DataStreamProvider>
     </>
   );

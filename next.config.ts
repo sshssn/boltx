@@ -7,6 +7,9 @@ const nextConfig: NextConfig = {
         hostname: 'avatar.vercel.sh',
       },
     ],
+    // Optimize image loading
+    formats: ['image/webp', 'image/avif'],
+    minimumCacheTTL: 60 * 60 * 24 * 30, // 30 days
   },
   eslint: {
     ignoreDuringBuilds: true,
@@ -14,6 +17,12 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
+  // Performance optimizations
+  experimental: {
+    optimizePackageImports: ['@radix-ui/react-icons', 'lucide-react'],
+  },
+  // Enable compression
+  compress: true,
 };
 
 export default nextConfig;

@@ -144,7 +144,7 @@ const callOpenRouter = async (messages: any[], options: any = {}) => {
   rateLimitManager.recordRequest(`openrouter-${selectedKeyIndex}`);
 
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 5000); // Super fast timeout for speed
+  const timeoutId = setTimeout(() => controller.abort(), 3000); // Reduced to 3s for faster response
 
   try {
     const response = await fetch(
@@ -351,9 +351,35 @@ export async function POST(request: Request) {
     if (isWebSearchMode) {
       const userText =
         userMessage.parts?.[0]?.text || userMessage.content || '';
-      aiIdentityInstructions += `\n\nIMPORTANT: The user has requested web search for current information about: "${userText}". 
 
-You have access to a web search tool. Use it to find the most recent and relevant articles, research papers, and sources. 
+      // Call Brave API directly for web search
+      try {
+        // Import the direct web search function
+        const { performWebSearch } = await import('@/lib/ai/tools/web-search');
+
+        // Call the direct web search function
+        const searchResponse = await performWebSearch({
+          query: userText,
+          searchType: 'web',
+          limit: 10,
+          safeSearch: true,
+          userId: session?.user?.id || 'guest',
+        });
+
+        if (searchResponse.results && searchResponse.results.length > 0) {
+          // Format search results for the AI
+          const searchResults = searchResponse.results
+            .map(
+              (result, index) =>
+                `${index + 1}. ${result.title}\n   URL: ${result.url}\n   Summary: ${result.snippet}`,
+            )
+            .join('\n\n');
+
+          aiIdentityInstructions += `\n\nWEB SEARCH RESULTS FOR: "${userText}"
+
+${searchResults}
+
+IMPORTANT: Use the above search results to provide accurate, up-to-date information. Format your response with sources using the [Source: Title - URL] format.
 
 RESPONSE PATTERN - FOLLOW THIS EXACTLY:
 
@@ -369,7 +395,7 @@ FORMAT YOUR RESPONSE LIKE THIS:
 
 CRITICAL RULES:
 - Use the format: [Source: Title - URL]
-- Extract title and URL from the search results
+- Extract title and URL from the search results above
 - The markdown component will automatically detect this pattern and create the sources container
 - This works globally across all chats, not just web search
 - The sources will appear in a beautiful container with favicons and modal functionality
@@ -378,6 +404,13 @@ CRITICAL RULES:
 - IMPORTANT: Only include sources that have valid URLs (starting with http/https)
 - If a source has no valid URL, skip it and don't include it
 - Make sure to extract the actual title text and URL string, not the object reference`;
+        } else {
+          aiIdentityInstructions += `\n\nWEB SEARCH: No recent results found for "${userText}". Please provide general information and note that web search didn't return specific results.`;
+        }
+      } catch (error) {
+        console.error('Web search error:', error);
+        aiIdentityInstructions += `\n\nWEB SEARCH: Unable to perform web search due to an error. Please provide general information.`;
+      }
     }
 
     // Add continuation instructions if this is a continuation request
@@ -631,6 +664,10 @@ CRITICAL RULES:
             ...contents,
           ];
           const groqMessages = convertToGroqFormat(groqContents);
+
+          // Configure tools for web search if enabled
+          const tools = isWebSearchMode ? [webSearch] : undefined;
+
           const response = await callGroq(groqMessages, {
             temperature: config.generationConfig.temperature,
             maxTokens: config.generationConfig.maxOutputTokens,
@@ -650,9 +687,9 @@ CRITICAL RULES:
                   throw new Error('No response body reader from Groq');
                 }
                 const decoder = new TextDecoder();
+                let hasContent = false;
 
                 try {
-                  let contentReceived = false;
                   while (true) {
                     const { done, value } = await reader.read();
                     if (done) break;
@@ -664,8 +701,14 @@ CRITICAL RULES:
                       if (line.startsWith('data: ')) {
                         const data = line.slice(6);
                         if (data === '[DONE]') {
-                          if (!contentReceived) {
-                            // Groq stream completed but no content received
+                          if (!hasContent) {
+                            console.error(
+                              'Groq stream completed without content',
+                            );
+                            controller.error(
+                              new Error('Groq stream returned no content'),
+                            );
+                            return;
                           }
                           controller.close();
                           return;
@@ -673,73 +716,33 @@ CRITICAL RULES:
 
                         try {
                           const parsed = JSON.parse(data);
-                          // Groq stream data processed
-
                           if (parsed.choices?.[0]?.delta?.content) {
                             const content = parsed.choices[0].delta.content;
-                            // Enqueuing content
-                            controller.enqueue({
-                              type: 'text-delta',
-                              delta: content,
-                            });
-                            contentReceived = true;
-                          } else if (parsed.choices?.[0]?.message?.content) {
-                            // Handle non-streaming response format
-                            const content = parsed.choices[0].message.content;
-                            // Enqueuing message content
-                            controller.enqueue({
-                              type: 'text-delta',
-                              delta: content,
-                            });
-                            contentReceived = true;
+                            if (content && content.trim() !== '') {
+                              hasContent = true;
+                              // Send content immediately without buffering
+                              controller.enqueue({
+                                type: 'text-delta',
+                                delta: content,
+                              });
+                            }
                           }
-                        } catch (parseError: any) {
-                          console.log(
-                            '⚠️ Parse error for line:',
-                            line,
-                            parseError.message,
-                          );
+                        } catch (parseError) {
+                          // Ignore parse errors for incomplete chunks
                         }
                       }
                     }
                   }
-                } catch (streamError: any) {
-                  console.error(
-                    'OpenRouter stream processing error:',
-                    streamError,
-                  );
 
-                  // If streaming fails, try a non-streaming request as fallback
-                  console.log(
-                    '🔄 Trying non-streaming Groq request as fallback...',
-                  );
-                  try {
-                    const nonStreamResponse = await callGroq(groqMessages, {
-                      temperature: config.generationConfig.temperature,
-                      maxTokens: config.generationConfig.maxOutputTokens,
-                      stream: false,
-                      topP: config.generationConfig.topP,
-                    });
-
-                    const data = await nonStreamResponse.json();
-                    const content = data.choices?.[0]?.message?.content;
-
-                    if (content) {
-                      console.log('✅ Non-streaming fallback succeeded');
-                      controller.enqueue({
-                        type: 'text-delta',
-                        delta: content,
-                      });
-                    } else {
-                      throw new Error('No content in non-streaming response');
-                    }
-                  } catch (fallbackError: any) {
-                    console.error(
-                      'Non-streaming fallback also failed:',
-                      fallbackError,
+                  if (!hasContent) {
+                    console.error('Groq stream completed without any content');
+                    controller.error(
+                      new Error('Groq stream returned no content'),
                     );
-                    controller.error(streamError);
                   }
+                } catch (streamError: any) {
+                  console.error('Groq stream processing error:', streamError);
+                  controller.error(streamError);
                 } finally {
                   reader.releaseLock();
                 }
@@ -747,13 +750,99 @@ CRITICAL RULES:
             }),
           };
         } catch (error: any) {
-          console.error('Groq reasoning mode failed:', error);
+          attempts++;
+          console.error(`Groq attempt ${attempts} failed:`, error.message);
 
-          // If Groq fails, fall back to Gemini
-          console.log(
-            'Groq unavailable, falling back to Gemini for reasoning mode...',
-          );
-          // Continue to the normal Gemini flow below
+          // If this is the last attempt, try Gemini fallback
+          if (attempts >= maxAttempts) {
+            console.log('Groq failed, trying Gemini fallback...');
+            try {
+              // Use Gemini Flash as fallback model
+              const modelName = 'gemini-2.0-flash-exp';
+              console.log('Using Gemini Flash model as fallback:', modelName);
+              const model = geminiProvider.languageModel(modelName);
+
+              // Add timeout to prevent hanging requests
+              const timeoutPromise = new Promise((_, reject) => {
+                setTimeout(() => reject(new Error('Request timeout')), 8000); // Reduced from 12s to 8s
+              });
+
+              // Add AI identity instructions to the prompt
+              const enhancedContents = [
+                {
+                  role: 'system' as const,
+                  parts: [{ type: 'text', text: aiIdentityInstructions }],
+                },
+                ...contents,
+              ];
+
+              // Validate and prepare the prompt
+              const prompt = enhancedContents.map((msg) => {
+                try {
+                  // Ensure we have valid parts
+                  const parts = msg.parts || [];
+                  if (parts.length === 0 && msg.content) {
+                    // Fallback for messages with content but no parts
+                    parts.push({ type: 'text', text: msg.content });
+                  }
+
+                  // Ensure we have at least one part
+                  if (parts.length === 0) {
+                    console.warn('Message has no parts, adding fallback:', msg);
+                    parts.push({ type: 'text', text: 'Empty message' });
+                  }
+
+                  return {
+                    role: (msg.role === 'assistant' ? 'assistant' : 'user') as
+                      | 'assistant'
+                      | 'user', // Ensure valid roles
+                    content: parts.map((p: any) => ({
+                      type: 'text' as const,
+                      text: p.text || p.content || '',
+                    })),
+                  };
+                } catch (error) {
+                  console.error('Error processing message:', error, msg);
+                  // Return a safe fallback
+                  return {
+                    role: 'user' as const,
+                    content: [
+                      {
+                        type: 'text' as const,
+                        text: 'Error processing message',
+                      },
+                    ],
+                  };
+                }
+              });
+
+              console.log(
+                'Prepared Gemini fallback prompt:',
+                JSON.stringify(prompt, null, 2),
+              );
+
+              const streamPromise = model.doStream({
+                inputFormat: 'messages',
+                mode: { type: 'regular' },
+                prompt: prompt,
+                temperature: config.generationConfig.temperature,
+                maxTokens: config.generationConfig.maxOutputTokens,
+                topK: config.generationConfig.topK,
+                topP: config.generationConfig.topP,
+              });
+
+              console.log('Gemini fallback stream request sent');
+              return await Promise.race([streamPromise, timeoutPromise]);
+            } catch (geminiError: any) {
+              console.error(
+                'Gemini fallback also failed:',
+                geminiError.message,
+              );
+              throw new Error(
+                `All providers failed. Groq error: ${error.message}. Gemini error: ${geminiError.message}`,
+              );
+            }
+          }
         }
       }
 
@@ -893,6 +982,7 @@ CRITICAL RULES:
                             const content = parsed.choices[0].delta.content;
                             if (content && content.trim() !== '') {
                               hasContent = true;
+                              // Send content immediately without buffering
                               controller.enqueue({
                                 type: 'text-delta',
                                 delta: content,
@@ -936,7 +1026,7 @@ CRITICAL RULES:
 
               // Add timeout to prevent hanging requests
               const timeoutPromise = new Promise((_, reject) => {
-                setTimeout(() => reject(new Error('Request timeout')), 12000);
+                setTimeout(() => reject(new Error('Request timeout')), 8000); // Reduced from 12s to 8s
               });
 
               // Add AI identity instructions to the prompt

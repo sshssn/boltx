@@ -12,21 +12,26 @@ export function OnboardingProvider({
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (status === 'loading') return;
-
-    // Check if user is authenticated and is a regular user (not guest)
-    if (session?.user?.type === 'regular') {
-      // Check if onboarding has been completed
-      const onboardingCompleted = localStorage.getItem('onboarding-completed');
-
-      if (!onboardingCompleted) {
-        // Show onboarding for new registered users
-        setShowOnboarding(true);
-      }
+    if (!session?.user?.id || session?.user?.type !== 'regular') {
+      setShowOnboarding(false);
+      return;
     }
 
-    setIsLoading(false);
-  }, [session, status]);
+    // Check if user has already completed onboarding
+    const hasCompletedOnboarding = localStorage.getItem(
+      'boltX-onboarding-completed',
+    );
+    const hasSeenOnboarding = sessionStorage.getItem('boltX-onboarding-seen');
+
+    if (hasCompletedOnboarding || hasSeenOnboarding) {
+      setShowOnboarding(false);
+      return;
+    }
+
+    // Show onboarding for first-time users
+    setShowOnboarding(true);
+    sessionStorage.setItem('boltX-onboarding-seen', 'true');
+  }, [session]);
 
   if (isLoading) {
     return <>{children}</>;

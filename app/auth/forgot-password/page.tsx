@@ -6,14 +6,44 @@ import { Button } from '@/components/ui/button';
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
   const [submitted, setSubmitted] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
-  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setSubmitted(true);
-    toast({
-      type: 'success',
-      description: 'If this email exists, a reset link will be sent.',
-    });
+    setIsLoading(true);
+
+    try {
+      const response = await fetch('/api/forgot-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setSubmitted(true);
+        toast({
+          type: 'success',
+          description: data.message || 'If this email exists, a reset link will be sent.',
+        });
+      } else {
+        toast({
+          type: 'error',
+          description: data.error || 'Something went wrong. Please try again.',
+        });
+      }
+    } catch (error) {
+      console.error('Forgot password error:', error);
+      toast({
+        type: 'error',
+        description: 'Something went wrong. Please try again.',
+      });
+    } finally {
+      setIsLoading(false);
+    }
   }
 
   return (
@@ -32,16 +62,25 @@ export default function ForgotPasswordPage() {
             onChange={(e) => setEmail(e.target.value)}
             className="border rounded px-3 py-2 bg-muted"
             placeholder="you@example.com"
+            disabled={isLoading}
           />
-          <Button type="submit" className="mt-4">
-            Send Reset Link
+          <Button type="submit" className="mt-4" disabled={isLoading}>
+            {isLoading ? 'Sending...' : 'Send Reset Link'}
           </Button>
         </form>
         {submitted && (
           <p className="mt-4 text-center text-muted-foreground text-sm">
-            If this email exists, a reset link will be sent.
+            If this email exists, a reset link will be sent. Check your email and spam folder.
           </p>
         )}
+        <div className="mt-6 text-center">
+          <a
+            href="/auth"
+            className="text-sm text-primary hover:text-primary/80 transition-colors duration-200 underline-offset-4 hover:underline"
+          >
+            Back to Sign In
+          </a>
+        </div>
       </div>
     </div>
   );

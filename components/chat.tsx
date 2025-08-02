@@ -28,9 +28,11 @@ import { toast } from 'sonner';
 import { useMessageLimit } from '@/components/message-limit-provider';
 import { X, Sparkles, AlertTriangle, RefreshCw } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { showLoginToast } from '@/components/auth-toast';
 import { ChatTitleManager } from './chat-title-manager';
 import { GlobalMessageLimit } from '@/components/global-message-limit';
 import { CompactUsageCounter } from '@/components/compact-usage-counter';
+import { RateLimitMessage } from '@/components/rate-limit-message';
 import { LoaderIcon } from './icons';
 import { WebSearchLoading } from './web-search-loading';
 import { generateUUID } from '@/lib/utils';
@@ -125,6 +127,26 @@ export function Chat({
 }: ChatProps) {
   const isMobile = useIsMobile();
   const router = useRouter();
+
+  // Detect OAuth login success
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const oauthSuccess = urlParams.get('oauth_success');
+    const error = urlParams.get('error');
+
+    if (oauthSuccess === 'true' && session?.user) {
+      showLoginToast();
+      // Clean up the URL
+      const newUrl = new URL(window.location.href);
+      newUrl.searchParams.delete('oauth_success');
+      window.history.replaceState({}, '', newUrl.toString());
+    }
+
+    // Also detect successful OAuth login by checking if we have a session and came from auth page
+    if (session?.user && document.referrer.includes('/auth')) {
+      showLoginToast();
+    }
+  }, [session?.user]);
   const [_, copyToClipboard] = useCopyToClipboard();
   const [isArtifactVisible, setIsArtifactVisible] = useState(false);
   const [lastError, setLastError] = useState<any>(null);
@@ -161,7 +183,15 @@ export function Chat({
   const [isWebSearchMode, setIsWebSearchMode] = useState<boolean>(false);
 
   // Get message limit data for the main chat component
-  const { hasReachedLimit } = useMessageLimit();
+  let hasReachedLimit = false;
+  try {
+    const messageLimitData = useMessageLimit();
+    hasReachedLimit = messageLimitData.hasReachedLimit;
+  } catch (error) {
+    // MessageLimitProvider not available (e.g., for admin users)
+    hasReachedLimit = false;
+  }
+  const [showRateLimitMessage, setShowRateLimitMessage] = useState(false);
 
   // Clear error when messages change successfully
   useEffect(() => {
@@ -486,6 +516,14 @@ export function Chat({
     }
 
     try {
+      // Check if user has reached limit
+      if (hasReachedLimit) {
+        setShowRateLimitMessage(true);
+        // Hide the message after 5 seconds
+        setTimeout(() => setShowRateLimitMessage(false), 5000);
+        return;
+      }
+
       await sendMessageHook(message);
     } catch (error: any) {
       console.error('Failed to send message:', error);
@@ -652,6 +690,9 @@ export function Chat({
 
             {/* Global Message Limit Display */}
             <GlobalMessageLimit />
+
+            {/* Rate Limit Message */}
+            <RateLimitMessage isVisible={showRateLimitMessage} />
 
             <div
               className={`

@@ -38,8 +38,21 @@ export function SidebarUserNav({ user }: { user: UserType }) {
 
   const { username } = useUsername();
   const isGuest = guestRegex.test(data?.user?.email ?? '');
-  const displayName = username || user?.email?.split('@')[0] || 'User';
+  const isAdmin = data?.user?.role === 'admin';
+  const displayName = username || data?.user?.username || user?.email?.split('@')[0] || 'User';
   const userEmail = data?.user?.email || user?.email || 'guest@example.com';
+
+  // Debug log to see session data
+  useEffect(() => {
+    if (data?.user) {
+      console.log('Session data:', {
+        email: data.user.email,
+        type: data.user.type,
+        id: data.user.id,
+        username: data.user.username
+      });
+    }
+  }, [data]);
 
   // Fetch user plan
   useEffect(() => {
@@ -73,7 +86,13 @@ export function SidebarUserNav({ user }: { user: UserType }) {
   };
 
   const handleAccountClick = () => {
-    router.push('/account');
+    if (isAdmin) {
+      router.push('/admin');
+    } else if (isGuest) {
+      router.push('/auth');
+    } else {
+      router.push('/account');
+    }
     if (isMobile) {
       setOpenMobile(false);
     }
@@ -105,7 +124,7 @@ export function SidebarUserNav({ user }: { user: UserType }) {
       <SidebarMenu>
         <SidebarMenuItem>
           <SidebarMenuButton
-            onClick={() => router.push('/login')}
+            onClick={() => router.push('/auth')}
             className="w-full justify-center bg-primary text-primary-foreground hover:bg-primary/90"
           >
             <LogIn size={16} />
@@ -144,7 +163,7 @@ export function SidebarUserNav({ user }: { user: UserType }) {
                   </div>
                   {!isGuest && (
                     <div className="flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium bg-primary/10 text-primary border border-primary/20">
-                      {userPlan === 'pro' ? 'Pro' : 'Free'}
+                      {isAdmin ? 'Admin' : userPlan === 'pro' ? 'Pro' : 'Free'}
                     </div>
                   )}
                 </div>
@@ -155,7 +174,11 @@ export function SidebarUserNav({ user }: { user: UserType }) {
                 {!isGuest && (
                   <div className="text-xs text-muted-foreground/80 mt-0.5">
                     {displayName} -{' '}
-                    {userPlan === 'pro' ? 'Pro Plan' : 'Free Plan'}
+                    {isAdmin
+                      ? 'Admin'
+                      : userPlan === 'pro'
+                        ? 'Pro Plan'
+                        : 'Free Plan'}
                   </div>
                 )}
               </div>
@@ -192,7 +215,11 @@ export function SidebarUserNav({ user }: { user: UserType }) {
                     </div>
                     {!isGuest && (
                       <div className="flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium bg-primary/10 text-primary border border-primary/20">
-                        {userPlan === 'pro' ? 'Pro' : 'Free'}
+                        {isAdmin
+                          ? 'Admin'
+                          : userPlan === 'pro'
+                            ? 'Pro'
+                            : 'Free'}
                       </div>
                     )}
                   </div>
@@ -218,7 +245,7 @@ export function SidebarUserNav({ user }: { user: UserType }) {
                 className="cursor-pointer"
               >
                 <User size={16} />
-                Account Settings
+                {isAdmin ? 'Admin Dashboard' : 'Account Settings'}
               </DropdownMenuItem>
             )}
 

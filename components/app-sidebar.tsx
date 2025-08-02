@@ -7,6 +7,7 @@ import {
   SidebarFooter,
   useSidebar,
 } from '@/components/ui/sidebar';
+import { SignOutButton } from '@/components/sign-out-button';
 import { SidebarToggle } from '@/components/sidebar-toggle';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -37,8 +38,14 @@ function getGravatarUrl(email: string) {
 
 // Compact usage display for sidebar
 function CompactUsageDisplay() {
-  const { messagesUsed, messagesLimit, remaining, isGuest, isLoading } =
-    useMessageLimit();
+  const messageLimitData = useMessageLimit();
+  
+  // Check if the hook is available
+  if (!messageLimitData) {
+    return null;
+  }
+
+  const { messagesUsed, messagesLimit, remaining, isGuest, isLoading } = messageLimitData;
 
   // Don't show if loading
   if (isLoading) return null;
@@ -106,12 +113,13 @@ export function AppSidebar({
   const user = typeof userProp !== 'undefined' ? userProp : session?.user;
   const userType = user?.type;
   const isRegularUser = userType === 'regular';
-  const isLoggedIn = !!user && isRegularUser;
+  const isAdminUser = userType === 'admin';
+  const isLoggedIn = !!user && (isRegularUser || isAdminUser);
   const { username } = useUsername();
   const displayUsername = username || user?.name?.split(' ')[0] || '';
   const avatarUrl = user?.email
     ? getAvatarUrlForComponent(user.email, 48)
-    : undefined;
+    : user?.image || undefined;
 
   // Persistent guest ID logic
   useEffect(() => {
@@ -329,7 +337,7 @@ export function AppSidebar({
           </div>
 
           {/* Logo container - standard size */}
-          <div className="flex items-center justify-center rounded-lg bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-zinc-800 dark:to-zinc-900 border border-zinc-200/50 dark:border-zinc-700/50 shadow-sm backdrop-blur-sm transition-all duration-300 hover:shadow-md h-12 px-4 w-auto">
+          <div className="flex items-center justify-center h-12 px-4 w-auto">
             <Link
               href="/"
               className="flex items-center justify-center size-full"
@@ -371,7 +379,7 @@ export function AppSidebar({
           </div>
 
           {/* Search bar - enhanced mobile experience */}
-          <div className="flex items-center gap-2 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50/50 dark:bg-zinc-900/50 shadow-sm px-2 py-1.5 transition-all duration-200 focus-within:ring-2 focus-within:ring-blue-500/20 focus-within:border-blue-300 dark:focus-within:border-blue-600">
+          <div className="flex items-center gap-2 px-2 py-1.5">
             <div className="text-zinc-500 shrink-0">
               <SearchIcon size={16} />
             </div>
@@ -431,7 +439,11 @@ export function AppSidebar({
                 ${isMobile ? 'text-base py-3' : 'text-sm py-3'}
               `}
               onClick={() => {
-                router.push('/account');
+                if (isAdminUser) {
+                  router.push('/admin');
+                } else {
+                  router.push('/account');
+                }
                 if (isMobile) toggleSidebar();
               }}
             >
@@ -440,13 +452,19 @@ export function AppSidebar({
                   <img
                     src={avatarUrl}
                     alt={displayUsername}
-                    className="size-8 rounded-full"
+                    className="size-8 rounded-full object-cover"
+                    onError={(e) => {
+                      // Fallback to user icon if image fails to load
+                      e.currentTarget.style.display = 'none';
+                      e.currentTarget.nextElementSibling?.classList.remove(
+                        'hidden',
+                      );
+                    }}
                   />
-                ) : (
-                  <User size={20} />
-                )}
+                ) : null}
+                <User size={20} className={avatarUrl ? 'hidden' : ''} />
                 <span className="font-medium">
-                  {displayUsername || 'Account'}
+                  {isAdminUser ? 'Admin' : displayUsername || 'Account'}
                 </span>
               </div>
               <div className="flex items-center">
@@ -454,13 +472,19 @@ export function AppSidebar({
                   className={`
                   px-2 py-1 rounded-full text-xs font-medium
                   ${
-                    user?.plan === 'pro'
-                      ? 'bg-gradient-to-r from-purple-500 to-blue-500 text-white shadow-sm'
-                      : 'bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-600 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-600'
+                    isAdminUser
+                      ? 'bg-gradient-to-r from-red-500 to-orange-500 text-white shadow-sm'
+                      : user?.plan === 'pro'
+                        ? 'bg-gradient-to-r from-purple-500 to-blue-500 text-white shadow-sm'
+                        : 'bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-600 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-600'
                   }
                 `}
                 >
-                  {user?.plan === 'pro' ? 'Pro' : 'Free'}
+                  {isAdminUser
+                    ? 'Admin'
+                    : user?.plan === 'pro'
+                      ? 'Pro'
+                      : 'Free'}
                 </span>
               </div>
             </Button>

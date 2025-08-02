@@ -26,7 +26,11 @@ export async function middleware(request: NextRequest) {
     return new Response('pong', { status: 200 });
   }
 
-  if (pathname.startsWith('/api/auth') || pathname.startsWith('/api/status')) {
+  if (
+    pathname.startsWith('/api/auth') ||
+    pathname.startsWith('/api/status') ||
+    pathname.startsWith('/api/admin/maintenance')
+  ) {
     return NextResponse.next();
   }
 
@@ -56,6 +60,11 @@ export async function middleware(request: NextRequest) {
     secureCookie: !isDevelopmentEnvironment,
   });
 
+  // Allow access to auth pages even without token
+  if (pathname === '/auth' || pathname === '/register') {
+    return NextResponse.next();
+  }
+
   if (!token) {
     const redirectUrl = encodeURIComponent(request.url);
 
@@ -65,9 +74,52 @@ export async function middleware(request: NextRequest) {
   }
 
   const isGuest = guestRegex.test(token?.email ?? '');
+  const isAdmin = token?.type === 'admin' || token?.role === 'admin';
 
+  // Debug logging for admin detection
+  if (pathname === '/admin') {
+    console.log('Admin access attempt:', {
+      email: token?.email,
+      type: token?.type,
+      role: token?.role,
+      isAdmin,
+      pathname,
+    });
+  }
+
+  // Check maintenance mode (except for admin users and admin page)
+  if (!isAdmin && pathname !== '/maintenance' && pathname !== '/admin') {
+    try {
+      const maintenanceRes = await fetch(
+        `${request.nextUrl.origin}/api/admin/maintenance`,
+      );
+      if (maintenanceRes.ok) {
+        const maintenanceData = await maintenanceRes.json();
+        if (maintenanceData.maintenanceMode) {
+          return NextResponse.redirect(new URL('/maintenance', request.url));
+        }
+      }
+    } catch (error) {
+      console.error('Error checking maintenance mode:', error);
+    }
+  }
+
+  // Admin users can always access admin page, even during maintenance
+  if (isAdmin && pathname === '/admin') {
+    return NextResponse.next();
+  }
+
+  // Allow admin users to access the homepage (chat)
+  // Removed automatic redirect to admin dashboard
+
+  // Redirect authenticated users away from auth pages (but allow guests to access auth)
   if (token && !isGuest && ['/auth', '/register'].includes(pathname)) {
     return NextResponse.redirect(new URL('/', request.url));
+  }
+
+  // Allow guests to access auth pages
+  if (isGuest && ['/auth', '/register'].includes(pathname)) {
+    return NextResponse.next();
   }
 
   return NextResponse.next();
@@ -77,6 +129,7 @@ export const config = {
   matcher: [
     '/',
     '/chat/:id',
+    '/admin',
     '/api/:path*',
     '/auth',
     '/register',

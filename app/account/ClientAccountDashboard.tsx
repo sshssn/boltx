@@ -27,6 +27,8 @@ import {
   Database,
   Check,
   AlertTriangle,
+  Ticket,
+  Search,
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -48,6 +50,14 @@ import { Input } from '@/components/ui/input';
 import { useSession, signOut } from 'next-auth/react';
 import { toast } from 'sonner';
 import { UserAvatar } from '@/components/user-avatar';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
 
 const tabItems = [
   { id: 'account', label: 'Account', icon: <User size={16} /> },
@@ -90,6 +100,19 @@ export default function ClientAccountDashboard() {
   const [historySearch, setHistorySearch] = useState('');
   const [deleteAccountInput, setDeleteAccountInput] = useState('');
   const [deleteAccountConfirmed, setDeleteAccountConfirmed] = useState(false);
+  const [ticketType, setTicketType] = useState('');
+  const [ticketPriority, setTicketPriority] = useState('medium');
+  const [ticketSubject, setTicketSubject] = useState('');
+  const [ticketDescription, setTicketDescription] = useState('');
+  const [creatingTicket, setCreatingTicket] = useState(false);
+  const [userTickets, setUserTickets] = useState<any[]>([]);
+  const [userTicketsLoading, setUserTicketsLoading] = useState(false);
+  const [ticketAttachments, setTicketAttachments] = useState<any[]>([]);
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const [ticketsPage, setTicketsPage] = useState(1);
+  const [ticketsSearch, setTicketsSearch] = useState('');
+  const [ticketsFilter, setTicketsFilter] = useState('');
+  const [ticketsPagination, setTicketsPagination] = useState<any>(null);
   const chatsPerPage = 5;
   const filteredChats = chats.filter((c) =>
     (c.title || 'Untitled Chat')
@@ -248,6 +271,30 @@ export default function ClientAccountDashboard() {
   }, [activeTab, sessionData]);
 
   useEffect(() => {
+    if (activeTab === 'contact' && sessionData?.user) {
+      setUserTicketsLoading(true);
+      const params = new URLSearchParams({
+        page: ticketsPage.toString(),
+        limit: '10',
+        ...(ticketsSearch && { search: ticketsSearch }),
+        ...(ticketsFilter && { status: ticketsFilter }),
+      });
+
+      fetch(`/api/tickets?${params}`).then(async (r) => {
+        if (r.ok) {
+          const data = await r.json();
+          setUserTickets(data.tickets || []);
+          setTicketsPagination(data.pagination);
+        } else {
+          setUserTickets([]);
+          setTicketsPagination(null);
+        }
+        setUserTicketsLoading(false);
+      });
+    }
+  }, [activeTab, sessionData, ticketsPage, ticketsSearch, ticketsFilter]);
+
+  useEffect(() => {
     if (status === 'loading' || !sessionData?.user) return;
 
     async function fetchUsername() {
@@ -353,6 +400,96 @@ export default function ClientAccountDashboard() {
     } finally {
       setUpgrading(false);
     }
+  };
+
+  const handleCreateTicket = async () => {
+    if (!ticketType || !ticketSubject || !ticketDescription) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+
+    setCreatingTicket(true);
+    try {
+      const response = await fetch('/api/tickets', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          type: ticketType,
+          subject: ticketSubject,
+          description: ticketDescription,
+          priority: ticketPriority,
+          attachments: ticketAttachments,
+        }),
+      });
+
+      if (response.ok) {
+        toast.success('Ticket submitted successfully!');
+        // Reset form
+        setTicketType('');
+        setTicketPriority('medium');
+        setTicketSubject('');
+        setTicketDescription('');
+        setTicketAttachments([]);
+        // Refresh tickets list
+        setTicketsPage(1);
+        const params = new URLSearchParams({
+          page: '1',
+          limit: '10',
+        });
+        const ticketsRes = await fetch(`/api/tickets?${params}`);
+        if (ticketsRes.ok) {
+          const data = await ticketsRes.json();
+          setUserTickets(data.tickets || []);
+          setTicketsPagination(data.pagination);
+        }
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        toast.error(errorData.error || 'Failed to submit ticket');
+      }
+    } catch (error) {
+      console.error('Error creating ticket:', error);
+      toast.error('Network error. Please try again.');
+    } finally {
+      setCreatingTicket(false);
+    }
+  };
+
+  const handleFileUpload = async (file: File) => {
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('File size too large. Maximum size is 10MB.');
+      return;
+    }
+
+    setUploadingFile(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await fetch('/api/tickets/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setTicketAttachments([...ticketAttachments, data.file]);
+        toast.success('File uploaded successfully!');
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        toast.error(errorData.error || 'Failed to upload file');
+      }
+    } catch (error) {
+      console.error('Error uploading file:', error);
+      toast.error('Network error. Please try again.');
+    } finally {
+      setUploadingFile(false);
+    }
+  };
+
+  const removeAttachment = (index: number) => {
+    setTicketAttachments(ticketAttachments.filter((_, i) => i !== index));
   };
 
   const getDisplayName = () => {
@@ -485,7 +622,7 @@ export default function ClientAccountDashboard() {
                   localStorage.setItem('theme', newTheme);
                 }}
               >
-                                        <Sun className="size-4" />
+                <Sun className="size-4" />
               </Button>
               <Button
                 variant="ghost"
@@ -553,7 +690,7 @@ export default function ClientAccountDashboard() {
                       {messagesRemaining} messages remaining
                     </p>
                     <div className="flex items-start gap-2 p-3 rounded-lg bg-muted/30 border border-border/50">
-                                              <div className="size-4 text-muted-foreground mt-0.5">
+                      <div className="size-4 text-muted-foreground mt-0.5">
                         ℹ️
                       </div>
                       <p className="text-xs text-muted-foreground">
@@ -679,7 +816,7 @@ export default function ClientAccountDashboard() {
 
                                     <ul className="space-y-2 text-xs text-muted-foreground">
                                       {[
-                                        '50 messages/day',
+                                        '25 messages/day',
                                         '5 file uploads',
                                         'Basic AI models',
                                         'Email support',
@@ -1852,7 +1989,7 @@ export default function ClientAccountDashboard() {
 
                                     <ul className="space-y-2 text-xs text-muted-foreground">
                                       {[
-                                        '50 messages/day',
+                                        '25 messages/day',
                                         '5 file uploads',
                                         'Basic AI models',
                                         'Email support',
@@ -2042,7 +2179,7 @@ export default function ClientAccountDashboard() {
                     </TabsContent>
 
                     <TabsContent value="contact" className="mt-0">
-                      <div className="space-y-6">
+                      <div className="space-y-6 max-h-[calc(100vh-300px)] overflow-y-auto">
                         <div>
                           <h3 className="text-lg font-semibold text-foreground mb-2">
                             Contact & Support
@@ -2053,14 +2190,441 @@ export default function ClientAccountDashboard() {
                           </p>
                         </div>
 
+                        {/* Create Support Ticket */}
+                        <div className="rounded-xl border border-border/50 bg-white/90 dark:bg-card/50 backdrop-blur-xl p-6 shadow-lg">
+                          <div className="space-y-4">
+                            <div>
+                              <h4 className="text-lg font-semibold text-foreground mb-2">
+                                Create Support Ticket
+                              </h4>
+                              <p className="text-sm text-muted-foreground">
+                                Submit a ticket for bug reports, feature
+                                requests, or general support.
+                              </p>
+                            </div>
+
+                            <div className="space-y-4">
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                  <label
+                                    htmlFor="ticket-type"
+                                    className="text-sm font-medium text-foreground mb-2 block"
+                                  >
+                                    Ticket Type
+                                  </label>
+                                  <Select
+                                    value={ticketType}
+                                    onValueChange={setTicketType}
+                                  >
+                                    <SelectTrigger id="ticket-type">
+                                      <SelectValue placeholder="Select type" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="bug">
+                                        Bug Report
+                                      </SelectItem>
+                                      <SelectItem value="feature">
+                                        Feature Request
+                                      </SelectItem>
+                                      <SelectItem value="support">
+                                        Support
+                                      </SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                                <div>
+                                  <label
+                                    htmlFor="ticket-priority"
+                                    className="text-sm font-medium text-foreground mb-2 block"
+                                  >
+                                    Priority
+                                  </label>
+                                  <Select
+                                    value={ticketPriority}
+                                    onValueChange={setTicketPriority}
+                                  >
+                                    <SelectTrigger id="ticket-priority">
+                                      <SelectValue placeholder="Select priority" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="low">Low</SelectItem>
+                                      <SelectItem value="medium">
+                                        Medium
+                                      </SelectItem>
+                                      <SelectItem value="high">High</SelectItem>
+                                      <SelectItem value="urgent">
+                                        Urgent
+                                      </SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                              </div>
+
+                              <div>
+                                <label
+                                  htmlFor="ticket-subject"
+                                  className="text-sm font-medium text-foreground mb-2 block"
+                                >
+                                  Subject
+                                </label>
+                                <Input
+                                  id="ticket-subject"
+                                  placeholder="Brief description of your issue or request"
+                                  value={ticketSubject}
+                                  onChange={(e) =>
+                                    setTicketSubject(e.target.value)
+                                  }
+                                  className="bg-muted/50 border-border text-foreground placeholder:text-muted-foreground"
+                                />
+                              </div>
+
+                              <div>
+                                <label
+                                  htmlFor="ticket-description"
+                                  className="text-sm font-medium text-foreground mb-2 block"
+                                >
+                                  Description
+                                </label>
+                                <Textarea
+                                  id="ticket-description"
+                                  placeholder="Please provide detailed information about your issue or feature request..."
+                                  value={ticketDescription}
+                                  onChange={(e) =>
+                                    setTicketDescription(e.target.value)
+                                  }
+                                  rows={4}
+                                  className="bg-muted/50 border-border text-foreground placeholder:text-muted-foreground"
+                                />
+                              </div>
+
+                              {/* File Attachments */}
+                              <div>
+                                <label className="text-sm font-medium text-foreground mb-2 block">
+                                  Attachments (Optional)
+                                </label>
+                                <div className="space-y-3">
+                                  {/* File Upload */}
+                                  <div className="flex items-center gap-3">
+                                    <input
+                                      type="file"
+                                      id="file-upload"
+                                      className="hidden"
+                                      onChange={(e) => {
+                                        const file = e.target.files?.[0];
+                                        if (file) {
+                                          handleFileUpload(file);
+                                        }
+                                      }}
+                                      accept="image/*,.pdf,.txt,.json,.csv,.xlsx,.xls,.docx,.doc"
+                                    />
+                                    <label
+                                      htmlFor="file-upload"
+                                      className="flex items-center gap-2 px-4 py-2 border border-border/50 rounded-lg cursor-pointer hover:bg-muted/30 transition-colors"
+                                      aria-label="Upload file for ticket attachment"
+                                    >
+                                      <Paperclip className="size-4" />
+                                      <span className="text-sm">
+                                        Choose File
+                                      </span>
+                                    </label>
+                                    {uploadingFile && (
+                                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                        <Loader2 className="size-4 animate-spin" />
+                                        Uploading...
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  {/* Attachments List */}
+                                  {ticketAttachments.length > 0 && (
+                                    <div className="space-y-2">
+                                      <p className="text-xs text-muted-foreground">
+                                        Attached files:
+                                      </p>
+                                      {ticketAttachments.map(
+                                        (attachment, index) => (
+                                          <div
+                                            key={`${attachment.name}-${attachment.size}-${index}`}
+                                            className="flex items-center justify-between p-2 bg-muted/30 rounded-lg"
+                                          >
+                                            <div className="flex items-center gap-2">
+                                              <Paperclip className="size-3 text-muted-foreground" />
+                                              <span className="text-sm text-foreground">
+                                                {attachment.name}
+                                              </span>
+                                              <span className="text-xs text-muted-foreground">
+                                                (
+                                                {(
+                                                  attachment.size / 1024
+                                                ).toFixed(1)}{' '}
+                                                KB)
+                                              </span>
+                                            </div>
+                                            <Button
+                                              size="sm"
+                                              variant="ghost"
+                                              onClick={() =>
+                                                removeAttachment(index)
+                                              }
+                                              className="text-red-500 hover:text-red-600 hover:bg-red-500/10"
+                                            >
+                                              <Trash2 className="size-3" />
+                                            </Button>
+                                          </div>
+                                        ),
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+
+                              <Button
+                                onClick={handleCreateTicket}
+                                disabled={
+                                  !ticketType ||
+                                  !ticketSubject ||
+                                  !ticketDescription ||
+                                  creatingTicket
+                                }
+                                className="w-full bg-primary/10 hover:bg-primary/20 border border-primary/30 text-primary hover:text-primary/80 backdrop-blur-sm"
+                              >
+                                {creatingTicket ? (
+                                  <>
+                                    <Loader2 className="size-4 mr-2 animate-spin" />
+                                    Creating Ticket...
+                                  </>
+                                ) : (
+                                  <>
+                                    <Ticket className="size-4 mr-2" />
+                                    Submit Ticket
+                                  </>
+                                )}
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* My Tickets */}
+                        <div className="rounded-xl border border-border/50 bg-white/90 dark:bg-card/50 backdrop-blur-xl p-6 shadow-lg">
+                          <div className="space-y-4">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <h4 className="text-lg font-semibold text-foreground mb-2">
+                                  My Support Tickets
+                                </h4>
+                                <p className="text-sm text-muted-foreground">
+                                  View the status of your submitted tickets.
+                                </p>
+                              </div>
+                              {ticketsPagination && (
+                                <div className="text-sm text-muted-foreground">
+                                  {ticketsPagination.totalCount} total tickets
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Search and Filter */}
+                            <div className="flex gap-3">
+                              <div className="relative flex-1">
+                                <Input
+                                  placeholder="Search tickets..."
+                                  value={ticketsSearch}
+                                  onChange={(e) =>
+                                    setTicketsSearch(e.target.value)
+                                  }
+                                  className="pl-10 bg-muted/50 border-border text-foreground placeholder:text-muted-foreground"
+                                />
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+                              </div>
+                              <Select
+                                value={ticketsFilter}
+                                onValueChange={setTicketsFilter}
+                              >
+                                <SelectTrigger className="w-32">
+                                  <SelectValue placeholder="Status" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="">All Status</SelectItem>
+                                  <SelectItem value="open">Open</SelectItem>
+                                  <SelectItem value="in_progress">
+                                    In Progress
+                                  </SelectItem>
+                                  <SelectItem value="resolved">
+                                    Resolved
+                                  </SelectItem>
+                                  <SelectItem value="closed">Closed</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+
+                            {userTicketsLoading ? (
+                              <div className="flex items-center justify-center py-8">
+                                <Loader2 className="size-6 animate-spin text-muted-foreground" />
+                                <span className="ml-2 text-muted-foreground">
+                                  Loading tickets...
+                                </span>
+                              </div>
+                            ) : userTickets.length === 0 ? (
+                              <div className="text-center py-8">
+                                <Ticket className="size-12 text-muted-foreground mx-auto mb-4" />
+                                <p className="text-muted-foreground">
+                                  {ticketsSearch || ticketsFilter
+                                    ? 'No tickets found matching your criteria.'
+                                    : 'No tickets submitted yet.'}
+                                </p>
+                              </div>
+                            ) : (
+                              <div className="space-y-4">
+                                {userTickets.map((ticket) => (
+                                  <div
+                                    key={ticket.id}
+                                    className="p-4 rounded-lg border border-border/50 bg-muted/30 hover:bg-muted/50 transition-colors"
+                                  >
+                                    <div className="flex items-center justify-between mb-3">
+                                      <div className="flex items-center gap-2">
+                                        <Badge
+                                          variant={
+                                            ticket.type === 'bug'
+                                              ? 'destructive'
+                                              : ticket.type === 'feature'
+                                                ? 'default'
+                                                : 'secondary'
+                                          }
+                                        >
+                                          {ticket.type}
+                                        </Badge>
+                                        <Badge
+                                          variant={
+                                            ticket.priority === 'urgent'
+                                              ? 'destructive'
+                                              : ticket.priority === 'high'
+                                                ? 'default'
+                                                : 'secondary'
+                                          }
+                                        >
+                                          {ticket.priority}
+                                        </Badge>
+                                        <Badge
+                                          variant={
+                                            ticket.status === 'open'
+                                              ? 'default'
+                                              : ticket.status === 'in_progress'
+                                                ? 'secondary'
+                                                : 'outline'
+                                          }
+                                        >
+                                          {ticket.status}
+                                        </Badge>
+                                      </div>
+                                      <span className="text-xs text-muted-foreground">
+                                        {new Date(
+                                          ticket.createdAt,
+                                        ).toLocaleDateString()}
+                                      </span>
+                                    </div>
+                                    <h5 className="font-medium text-foreground mb-2">
+                                      {ticket.subject}
+                                    </h5>
+                                    <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
+                                      {ticket.description}
+                                    </p>
+
+                                    {/* Attachments */}
+                                    {ticket.attachments &&
+                                      ticket.attachments.length > 0 && (
+                                        <div className="space-y-2">
+                                          <p className="text-xs text-muted-foreground">
+                                            Attachments:
+                                          </p>
+                                          <div className="flex flex-wrap gap-2">
+                                            {ticket.attachments.map(
+                                              (
+                                                attachment: any,
+                                                index: number,
+                                              ) => (
+                                                <div
+                                                  key={`${attachment.name}-${attachment.size}-${index}`}
+                                                  className="flex items-center gap-1 px-2 py-1 bg-muted/50 rounded text-xs"
+                                                >
+                                                  <Paperclip className="size-3" />
+                                                  <span className="truncate max-w-20">
+                                                    {attachment.name}
+                                                  </span>
+                                                </div>
+                                              ),
+                                            )}
+                                          </div>
+                                        </div>
+                                      )}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+
+                            {/* Pagination */}
+                            {ticketsPagination &&
+                              ticketsPagination.totalPages > 1 && (
+                                <div className="flex items-center justify-between pt-4 border-t border-border/50">
+                                  <p className="text-sm text-muted-foreground">
+                                    Showing{' '}
+                                    {(ticketsPage - 1) *
+                                      ticketsPagination.limit +
+                                      1}{' '}
+                                    to{' '}
+                                    {Math.min(
+                                      ticketsPage * ticketsPagination.limit,
+                                      ticketsPagination.totalCount,
+                                    )}{' '}
+                                    of {ticketsPagination.totalCount} tickets
+                                  </p>
+                                  <div className="flex items-center gap-2">
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() =>
+                                        setTicketsPage(
+                                          Math.max(1, ticketsPage - 1),
+                                        )
+                                      }
+                                      disabled={!ticketsPagination.hasPrevPage}
+                                      className="text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                                    >
+                                      Previous
+                                    </Button>
+                                    <span className="text-sm text-muted-foreground">
+                                      {ticketsPage} of{' '}
+                                      {ticketsPagination.totalPages}
+                                    </span>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() =>
+                                        setTicketsPage(
+                                          Math.min(
+                                            ticketsPagination.totalPages,
+                                            ticketsPage + 1,
+                                          ),
+                                        )
+                                      }
+                                      disabled={!ticketsPagination.hasNextPage}
+                                      className="text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                                    >
+                                      Next
+                                    </Button>
+                                  </div>
+                                </div>
+                              )}
+                          </div>
+                        </div>
+
                         {/* Support Options */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                           {/* Documentation */}
-                          <div className="rounded-xl border border-border/50 bg-white/70 dark:bg-card/50 backdrop-blur-xl p-6 shadow-lg">
+                          <div className="rounded-xl border border-border/50 bg-white/90 dark:bg-card/50 backdrop-blur-xl p-6 shadow-lg">
                             <div className="space-y-4">
                               <div className="size-12 bg-blue-500/10 rounded-lg flex items-center justify-center">
                                 <svg
-                                  className="size-6 text-blue-400"
+                                  className="size-6 text-blue-600 dark:text-blue-400"
                                   fill="none"
                                   stroke="currentColor"
                                   viewBox="0 0 24 24"
@@ -2085,7 +2649,7 @@ export default function ClientAccountDashboard() {
                               <Button
                                 variant="ghost"
                                 onClick={() => window.open('/docs', '_blank')}
-                                className="bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 text-blue-400 hover:text-blue-300 backdrop-blur-sm w-full"
+                                className="bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 backdrop-blur-sm w-full"
                               >
                                 <ExternalLink className="size-4 mr-2" />
                                 View Documentation
@@ -2094,11 +2658,11 @@ export default function ClientAccountDashboard() {
                           </div>
 
                           {/* FAQ */}
-                          <div className="rounded-xl border border-border/50 bg-white/90 dark:bg-zinc-900/50 backdrop-blur-xl p-6">
+                          <div className="rounded-xl border border-border/50 bg-white/90 dark:bg-card/50 backdrop-blur-xl p-6 shadow-lg">
                             <div className="space-y-4">
                               <div className="size-12 bg-green-500/10 rounded-lg flex items-center justify-center">
                                 <svg
-                                  className="size-6 text-green-400"
+                                  className="size-6 text-green-600 dark:text-green-400"
                                   fill="none"
                                   stroke="currentColor"
                                   viewBox="0 0 24 24"
@@ -2123,60 +2687,10 @@ export default function ClientAccountDashboard() {
                               <Button
                                 variant="ghost"
                                 onClick={() => router.push('/faq')}
-                                className="bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 text-blue-400 hover:text-blue-300 backdrop-blur-sm w-full"
+                                className="bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 backdrop-blur-sm w-full"
                               >
                                 <MessageCircle className="size-4 mr-2" />
                                 Browse FAQ
-                              </Button>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Feature Requests & Bug Reports */}
-                        <div className="rounded-xl border border-border/50 bg-white/90 dark:bg-zinc-900/50 backdrop-blur-xl p-6">
-                          <div className="space-y-4">
-                            <div>
-                              <h4 className="text-md font-semibold text-foreground mb-2">
-                                Feature Requests & Bug Reports
-                              </h4>
-                              <p className="text-sm text-muted-foreground">
-                                Help us improve boltX by reporting bugs or
-                                suggesting new features.
-                              </p>
-                            </div>
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                              <Button
-                                variant="ghost"
-                                onClick={() =>
-                                  window.open(
-                                    'https://github.com/boltx/boltx/issues',
-                                    '_blank',
-                                  )
-                                }
-                                className="bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 text-blue-400 hover:text-blue-300 backdrop-blur-sm"
-                              >
-                                <svg
-                                  className="size-4 mr-2"
-                                  fill="currentColor"
-                                  viewBox="0 0 24 24"
-                                >
-                                  <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
-                                </svg>
-                                GitHub Issues
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                onClick={() =>
-                                  window.open(
-                                    'mailto:feedback@boltx.com?subject=Feature Request',
-                                    '_blank',
-                                  )
-                                }
-                                className="bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 text-blue-400 hover:text-blue-300 backdrop-blur-sm"
-                              >
-                                <MessageCircle className="size-4 mr-2" />
-                                Send Feedback
                               </Button>
                             </div>
                           </div>

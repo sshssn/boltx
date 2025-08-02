@@ -1,40 +1,72 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db/queries';
+import type { NextRequest } from 'next/server';
+import { NextResponse } from 'next/server';
+import { db } from '@/lib/db';
 import { user, passwordResetToken } from '@/lib/db/schema';
-import { generateHashedPassword } from '@/lib/db/utils';
-import { eq } from 'drizzle-orm';
+import { eq, and, gt } from 'drizzle-orm';
+import bcrypt from 'bcryptjs';
 
-export async function POST(req: NextRequest) {
-  const { token, password } = await req.json();
-  if (!token || !password)
+export async function POST(request: NextRequest) {
+  try {
+    const { token, password } = await request.json();
+
+    if (!token || !password) {
+      return NextResponse.json(
+        { error: 'Token and password are required' },
+        { status: 400 }
+      );
+    }
+
+    if (password.length < 8) {
+      return NextResponse.json(
+        { error: 'Password must be at least 8 characters long' },
+        { status: 400 }
+      );
+    }
+
+    // Find valid reset token
+    const resetTokenRecord = await db
+      .select()
+      .from(passwordResetToken)
+      .where(
+        and(
+          eq(passwordResetToken.token, token),
+          gt(passwordResetToken.expiresAt, new Date())
+        )
+      )
+      .limit(1);
+
+    if (resetTokenRecord.length === 0) {
+      return NextResponse.json(
+        { error: 'Invalid or expired reset token' },
+        { status: 400 }
+      );
+    }
+
+    // Hash the new password
+    const hashedPassword = await bcrypt.hash(password, 12);
+
+    // Update user password
+    await db
+      .update(user)
+      .set({
+        password: hashedPassword,
+      })
+      .where(eq(user.id, resetTokenRecord[0].userId));
+
+    // Delete the used reset token
+    await db
+      .delete(passwordResetToken)
+      .where(eq(passwordResetToken.token, token));
+
     return NextResponse.json(
-      { error: 'Missing token or password' },
-      { status: 400 },
+      { message: 'Password reset successfully' },
+      { status: 200 }
     );
-
-  // Find token in DB
-  const [resetToken] = await db
-    .select()
-    .from(passwordResetToken)
-    .where(eq(passwordResetToken.token, token));
-  if (!resetToken || new Date(resetToken.expiresAt) < new Date()) {
+  } catch (error) {
+    console.error('Reset password error:', error);
     return NextResponse.json(
-      { error: 'Invalid or expired token' },
-      { status: 400 },
+      { error: 'Internal server error' },
+      { status: 500 }
     );
   }
-
-  // Update user password
-  const hashed = generateHashedPassword(password);
-  await db
-    .update(user)
-    .set({ password: hashed })
-    .where(eq(user.id, resetToken.userId));
-
-  // Delete token
-  await db
-    .delete(passwordResetToken)
-    .where(eq(passwordResetToken.token, token));
-
-  return NextResponse.json({ success: true });
 }

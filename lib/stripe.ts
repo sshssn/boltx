@@ -1,7 +1,7 @@
 import Stripe from 'stripe';
 import { eq } from 'drizzle-orm';
 import { user } from '@/lib/db/schema';
-import { db } from '@/lib/db/queries';
+import { db } from '@/lib/db';
 
 if (!process.env.STRIPE_SECRET_KEY) {
   throw new Error('STRIPE_SECRET_KEY is not set');

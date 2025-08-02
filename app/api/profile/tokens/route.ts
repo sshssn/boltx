@@ -64,8 +64,8 @@ export async function GET(req: NextRequest) {
   let messagesLimit = entitlementsByUserType.guest.maxMessagesPerDay; // Default guest limit
 
   if (session?.user) {
-    // Logged-in user - use entitlements based on user type
-    const userType = session.user.type || 'guest';
+    // Logged-in user - use entitlements based on user role
+    const userType = session.user.role === 'admin' ? 'admin' : (session.user.type || 'guest');
     messagesLimit =
       entitlementsByUserType[userType]?.maxMessagesPerDay ||
       entitlementsByUserType.guest.maxMessagesPerDay;
@@ -137,10 +137,10 @@ export async function POST(request: Request) {
         });
       }
 
-      // Get limit based on user type
+      // Get limit based on user role
       let messagesLimit = entitlementsByUserType.guest.maxMessagesPerDay; // Default guest limit
       if (session?.user) {
-        const userType = session.user.type || 'guest';
+        const userType = session.user.role === 'admin' ? 'admin' : (session.user.type || 'guest');
         messagesLimit =
           entitlementsByUserType[userType]?.maxMessagesPerDay ||
           entitlementsByUserType.guest.maxMessagesPerDay;

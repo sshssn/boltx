@@ -8,8 +8,20 @@ import { MessageSquare, Zap } from 'lucide-react';
 
 export function UsageCounter() {
   const { data: session } = useSession();
-  const { messagesUsed, messagesLimit, remaining, isGuest, isLoading } =
-    useMessageLimit();
+  const isAdmin = session?.user?.type === 'admin';
+  const messageLimitData = useMessageLimit();
+
+  // Don't show usage counter for admin users (unlimited)
+  if (isAdmin) {
+    return null;
+  }
+
+  // Check if the hook is available
+  if (!messageLimitData) {
+    return null;
+  }
+
+  const { messagesUsed, messagesLimit, remaining, isGuest, isLoading } = messageLimitData;
 
   // Don't show if loading
   if (isLoading) return null;
@@ -22,12 +34,15 @@ export function UsageCounter() {
 
   // Determine color based on usage
   const getProgressColor = () => {
+    if (remaining === 0) return 'bg-red-500';
     if (usagePercent >= 90) return 'bg-red-500';
     if (usagePercent >= 75) return 'bg-yellow-500';
     return 'bg-green-500';
   };
 
   const getBadgeColor = () => {
+    if (remaining === 0)
+      return 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-300 border-red-200 dark:border-red-800';
     if (usagePercent >= 90)
       return 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-300 border-red-200 dark:border-red-800';
     if (usagePercent >= 75)
@@ -35,8 +50,15 @@ export function UsageCounter() {
     return 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300 border-green-200 dark:border-green-800';
   };
 
+  const getContainerColor = () => {
+    if (remaining === 0) {
+      return 'bg-red-50/80 dark:bg-red-950/80 backdrop-blur-xl border-red-200/60 dark:border-red-800/60';
+    }
+    return 'bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl border-zinc-200/60 dark:border-zinc-700/60';
+  };
+
   return (
-    <div className="w-full p-4 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl border border-zinc-200/60 dark:border-zinc-700/60 rounded-xl shadow-sm">
+    <div className={`w-full p-4 ${getContainerColor()} rounded-xl shadow-sm`}>
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <MessageSquare className="w-4 h-4 text-zinc-600 dark:text-zinc-400" />

@@ -6,8 +6,36 @@ import { createUser, getUser } from '@/lib/db/queries';
 
 import { signIn } from './auth';
 
+// Email validation for major providers
+const ALLOWED_EMAIL_DOMAINS = [
+  'gmail.com',
+  'googlemail.com',
+  'icloud.com',
+  'me.com',
+  'mac.com',
+  'yahoo.com',
+  'yahoo.co.uk',
+  'yahoo.ca',
+  'outlook.com',
+  'hotmail.com',
+  'live.com',
+  'msn.com',
+  'microsoft.com',
+];
+
+const validateEmailDomain = (email: string): boolean => {
+  const domain = email.split('@')[1]?.toLowerCase();
+  return ALLOWED_EMAIL_DOMAINS.includes(domain);
+};
+
 const authFormSchema = z.object({
-  email: z.string().email(),
+  email: z
+    .string()
+    .email()
+    .refine(
+      (email) => validateEmailDomain(email),
+      'Please use a supported email provider (Gmail, iCloud, Yahoo, Microsoft)',
+    ),
   password: z.string().min(6),
   username: z
     .string()

@@ -35,18 +35,26 @@ export function MessageLimitProvider({
 }: { children: React.ReactNode }) {
   const { data: session } = useSession();
   const isGuest = !session?.user?.id; // Consider user guest if no session
-  const isRegular = session?.user?.type === 'regular';
+  const isRegular = session?.user?.role === 'client';
+  const isAdmin = session?.user?.role === 'admin';
 
   const [messagesUsed, setMessagesUsed] = useState(0);
-  const [messagesLimit, setMessagesLimit] = useState(20); // Default guest limit
+  const [messagesLimit, setMessagesLimit] = useState(10); // Default guest limit from entitlements
   const [isLoading, setIsLoading] = useState(true);
 
   // Get default limit based on user type
   const getDefaultLimit = useCallback(() => {
-    if (isGuest) return 20;
-    if (isRegular) return 50;
-    return 20; // fallback
-  }, [isGuest, isRegular]);
+    if (isAdmin) return -1; // Unlimited for admin
+    if (isGuest) return 10; // Guest limit from entitlements
+    if (isRegular) return 25; // Regular user limit from entitlements
+    return 10; // fallback to guest limit
+  }, [isGuest, isRegular, isAdmin]);
+
+  // Check if user has reached limit (admin has no limits)
+  const hasReachedLimit = useCallback(() => {
+    if (isAdmin || messagesLimit === -1) return false; // Admin has no limits
+    return messagesUsed >= messagesLimit;
+  }, [messagesUsed, messagesLimit, isAdmin]);
 
   // Check if it's a new day
   const isNewDay = useCallback(() => {
@@ -202,25 +210,40 @@ export function MessageLimitProvider({
       setIsLoading(true);
 
       try {
-        // Always try API first for both logged-in and guest users
-        const apiData = await fetchFromAPI();
-        if (apiData) {
-          setMessagesUsed(apiData.used);
-          setMessagesLimit(apiData.limit);
-          saveToCookies(apiData.limit, apiData.used);
-        } else {
-          // Fallback to cookies
-          const cookieData = loadFromCookies();
-          if (cookieData) {
-            setMessagesUsed(cookieData.used);
-            setMessagesLimit(cookieData.limit);
-          } else {
-            // Final fallback to defaults
-            const defaultLimit = getDefaultLimit();
-            setMessagesUsed(0);
-            setMessagesLimit(defaultLimit);
-            saveToCookies(defaultLimit, 0);
+        // Check if it's a new day first
+        if (isNewDay()) {
+          // Reset for new day
+          const defaultLimit = getDefaultLimit();
+          setMessagesUsed(0);
+          setMessagesLimit(defaultLimit);
+          saveToCookies(defaultLimit, 0);
+          setIsLoading(false);
+          return;
+        }
+
+        // Try API first for logged-in users only
+        if (!isGuest) {
+          const apiData = await fetchFromAPI();
+          if (apiData) {
+            setMessagesUsed(apiData.used);
+            setMessagesLimit(apiData.limit);
+            saveToCookies(apiData.limit, apiData.used);
+            setIsLoading(false);
+            return;
           }
+        }
+
+        // Fallback to cookies for all users
+        const cookieData = loadFromCookies();
+        if (cookieData) {
+          setMessagesUsed(cookieData.used);
+          setMessagesLimit(cookieData.limit);
+        } else {
+          // Final fallback to defaults
+          const defaultLimit = getDefaultLimit();
+          setMessagesUsed(0);
+          setMessagesLimit(defaultLimit);
+          saveToCookies(defaultLimit, 0);
         }
       } catch (error) {
         console.error('Error initializing message limit:', error);
@@ -236,7 +259,14 @@ export function MessageLimitProvider({
 
     // Initialize for all users (both logged-in and guests)
     initialize();
-  }, [loadFromCookies, fetchFromAPI, saveToCookies, getDefaultLimit]);
+  }, [
+    loadFromCookies,
+    fetchFromAPI,
+    saveToCookies,
+    getDefaultLimit,
+    isNewDay,
+    isGuest,
+  ]);
 
   // Update limit when user type changes
   useEffect(() => {
@@ -253,7 +283,7 @@ export function MessageLimitProvider({
       } catch (error) {
         console.error('Periodic sync failed:', error);
       }
-    }, 300000); // Sync every 5 minutes to reduce API calls
+    }, 600000); // Sync every 10 minutes to further reduce API calls
 
     return () => clearInterval(syncInterval);
   }, [refreshUsage]);
@@ -282,7 +312,7 @@ export function MessageLimitProvider({
           }).catch((error) => {
             console.error('Failed to sync message count:', error);
           });
-        }, 5000); // 5 second debounce instead of 2 seconds
+        }, 10000); // 10 second debounce to reduce API spam
       }
 
       return newUsed;
@@ -305,8 +335,13 @@ export function MessageLimitProvider({
     incrementMessageCount,
     resetForNewDay,
     isLoading,
-    hasReachedLimit: messagesLimit - messagesUsed <= 0,
+    hasReachedLimit: hasReachedLimit(),
     refreshUsage,
+    // Add helper for rate limit message
+    getRateLimitMessage: () => {
+      const traceId = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+      return `You've reached your rate limit. Please try again later.\n\nIf the issue persists, contact support and provide the following:\nTrace ID: ${traceId}`;
+    },
   };
 
   return (

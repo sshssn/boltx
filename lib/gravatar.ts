@@ -86,9 +86,9 @@ export function getAvatarUrl(email: string, size = 200): string {
     return `https://github.com/${username}.png?size=${size}`;
   }
 
-  // For Google users, Gravatar works well
+  // For Google users, use Gravatar with better fallback
   if (email.includes('@gmail.com') || email.includes('@googlemail.com')) {
-    return getGravatarUrl(email, { size, default: 'identicon' });
+    return getGravatarUrl(email, { size, default: 'retro' });
   }
 
   // For Yahoo users, Gravatar works well

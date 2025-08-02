@@ -87,7 +87,14 @@ function PureArtifact({
   selectedVisibilityType: VisibilityType;
 }) {
   const { artifact, setArtifact, metadata, setMetadata } = useArtifact();
-  const { hasReachedLimit } = useMessageLimit();
+  let hasReachedLimit = false;
+  try {
+    const messageLimitData = useMessageLimit();
+    hasReachedLimit = messageLimitData.hasReachedLimit;
+  } catch (error) {
+    // MessageLimitProvider not available (e.g., for admin users)
+    hasReachedLimit = false;
+  }
 
   const {
     data: documents,

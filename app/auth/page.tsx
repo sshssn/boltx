@@ -10,10 +10,16 @@ export default function LoginPage() {
   const router = useRouter();
 
   useEffect(() => {
-    // Only redirect if user is authenticated and has a regular account
-    if (status === 'authenticated' && session?.user?.type === 'regular') {
-      // Use replace to prevent back button issues
-      router.replace('/welcome');
+    // Redirect authenticated users based on their role
+    if (status === 'authenticated' && session?.user) {
+      if (session.user.role === 'admin') {
+        // Admin users go to admin dashboard
+        router.replace('/admin');
+      } else if (session.user.role === 'client') {
+        // Regular users go to welcome page
+        router.replace('/welcome');
+      }
+      // Don't redirect guest users - let them stay on auth page to sign in
     }
   }, [session, status, router]);
 

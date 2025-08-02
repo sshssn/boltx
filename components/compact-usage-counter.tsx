@@ -11,8 +11,24 @@ export function CompactUsageCounter() {
   const { data: session } = useSession();
   const { open } = useSidebar();
   const [isDismissed, setIsDismissed] = useState(false);
-  const { messagesUsed, messagesLimit, remaining, isGuest, isLoading } =
-    useMessageLimit();
+  
+  let messagesUsed = 0;
+  let messagesLimit = 0;
+  let remaining = 0;
+  let isGuest = false;
+  let isLoading = false;
+  
+  try {
+    const messageLimitData = useMessageLimit();
+    messagesUsed = messageLimitData.messagesUsed;
+    messagesLimit = messageLimitData.messagesLimit;
+    remaining = messageLimitData.remaining;
+    isGuest = messageLimitData.isGuest;
+    isLoading = messageLimitData.isLoading;
+  } catch (error) {
+    // MessageLimitProvider not available (e.g., for admin users)
+    return null;
+  }
 
   // Don't show if loading, if sidebar is open, if dismissed, or if guest hasn't used any messages
   if (isLoading || open || isDismissed || (isGuest && messagesUsed === 0))
@@ -21,16 +37,42 @@ export function CompactUsageCounter() {
   // Don't show if user has unlimited messages
   if (messagesLimit >= 1000) return null;
 
+  const getContainerColor = () => {
+    if (remaining === 0) {
+      return 'bg-red-50/90 dark:bg-red-950/90 backdrop-blur-xl border-red-200/60 dark:border-red-800/60';
+    }
+    return 'bg-white/90 dark:bg-zinc-900/90 backdrop-blur-xl border border-zinc-200/60 dark:border-zinc-700/60';
+  };
+
   return (
     <div className="flex items-center justify-center px-4 py-2 mb-2">
-      <div className="flex items-center gap-2 px-3 py-2 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-xl border border-zinc-200/60 dark:border-zinc-700/60 rounded-lg shadow-sm relative">
+      <div className={`flex items-center gap-2 px-3 py-2 ${getContainerColor()} rounded-lg shadow-sm relative`}>
         <MessageSquare className="w-4 h-4 text-zinc-600 dark:text-zinc-400" />
         <span className="text-sm text-zinc-700 dark:text-zinc-300">
-          You have{' '}
-          <span className="font-semibold text-blue-600 dark:text-blue-400">
-            {remaining}
-          </span>{' '}
-          messages left
+          {remaining === 0 ? (
+            <>
+              You&apos;ve reached the message limit.{' '}
+              <Button
+                variant="link"
+                size="sm"
+                className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 p-0 h-auto"
+                onClick={() => {
+                  window.location.href = '/auth';
+                }}
+              >
+                Sign in
+              </Button>{' '}
+              to get a higher limit (it&apos;s free!).
+            </>
+          ) : (
+            <>
+              You have{' '}
+              <span className="font-semibold text-blue-600 dark:text-blue-400">
+                {remaining}
+              </span>{' '}
+              messages left
+            </>
+          )}
         </span>
         {isGuest ? (
           <Button

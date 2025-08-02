@@ -58,7 +58,7 @@ function ExternalLinkWarning({
               External Link Warning
             </h3>
             <p className="text-sm text-muted-foreground">
-              You're about to leave boltX
+              You&apos;re about to leave boltX
             </p>
           </div>
         </div>
@@ -439,12 +439,44 @@ const formatWebSearchResults = (
 const fixTextFormatting = (text: string): string => {
   return (
     text
-      // Only fix basic spacing issues, be very conservative
-      .replace(/([.!?])\s*([A-Z])/g, '$1 $2') // Add space after sentence endings
-      .replace(/([,;?!])(?![^\s])/g, '$1 ') // Add space after punctuation if missing
-      .replace(/[ \t]+/g, ' ') // Normalize multiple spaces to single space
-      .replace(/\n[ \t]+/g, '\n') // Remove leading spaces from lines
-      .replace(/\n{3,}/g, '\n\n') // Normalize multiple newlines to double newlines
+      // Fix spacing between words and numbers
+      .replace(/(\d)([A-Za-z])/g, '$1 $2') // Add space between number and letter
+      .replace(/([A-Za-z])(\d)/g, '$1 $2') // Add space between letter and number
+      .replace(/(\d)([^\d\s])/g, '$1 $2') // Add space between number and non-digit/non-space
+      .replace(/([^\d\s])(\d)/g, '$1 $2') // Add space between non-digit/non-space and number
+
+      // Fix spacing after sentence endings
+      .replace(/([.!?])\s*([A-Z])/g, '$1 $2')
+
+      // Fix spacing after punctuation
+      .replace(/([,;?!])(?![^\s])/g, '$1 ')
+
+      // Fix spacing around percentages
+      .replace(/(\d+)%/g, '$1 %')
+      .replace(/(\d+)-(\d+)%/g, '$1-$2 %')
+
+      // Fix spacing around years
+      .replace(/(\d{4})/g, (match) => {
+        // Only add space if it's not already surrounded by spaces
+        if (match.match(/^\d{4}$/)) return match;
+        return match;
+      })
+
+      // Normalize multiple spaces to single space
+      .replace(/[ \t]+/g, ' ')
+
+      // Remove leading spaces from lines
+      .replace(/\n[ \t]+/g, '\n')
+
+      // Normalize multiple newlines to double newlines
+      .replace(/\n{3,}/g, '\n\n')
+
+      // Fix spacing around dashes
+      .replace(/(\w)-(\w)/g, '$1 - $2')
+
+      // Fix spacing around colons
+      .replace(/(\w):(\w)/g, '$1: $2')
+
       .trim()
   );
 };
