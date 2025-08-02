@@ -100,37 +100,6 @@ export async function middleware(request: NextRequest) {
     });
   }
 
-  // Check maintenance mode (except for admin users and admin page)
-  if (!isAdmin && pathname !== '/maintenance' && pathname !== '/admin') {
-    try {
-      // Add timeout to prevent hanging requests - reduced for better TTFB
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 500);
-
-      const maintenanceRes = await fetch(
-        `${request.nextUrl.origin}/api/admin/maintenance`,
-        {
-          signal: controller.signal,
-          headers: {
-            'Cache-Control': 'no-cache',
-          },
-        },
-      );
-
-      clearTimeout(timeoutId);
-
-      if (maintenanceRes.ok) {
-        const maintenanceData = await maintenanceRes.json();
-        if (maintenanceData.maintenanceMode) {
-          return NextResponse.redirect(new URL('/maintenance', request.url));
-        }
-      }
-    } catch (error) {
-      // Silently ignore maintenance check errors to prevent app crashes
-      console.warn('Maintenance check failed, continuing normally:', error);
-    }
-  }
-
   // Only admin can access admin page
   if (pathname === '/admin') {
     if (isAdmin) {

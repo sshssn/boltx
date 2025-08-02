@@ -8,7 +8,6 @@ import { GlobalShortcutsProvider } from '@/components/global-shortcuts-provider'
 import './globals.css';
 import { SessionProvider } from 'next-auth/react';
 import { auth } from './(auth)/auth';
-import { DashboardOverlay } from '@/components/dashboard-overlay';
 import { Analytics } from '@vercel/analytics/next';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 import { MobileWarning } from '@/components/mobile-warning';
@@ -54,22 +53,6 @@ export default async function RootLayout({
             <OnboardingProvider>
               <ChatTitleUpdatesProvider>
                 <GlobalShortcutsProvider>
-                  <DashboardOverlay>
-                    <div className="space-y-4">
-                      <div className="p-4 border rounded-lg">
-                        Profile/Settings (TODO)
-                      </div>
-                      <div className="p-4 border rounded-lg">
-                        Subscription/Billing (TODO)
-                      </div>
-                      <div className="p-4 border rounded-lg">
-                        Integrations (TODO)
-                      </div>
-                      <div className="p-4 border rounded-lg">
-                        Support/Help (TODO)
-                      </div>
-                    </div>
-                  </DashboardOverlay>
                   <main className="w-full min-h-screen flex flex-col">
                     {children}
                   </main>
