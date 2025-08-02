@@ -148,10 +148,13 @@ const ReadingLevelSelector = ({
     'Graduate',
   ];
 
-  const randomArr = [...Array(6)].map((x) => nanoid(5));
-  const y = useMotionValue(-40 * 2);
+  // Use simple array instead of nanoid to prevent temporal dead zone
+  const randomArr = ['a', 'b', 'c', 'd', 'e', 'f'];
+  
+  // Initialize motion values at the top level
+  const motionY = useMotionValue(-40 * 2);
   const dragConstraints = 5 * 40 + 2;
-  const yToLevel = useTransform(y, [0, -dragConstraints], [0, 5]);
+  const yToLevel = useTransform(motionY, [0, -dragConstraints], [0, 5]);
 
   const [currentLevel, setCurrentLevel] = useState(2);
   const [hasUserSelectedLevel, setHasUserSelectedLevel] =
@@ -192,7 +195,7 @@ const ReadingLevelSelector = ({
                   'bg-background text-foreground': currentLevel === 2,
                 },
               )}
-              style={{ y }}
+              style={{ y: motionY }}
               drag="y"
               dragElastic={0}
               dragMomentum={false}
