@@ -38,6 +38,7 @@ export async function middleware(request: NextRequest) {
     return response;
   }
 
+  // Allow all auth API routes to pass through (including OAuth callbacks)
   if (
     pathname.startsWith('/api/auth') ||
     pathname.startsWith('/api/status') ||
@@ -86,33 +87,25 @@ export async function middleware(request: NextRequest) {
   }
 
   const isGuest = guestRegex.test(token?.email ?? '');
-  const isAdmin = token?.type === 'admin' || token?.role === 'admin';
-
-  // CRITICAL SECURITY FIX: Only allow specific admin emails to access admin features
-  // This prevents any user from being treated as admin
-  const allowedAdminEmails = process.env.ALLOWED_ADMIN_EMAILS?.split(',') || [];
-  const isAllowedAdmin =
-    allowedAdminEmails.length > 0 &&
-    allowedAdminEmails.includes(token?.email || '');
+  
+  // SIMPLE ADMIN LOGIC: Only sshssn@yahoo.com is admin
+  const isAdmin = token?.email === 'sshssn@yahoo.com';
 
   // Debug logging for admin detection
   if (pathname === '/admin') {
     console.log('Admin access attempt:', {
       email: token?.email,
-      type: token?.type,
-      role: token?.role,
       isAdmin,
-      isAllowedAdmin,
       pathname,
     });
   }
 
-  // Check maintenance mode (except for allowed admin users and admin page)
-  if (!isAllowedAdmin && pathname !== '/maintenance' && pathname !== '/admin') {
+  // Check maintenance mode (except for admin users and admin page)
+  if (!isAdmin && pathname !== '/maintenance' && pathname !== '/admin') {
     try {
-      // Add timeout to prevent hanging requests
+      // Add timeout to prevent hanging requests - reduced for better TTFB
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 2000);
+      const timeoutId = setTimeout(() => controller.abort(), 500);
 
       const maintenanceRes = await fetch(
         `${request.nextUrl.origin}/api/admin/maintenance`,
@@ -138,18 +131,15 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // Only allowed admin users can access admin page, even during maintenance
-  if (isAllowedAdmin && pathname === '/admin') {
-    return NextResponse.next();
+  // Only admin can access admin page
+  if (pathname === '/admin') {
+    if (isAdmin) {
+      return NextResponse.next();
+    } else {
+      // Redirect non-admin users away from admin page
+      return NextResponse.redirect(new URL('/', request.url));
+    }
   }
-
-  // Block non-admin users from accessing admin page
-  if (pathname === '/admin' && !isAllowedAdmin) {
-    return NextResponse.redirect(new URL('/', request.url));
-  }
-
-  // Allow admin users to access the homepage (chat)
-  // Removed automatic redirect to admin dashboard
 
   // Redirect authenticated users away from auth pages (but allow guests to access auth)
   if (token && !isGuest && ['/auth', '/register'].includes(pathname)) {

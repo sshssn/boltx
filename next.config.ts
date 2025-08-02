@@ -23,6 +23,18 @@ const nextConfig: NextConfig = {
   },
   // Enable compression
   compress: true,
+  // Performance optimizations
+  poweredByHeader: false,
+  // Optimize bundle size
+  trailingSlash: false,
+  // Optimize for production
+  productionBrowserSourceMaps: false,
+  // Disable x-powered-by header
+  generateEtags: false,
+  // Optimize static generation
+  staticPageGenerationTimeout: 120,
+  // Enable SWC minification
+  swcMinify: true,
 };
 
 export default nextConfig;

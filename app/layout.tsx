@@ -14,34 +14,14 @@ import { SpeedInsights } from '@vercel/speed-insights/next';
 import { MobileWarning } from '@/components/mobile-warning';
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://chat.vercel.ai'),
+  metadataBase: new URL('https://boltx.vercel.app'),
   title: 'boltX',
   description: 'Next-gen AI chat and productivity platform.',
 };
 
 export const viewport = {
-  maximumScale: 1, // Disable auto-zoom on mobile Safari
+  maximumScale: 1,
 };
-
-const LIGHT_THEME_COLOR = 'hsl(0 0% 100%)';
-const DARK_THEME_COLOR = 'hsl(240deg 10% 3.92%)';
-const THEME_COLOR_SCRIPT = `\
-(function() {
-  var html = document.documentElement;
-  var meta = document.querySelector('meta[name="theme-color"]');
-  if (!meta) {
-    meta = document.createElement('meta');
-    meta.setAttribute('name', 'theme-color');
-    document.head.appendChild(meta);
-  }
-  function updateThemeColor() {
-    var isDark = html.classList.contains('dark');
-    meta.setAttribute('content', isDark ? '${DARK_THEME_COLOR}' : '${LIGHT_THEME_COLOR}');
-  }
-  var observer = new MutationObserver(updateThemeColor);
-  observer.observe(html, { attributes: true, attributeFilter: ['class'] });
-  updateThemeColor();
-})();`;
 
 export default async function RootLayout({
   children,
@@ -49,6 +29,7 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const session = await auth();
+  
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
@@ -60,12 +41,6 @@ export default async function RootLayout({
         <link rel="icon" type="image/png" href="/favicon.png" sizes="16x16" />
         <link rel="shortcut icon" href="/favicon.ico" />
         <link rel="apple-touch-icon" href="/favicon.png" />
-        <link rel="manifest" href="/site.webmanifest" />
-        <script
-          dangerouslySetInnerHTML={{
-            __html: THEME_COLOR_SCRIPT,
-          }}
-        />
       </head>
       <body className="antialiased font-sans bg-background text-foreground min-h-screen w-full">
         <ThemeProvider
@@ -80,7 +55,6 @@ export default async function RootLayout({
               <ChatTitleUpdatesProvider>
                 <GlobalShortcutsProvider>
                   <DashboardOverlay>
-                    {/* Dashboard content goes here */}
                     <div className="space-y-4">
                       <div className="p-4 border rounded-lg">
                         Profile/Settings (TODO)

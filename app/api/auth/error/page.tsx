@@ -1,22 +1,13 @@
 'use client';
 
-import { useEffect, useState, Suspense } from 'react';
+import { useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import {
-  AlertTriangle,
-  ArrowLeft,
-  Home,
-  RefreshCw,
-  Shield,
-  Zap,
-} from 'lucide-react';
-import Image from 'next/image';
+import { AlertTriangle, ArrowLeft, Home, RefreshCw } from 'lucide-react';
 import Link from 'next/link';
 
-function AuthErrorPageContent() {
+export default function AuthErrorPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [error, setError] = useState<string>('');
@@ -99,83 +90,43 @@ function AuthErrorPageContent() {
   };
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-gradient-to-br from-[#181c2a] via-[#232329] to-[#181c2a] p-4">
-      {/* Background Pattern */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -top-40 -right-40 size-80 bg-gradient-to-br from-red-500/10 to-orange-600/10 rounded-full blur-3xl" />
-        <div className="absolute -bottom-40 -left-40 size-80 bg-gradient-to-br from-blue-500/10 to-purple-600/10 rounded-full blur-3xl" />
-      </div>
-
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95, y: 20 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        transition={{ duration: 0.5, ease: 'easeOut' }}
-        className="relative w-full max-w-md"
-      >
-        <Card className="bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl backdrop-saturate-150 border border-zinc-200/60 dark:border-zinc-700/60 shadow-2xl shadow-black/10 dark:shadow-black/30">
-          <CardContent className="p-8">
-            {/* Logo */}
-            <div className="flex justify-center mb-6">
-              <Image
-                src="/images/dark.svg"
-                alt="BoltX"
-                width={120}
-                height={40}
-                className="h-8 w-auto"
-              />
+    <div className="min-h-screen w-full flex items-center justify-center bg-background p-4">
+      <div className="w-full max-w-md">
+        <Card className="border shadow-lg">
+          <CardContent className="p-6">
+            {/* Error Icon */}
+            <div className="flex justify-center mb-4">
+              <div className="size-12 bg-red-500 rounded-full flex items-center justify-center">
+                <AlertTriangle className="size-6 text-white" />
+              </div>
             </div>
 
-            {/* Error Icon */}
-            <motion.div
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
-              className="flex justify-center mb-6"
-            >
-              <div className="size-16 bg-gradient-to-br from-red-500 to-orange-500 rounded-full flex items-center justify-center">
-                <AlertTriangle className="size-8 text-white" />
-              </div>
-            </motion.div>
-
             {/* Error Title */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 }}
-              className="text-center mb-4"
-            >
-              <h1 className="text-2xl font-bold text-zinc-900 dark:text-white mb-2">
+            <div className="text-center mb-4">
+              <h1 className="text-xl font-semibold text-foreground mb-2">
                 Authentication Error
               </h1>
-              <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                {error && `Error: ${error}`}
-              </p>
-            </motion.div>
+              {error && (
+                <p className="text-sm text-muted-foreground">
+                  Error: {error}
+                </p>
+              )}
+            </div>
 
             {/* Error Details */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.4 }}
-              className="mb-6"
-            >
-              <div className="p-4 rounded-lg bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800">
+            <div className="mb-6">
+              <div className="p-3 rounded-lg bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800">
                 <p className="text-sm text-red-700 dark:text-red-300 text-center">
                   {errorDetails}
                 </p>
               </div>
-            </motion.div>
+            </div>
 
             {/* Action Buttons */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.5 }}
-              className="space-y-3"
-            >
+            <div className="space-y-3">
               <Button
                 onClick={handleRetry}
-                className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
+                className="w-full"
               >
                 <RefreshCw className="size-4 mr-2" />
                 Try Again
@@ -184,25 +135,19 @@ function AuthErrorPageContent() {
               <Button
                 variant="outline"
                 onClick={handleGoHome}
-                className="w-full border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800"
+                className="w-full"
               >
                 <Home className="size-4 mr-2" />
                 Go to Home
               </Button>
-            </motion.div>
+            </div>
 
             {/* Help Section */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.6 }}
-              className="mt-6 pt-6 border-t border-zinc-200 dark:border-zinc-700"
-            >
-              <div className="text-center space-y-3">
-                <div className="flex items-center justify-center gap-2 text-sm text-zinc-600 dark:text-zinc-400">
-                  <Shield className="size-4" />
-                  <span>Need help?</span>
-                </div>
+            <div className="mt-4 pt-4 border-t">
+              <div className="text-center space-y-2">
+                <p className="text-sm text-muted-foreground">
+                  Need help?
+                </p>
                 <div className="flex justify-center gap-4 text-xs">
                   <Link
                     href="/support"
@@ -218,35 +163,22 @@ function AuthErrorPageContent() {
                   </Link>
                 </div>
               </div>
-            </motion.div>
+            </div>
           </CardContent>
         </Card>
 
         {/* Back Button */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.7 }}
-          className="absolute -top-16 left-0"
-        >
+        <div className="mt-4">
           <Button
             variant="ghost"
             onClick={() => router.back()}
-            className="text-zinc-400 hover:text-zinc-300"
+            className="text-muted-foreground hover:text-foreground"
           >
             <ArrowLeft className="size-4 mr-2" />
             Go Back
           </Button>
-        </motion.div>
-      </motion.div>
+        </div>
+      </div>
     </div>
-  );
-}
-
-export default function AuthErrorPage() {
-  return (
-    <Suspense fallback={<div>Loading...</div>}>
-      <AuthErrorPageContent />
-    </Suspense>
   );
 }

@@ -8,10 +8,6 @@ import { authConfig } from './auth.config';
 import { DUMMY_PASSWORD } from '@/lib/constants';
 import type { DefaultJWT } from 'next-auth/jwt';
 
-// Set these in your .env.local:
-// GITHUB_CLIENT_ID=Ov23liL0PsrztTT0JXcX
-// GITHUB_CLIENT_SECRET=9db8ca9ec83166c8e10c12def4951fb45e489f80
-
 export type UserType = 'guest' | 'regular' | 'pro' | 'admin';
 
 declare module 'next-auth' {
@@ -78,6 +74,7 @@ export const {
             authorization: {
               params: {
                 prompt: 'consent',
+                scope: 'read:user user:email',
               },
             },
           }),
@@ -112,9 +109,12 @@ export const {
 
         if (!passwordsMatch) return null;
 
-        // Set user type based on role in database
-        const userType = user.role === 'admin' ? 'admin' : 'regular';
-        return { ...user, type: userType, role: user.role };
+        // SIMPLE LOGIC: Only sshssn@yahoo.com is admin
+        const isAdmin = email === 'sshssn@yahoo.com';
+        const userType = isAdmin ? 'admin' : 'regular';
+        const role = isAdmin ? 'admin' : 'regular';
+        
+        return { ...user, type: userType, role };
       },
     }),
     Credentials({
@@ -142,42 +142,14 @@ export const {
             // User exists, update their information
             const existingUser = existingUsers[0];
 
-            // CRITICAL SECURITY FIX: Only allow OAuth login if the existing user
-            // was also created via OAuth (has no password) or if they explicitly
-            // linked their account. This prevents OAuth users from hijacking admin accounts.
-
-            // If the existing user has a password, they created their account via credentials
-            // OAuth users should not be able to access credential-based accounts
-            if (existingUser.password) {
-              console.warn(
-                `OAuth login attempt for credential-based account: ${user.email}`,
-              );
-              return false; // Block the login
-            }
-
-            // Update the user object with existing user info
+            // SIMPLE LOGIC: OAuth users are never admin
             user.id = existingUser.id;
-            user.role = existingUser.role;
-
-            // CRITICAL SECURITY FIX: OAuth users should never get admin privileges
-            // This is a double-check to ensure OAuth users cannot become admin
-            if (existingUser.role === 'admin') {
-              console.warn(
-                `OAuth user attempting to access admin account: ${user.email}`,
-              );
-              // For OAuth users, downgrade admin to regular user
-              user.role = 'regular';
-              user.type = 'regular';
-            } else {
-              // SECURITY: Only allow admin type if the user was created via credentials
-              // OAuth users should never be admin
-              user.type = 'regular';
-            }
-
+            user.role = 'regular';
+            user.type = 'regular';
             user.username = existingUser.username;
-            return true; // Allow sign in
+            return true;
           } else {
-            // Create new user as regular (not admin)
+            // Create new user as regular (never admin)
             const newUser = await createUser(
               user.email,
               '', // No password for OAuth users
@@ -187,20 +159,8 @@ export const {
             if (newUser && newUser.length > 0) {
               // Update the user object with our database user info
               user.id = newUser[0].id;
-              user.role = newUser[0].role;
-              // SECURITY: Always create OAuth users as regular, never admin
+              user.role = 'regular';
               user.type = 'regular';
-
-              // CRITICAL SECURITY: Double-check that the role is not admin
-              if (newUser[0].role === 'admin') {
-                console.error(
-                  `CRITICAL: OAuth user created with admin role: ${user.email}`,
-                );
-                // Force downgrade to regular
-                user.role = 'regular';
-                user.type = 'regular';
-              }
-
               return true;
             }
           }
@@ -220,15 +180,11 @@ export const {
         token.username = user.username;
         token.image = user.image;
 
-        // CRITICAL SECURITY CHECK: Ensure OAuth users never get admin privileges
+        // SIMPLE LOGIC: OAuth users are never admin
         if (
           account?.provider &&
           (account.provider === 'google' || account.provider === 'github')
         ) {
-          // Force OAuth users to be regular users only
-          console.warn(
-            `JWT: OAuth user detected, ensuring regular role: ${user.email}`,
-          );
           token.role = 'regular';
           token.type = 'regular';
         }
@@ -243,19 +199,18 @@ export const {
         session.user.role = token.role;
         session.user.username = token.username;
         session.user.image = token.image;
-
-        // CRITICAL SESSION SECURITY CHECK: Ensure OAuth users are never admin
-        // This is the final line of defense
-        if (session.user.role === 'admin') {
-          // For now, we'll log admin users but not automatically downgrade
-          // as it might be a legitimate admin user created via credentials
-          console.warn(
-            `Session: Admin role detected for user: ${session.user.email}`,
-          );
-        }
       }
 
       return session;
+    },
+    async redirect({ url, baseUrl }) {
+      // Fix OAuth redirect - always redirect to chat page after successful login
+      if (url.startsWith('/')) {
+        return `${baseUrl}${url}`;
+      } else if (new URL(url).origin === baseUrl) {
+        return url;
+      }
+      return baseUrl;
     },
   },
 });
