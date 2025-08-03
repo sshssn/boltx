@@ -93,7 +93,7 @@ export async function POST(request: NextRequest) {
       success: true,
       ticket: {
         ...newTicket,
-        attachments: JSON.parse(newTicket.attachments || '[]'),
+        attachments: newTicket.attachments || [],
       },
     });
   } catch (error) {
@@ -199,7 +199,7 @@ export async function GET(request: NextRequest) {
     // Parse attachments for each ticket
     const ticketsWithAttachments = userTickets.map((ticket) => ({
       ...ticket,
-      attachments: JSON.parse(ticket.attachments || '[]'),
+      attachments: ticket.attachments || [],
     }));
 
     return NextResponse.json({

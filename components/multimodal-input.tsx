@@ -788,9 +788,9 @@ function PureMultimodalInput({
                         disabled={limitReached || !session?.user}
                         aria-label={
                           session?.user
-                            ? (isThinkingMode
-                                ? 'Disable reasoning mode'
-                                : 'Enable thinking model')
+                            ? isThinkingMode
+                              ? 'Disable reasoning mode'
+                              : 'Enable thinking model'
                             : 'Sign in to use reasoning mode'
                         }
                       >
@@ -799,9 +799,9 @@ function PureMultimodalInput({
                     </TooltipTrigger>
                     <TooltipContent>
                       {session?.user
-                        ? (isThinkingMode
-                            ? 'Disable reasoning mode'
-                            : 'Thinking Model')
+                        ? isThinkingMode
+                          ? 'Disable reasoning mode'
+                          : 'Thinking Model'
                         : 'Sign in to use reasoning mode for free'}
                     </TooltipContent>
                   </Tooltip>

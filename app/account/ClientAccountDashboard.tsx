@@ -111,7 +111,7 @@ export default function ClientAccountDashboard() {
   const [uploadingFile, setUploadingFile] = useState(false);
   const [ticketsPage, setTicketsPage] = useState(1);
   const [ticketsSearch, setTicketsSearch] = useState('');
-  const [ticketsFilter, setTicketsFilter] = useState('');
+  const [ticketsFilter, setTicketsFilter] = useState('all');
   const [ticketsPagination, setTicketsPagination] = useState<any>(null);
   const chatsPerPage = 5;
   const filteredChats = chats.filter((c) =>
@@ -277,7 +277,7 @@ export default function ClientAccountDashboard() {
         page: ticketsPage.toString(),
         limit: '10',
         ...(ticketsSearch && { search: ticketsSearch }),
-        ...(ticketsFilter && { status: ticketsFilter }),
+        ...(ticketsFilter && ticketsFilter !== 'all' && { status: ticketsFilter }),
       });
 
       fetch(`/api/tickets?${params}`).then(async (r) => {
@@ -2444,7 +2444,7 @@ export default function ClientAccountDashboard() {
                                   <SelectValue placeholder="Status" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  <SelectItem value="">All Status</SelectItem>
+                                  <SelectItem value="all">All Status</SelectItem>
                                   <SelectItem value="open">Open</SelectItem>
                                   <SelectItem value="in_progress">
                                     In Progress
@@ -2468,7 +2468,7 @@ export default function ClientAccountDashboard() {
                               <div className="text-center py-8">
                                 <Ticket className="size-12 text-muted-foreground mx-auto mb-4" />
                                 <p className="text-muted-foreground">
-                                  {ticketsSearch || ticketsFilter
+                                  {ticketsSearch || (ticketsFilter && ticketsFilter !== 'all')
                                     ? 'No tickets found matching your criteria.'
                                     : 'No tickets submitted yet.'}
                                 </p>

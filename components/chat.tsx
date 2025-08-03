@@ -127,6 +127,7 @@ export function Chat({
 }: ChatProps) {
   const isMobile = useIsMobile();
   const router = useRouter();
+  const { open: sidebarOpen } = useSidebar();
 
   // Detect OAuth login success
   useEffect(() => {
@@ -184,7 +185,10 @@ export function Chat({
     body: {
       id,
       selectedChatModel: initialChatModel,
-      message: messages[messages.length - 1], // Send only the latest message
+      message:
+        initialMessages.length > 0
+          ? initialMessages[initialMessages.length - 1]
+          : undefined, // Send only the latest message
     },
     headers: {
       'Content-Type': 'application/json',
@@ -726,34 +730,43 @@ export function Chat({
             {/* Rate Limit Message */}
             <RateLimitMessage isVisible={showRateLimitMessage} />
 
-            <div
-              className={`
-              flex mx-auto gap-2 w-full
-              ${isMobile ? 'px-3' : 'px-6'}
-              ${isMobile ? 'pb-4' : 'pb-4'}
-              max-w-4xl mx-auto
-            `}
-            >
-              {!isReadonly && (
-                <div className="w-full">
-                  <MultimodalInput
-                    chatId={id}
-                    input={input}
-                    setInput={setInput}
-                    status={status}
-                    stop={stop}
-                    attachments={attachments}
-                    setAttachments={setAttachments}
-                    messages={messages}
-                    sendMessage={handleNewMessage}
-                    setMessages={setMessages}
-                    selectedVisibilityType={initialVisibilityType}
-                    disabled={inputDisabled}
-                    limitReached={hasReachedLimit}
-                    session={session}
-                  />
-                </div>
-              )}
+            {/* FIXED: Properly centered input container - aligned with greeting text */}
+            <div className="flex justify-center items-center w-full">
+              <div
+                className={`
+                  flex gap-2 w-full max-w-4xl
+                  px-4 sm:px-6
+                  ${isMobile ? 'pb-4' : 'pb-4'}
+                  transition-all duration-300
+                  flex-shrink-0
+                  mx-auto
+                `}
+                style={{
+                  margin: '0 auto',
+                  maxWidth: '64rem', // max-w-4xl equivalent - matches greeting text exactly
+                }}
+              >
+                {!isReadonly && (
+                  <div className="w-full">
+                    <MultimodalInput
+                      chatId={id}
+                      input={input}
+                      setInput={setInput}
+                      status={status}
+                      stop={stop}
+                      attachments={attachments}
+                      setAttachments={setAttachments}
+                      messages={messages}
+                      sendMessage={handleNewMessage}
+                      setMessages={setMessages}
+                      selectedVisibilityType={initialVisibilityType}
+                      disabled={inputDisabled}
+                      limitReached={hasReachedLimit}
+                      session={session}
+                    />
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
