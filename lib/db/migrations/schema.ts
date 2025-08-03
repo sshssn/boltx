@@ -1,7 +1,17 @@
-import { pgTable, unique, uuid, varchar, timestamp, text, integer, date, foreignKey, json, index, boolean, primaryKey, sql } from "drizzle-orm/pg-core"
+import { pgTable, unique, serial, varchar, text, timestamp, uuid, integer, date, boolean, jsonb, foreignKey, json, primaryKey } from "drizzle-orm/pg-core"
+import { sql } from "drizzle-orm"
 
 
 
+export const systemSettings = pgTable("SystemSettings", {
+	id: serial().primaryKey().notNull(),
+	key: varchar({ length: 255 }).notNull(),
+	value: text(),
+	createdAt: timestamp({ mode: 'string' }).defaultNow(),
+	updatedAt: timestamp({ mode: 'string' }).defaultNow(),
+}, (table) => [
+	unique("SystemSettings_key_key").on(table.key),
+]);
 
 export const user = pgTable("User", {
 	id: uuid().defaultRandom().primaryKey().notNull(),
@@ -16,12 +26,13 @@ export const user = pgTable("User", {
 	stripeCustomerId: varchar({ length: 255 }),
 	plan: varchar({ length: 20 }).default('free'),
 	lastUsernameChange: timestamp({ mode: 'string' }),
-},
-(table) => {
-	return {
-		userUsernameUnique: unique("User_username_unique").on(table.username),
-	}
-});
+	role: varchar({ length: 20 }).default('client'),
+	mfaEnabled: boolean().default(false),
+	mfaSecret: varchar({ length: 255 }),
+	mfaBackupCodes: jsonb(),
+}, (table) => [
+	unique("User_username_unique").on(table.username),
+]);
 
 export const message = pgTable("Message", {
 	id: uuid().defaultRandom().primaryKey().notNull(),
@@ -29,16 +40,13 @@ export const message = pgTable("Message", {
 	role: varchar().notNull(),
 	content: json().notNull(),
 	createdAt: timestamp({ mode: 'string' }).notNull(),
-},
-(table) => {
-	return {
-		messageChatIdChatIdFk: foreignKey({
+}, (table) => [
+	foreignKey({
 			columns: [table.chatId],
 			foreignColumns: [chat.id],
 			name: "Message_chatId_Chat_id_fk"
 		}),
-	}
-});
+]);
 
 export const chat = pgTable("Chat", {
 	id: uuid().defaultRandom().primaryKey().notNull(),
@@ -46,17 +54,13 @@ export const chat = pgTable("Chat", {
 	userId: uuid().notNull(),
 	title: text().notNull(),
 	visibility: varchar().default('private').notNull(),
-},
-(table) => {
-	return {
-		userCreatedAtIdx: index("user_created_at_idx").using("btree", table.userId.asc().nullsLast(), table.createdAt.desc().nullsFirst()),
-		chatUserIdUserIdFk: foreignKey({
+}, (table) => [
+	foreignKey({
 			columns: [table.userId],
 			foreignColumns: [user.id],
 			name: "Chat_userId_User_id_fk"
 		}),
-	}
-});
+]);
 
 export const suggestion = pgTable("Suggestion", {
 	id: uuid().defaultRandom().primaryKey().notNull(),
@@ -68,21 +72,18 @@ export const suggestion = pgTable("Suggestion", {
 	isResolved: boolean().default(false).notNull(),
 	userId: uuid().notNull(),
 	createdAt: timestamp({ mode: 'string' }).notNull(),
-},
-(table) => {
-	return {
-		suggestionUserIdUserIdFk: foreignKey({
+}, (table) => [
+	foreignKey({
 			columns: [table.userId],
 			foreignColumns: [user.id],
 			name: "Suggestion_userId_User_id_fk"
 		}),
-		suggestionDocumentIdDocumentCreatedAtDocumentIdCreatedAtF: foreignKey({
+	foreignKey({
 			columns: [table.documentId, table.documentCreatedAt],
-			foreignColumns: [document.createdAt, document.id],
+			foreignColumns: [document.id, document.createdAt],
 			name: "Suggestion_documentId_documentCreatedAt_Document_id_createdAt_f"
 		}),
-	}
-});
+]);
 
 export const messageV2 = pgTable("Message_v2", {
 	id: uuid().defaultRandom().primaryKey().notNull(),
@@ -91,63 +92,38 @@ export const messageV2 = pgTable("Message_v2", {
 	parts: json().notNull(),
 	attachments: json().notNull(),
 	createdAt: timestamp({ mode: 'string' }).notNull(),
-},
-(table) => {
-	return {
-		messageV2ChatIdChatIdFk: foreignKey({
+}, (table) => [
+	foreignKey({
 			columns: [table.chatId],
 			foreignColumns: [chat.id],
 			name: "Message_v2_chatId_Chat_id_fk"
 		}),
-	}
-});
+]);
 
 export const stream = pgTable("Stream", {
 	id: uuid().defaultRandom().primaryKey().notNull(),
 	chatId: uuid().notNull(),
 	createdAt: timestamp({ mode: 'string' }).notNull(),
-},
-(table) => {
-	return {
-		streamChatIdChatIdFk: foreignKey({
+}, (table) => [
+	foreignKey({
 			columns: [table.chatId],
 			foreignColumns: [chat.id],
 			name: "Stream_chatId_Chat_id_fk"
 		}),
-	}
-});
-
-export const usageLogs = pgTable("usage_logs", {
-	id: uuid().defaultRandom().primaryKey().notNull(),
-	userId: uuid("user_id"),
-	messageCount: integer("message_count"),
-	logDate: date("log_date").default(sql`CURRENT_DATE`),
-},
-(table) => {
-	return {
-		usageLogsUserIdFkey: foreignKey({
-			columns: [table.userId],
-			foreignColumns: [user.id],
-			name: "usage_logs_user_id_fkey"
-		}),
-	}
-});
+]);
 
 export const memory = pgTable("Memory", {
 	id: uuid().defaultRandom().primaryKey().notNull(),
 	userId: uuid().notNull(),
 	createdAt: timestamp({ mode: 'string' }).notNull(),
 	content: text().notNull(),
-},
-(table) => {
-	return {
-		memoryUserIdUserIdFk: foreignKey({
+}, (table) => [
+	foreignKey({
 			columns: [table.userId],
 			foreignColumns: [user.id],
 			name: "Memory_userId_User_id_fk"
 		}),
-	}
-});
+]);
 
 export const passwordResetTokens = pgTable("password_reset_tokens", {
 	id: uuid().defaultRandom().primaryKey().notNull(),
@@ -155,19 +131,25 @@ export const passwordResetTokens = pgTable("password_reset_tokens", {
 	token: varchar({ length: 255 }).notNull(),
 	expiresAt: timestamp("expires_at", { mode: 'string' }).notNull(),
 	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
-},
-(table) => {
-	return {
-		idxPasswordResetTokensToken: index("idx_password_reset_tokens_token").using("btree", table.token.asc().nullsLast()),
-		idxPasswordResetTokensUserId: index("idx_password_reset_tokens_user_id").using("btree", table.userId.asc().nullsLast()),
-		passwordResetTokensUserIdFkey: foreignKey({
+}, (table) => [
+	foreignKey({
 			columns: [table.userId],
 			foreignColumns: [user.id],
-			name: "password_reset_tokens_user_id_fkey"
+			name: "password_reset_tokens_user_id_User_id_fk"
 		}).onDelete("cascade"),
-		passwordResetTokensTokenKey: unique("password_reset_tokens_token_key").on(table.token),
-	}
-});
+	unique("password_reset_tokens_token_unique").on(table.token),
+]);
+
+export const adminMetadata = pgTable("AdminMetadata", {
+	id: uuid().defaultRandom().primaryKey().notNull(),
+	key: varchar({ length: 100 }).notNull(),
+	value: json(),
+	description: text(),
+	createdAt: timestamp({ mode: 'string' }).defaultNow().notNull(),
+	updatedAt: timestamp({ mode: 'string' }).defaultNow().notNull(),
+}, (table) => [
+	unique("AdminMetadata_key_unique").on(table.key),
+]);
 
 export const messageUsage = pgTable("MessageUsage", {
 	id: uuid().defaultRandom().primaryKey().notNull(),
@@ -178,58 +160,95 @@ export const messageUsage = pgTable("MessageUsage", {
 	messageCount: integer().default(0).notNull(),
 	createdAt: timestamp({ mode: 'string' }).defaultNow().notNull(),
 	updatedAt: timestamp({ mode: 'string' }).defaultNow().notNull(),
-},
-(table) => {
-	return {
-		messageUsageUserIdUserIdFk: foreignKey({
+}, (table) => [
+	foreignKey({
 			columns: [table.userId],
 			foreignColumns: [user.id],
 			name: "MessageUsage_userId_User_id_fk"
 		}),
-	}
-});
+]);
+
+export const ticketReply = pgTable("TicketReply", {
+	id: uuid().defaultRandom().primaryKey().notNull(),
+	ticketId: uuid().notNull(),
+	userId: uuid().notNull(),
+	content: text().notNull(),
+	isAdminReply: boolean().default(false).notNull(),
+	createdAt: timestamp({ mode: 'string' }).defaultNow().notNull(),
+}, (table) => [
+	foreignKey({
+			columns: [table.ticketId],
+			foreignColumns: [ticket.id],
+			name: "TicketReply_ticketId_Ticket_id_fk"
+		}).onDelete("cascade"),
+	foreignKey({
+			columns: [table.userId],
+			foreignColumns: [user.id],
+			name: "TicketReply_userId_User_id_fk"
+		}),
+]);
+
+export const ticket = pgTable("Ticket", {
+	id: uuid().defaultRandom().primaryKey().notNull(),
+	userId: uuid().notNull(),
+	type: varchar({ length: 20 }).notNull(),
+	subject: text().notNull(),
+	description: text().notNull(),
+	status: varchar({ length: 20 }).default('open').notNull(),
+	priority: varchar({ length: 20 }).default('medium').notNull(),
+	createdAt: timestamp({ mode: 'string' }).defaultNow().notNull(),
+	updatedAt: timestamp({ mode: 'string' }).defaultNow().notNull(),
+	resolvedAt: timestamp({ mode: 'string' }),
+	assignedTo: uuid(),
+	attachments: json().default([]),
+}, (table) => [
+	foreignKey({
+			columns: [table.userId],
+			foreignColumns: [user.id],
+			name: "Ticket_userId_User_id_fk"
+		}),
+	foreignKey({
+			columns: [table.assignedTo],
+			foreignColumns: [user.id],
+			name: "Ticket_assignedTo_User_id_fk"
+		}),
+]);
 
 export const vote = pgTable("Vote", {
 	chatId: uuid().notNull(),
 	messageId: uuid().notNull(),
 	isUpvoted: boolean().notNull(),
-},
-(table) => {
-	return {
-		voteChatIdChatIdFk: foreignKey({
+}, (table) => [
+	foreignKey({
 			columns: [table.chatId],
 			foreignColumns: [chat.id],
 			name: "Vote_chatId_Chat_id_fk"
 		}),
-		voteMessageIdMessageIdFk: foreignKey({
+	foreignKey({
 			columns: [table.messageId],
 			foreignColumns: [message.id],
 			name: "Vote_messageId_Message_id_fk"
 		}),
-		voteChatIdMessageIdPk: primaryKey({ columns: [table.chatId, table.messageId], name: "Vote_chatId_messageId_pk"}),
-	}
-});
+	primaryKey({ columns: [table.chatId, table.messageId], name: "Vote_chatId_messageId_pk"}),
+]);
 
 export const voteV2 = pgTable("Vote_v2", {
 	chatId: uuid().notNull(),
 	messageId: uuid().notNull(),
 	isUpvoted: boolean().notNull(),
-},
-(table) => {
-	return {
-		voteV2ChatIdChatIdFk: foreignKey({
+}, (table) => [
+	foreignKey({
 			columns: [table.chatId],
 			foreignColumns: [chat.id],
 			name: "Vote_v2_chatId_Chat_id_fk"
 		}),
-		voteV2MessageIdMessageV2IdFk: foreignKey({
+	foreignKey({
 			columns: [table.messageId],
 			foreignColumns: [messageV2.id],
 			name: "Vote_v2_messageId_Message_v2_id_fk"
 		}),
-		voteV2ChatIdMessageIdPk: primaryKey({ columns: [table.chatId, table.messageId], name: "Vote_v2_chatId_messageId_pk"}),
-	}
-});
+	primaryKey({ columns: [table.chatId, table.messageId], name: "Vote_v2_chatId_messageId_pk"}),
+]);
 
 export const document = pgTable("Document", {
 	id: uuid().defaultRandom().notNull(),
@@ -237,15 +256,12 @@ export const document = pgTable("Document", {
 	title: text().notNull(),
 	content: text(),
 	userId: uuid().notNull(),
-	text: varchar().default('text').notNull(),
-},
-(table) => {
-	return {
-		documentUserIdUserIdFk: foreignKey({
+	kind: varchar().default('text').notNull(),
+}, (table) => [
+	foreignKey({
 			columns: [table.userId],
 			foreignColumns: [user.id],
 			name: "Document_userId_User_id_fk"
 		}),
-		documentIdCreatedAtPk: primaryKey({ columns: [table.id, table.createdAt], name: "Document_id_createdAt_pk"}),
-	}
-});
+	primaryKey({ columns: [table.id, table.createdAt], name: "Document_id_createdAt_pk"}),
+]);

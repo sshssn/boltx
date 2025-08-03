@@ -1,5 +1,5 @@
 import { relations } from "drizzle-orm/relations";
-import { chat, message, user, suggestion, document, messageV2, stream, usageLogs, memory, passwordResetTokens, messageUsage, vote, voteV2 } from "./schema";
+import { chat, message, user, suggestion, document, messageV2, stream, memory, passwordResetTokens, messageUsage, ticket, ticketReply, vote, voteV2 } from "./schema";
 
 export const messageRelations = relations(message, ({one, many}) => ({
 	chat: one(chat, {
@@ -24,10 +24,16 @@ export const chatRelations = relations(chat, ({one, many}) => ({
 export const userRelations = relations(user, ({many}) => ({
 	chats: many(chat),
 	suggestions: many(suggestion),
-	usageLogs: many(usageLogs),
 	memories: many(memory),
 	passwordResetTokens: many(passwordResetTokens),
 	messageUsages: many(messageUsage),
+	ticketReplies: many(ticketReply),
+	tickets_userId: many(ticket, {
+		relationName: "ticket_userId_user_id"
+	}),
+	tickets_assignedTo: many(ticket, {
+		relationName: "ticket_assignedTo_user_id"
+	}),
 	documents: many(document),
 }));
 
@@ -38,7 +44,7 @@ export const suggestionRelations = relations(suggestion, ({one}) => ({
 	}),
 	document: one(document, {
 		fields: [suggestion.documentId],
-		references: [document.createdAt]
+		references: [document.id]
 	}),
 }));
 
@@ -65,13 +71,6 @@ export const streamRelations = relations(stream, ({one}) => ({
 	}),
 }));
 
-export const usageLogsRelations = relations(usageLogs, ({one}) => ({
-	user: one(user, {
-		fields: [usageLogs.userId],
-		references: [user.id]
-	}),
-}));
-
 export const memoryRelations = relations(memory, ({one}) => ({
 	user: one(user, {
 		fields: [memory.userId],
@@ -90,6 +89,31 @@ export const messageUsageRelations = relations(messageUsage, ({one}) => ({
 	user: one(user, {
 		fields: [messageUsage.userId],
 		references: [user.id]
+	}),
+}));
+
+export const ticketReplyRelations = relations(ticketReply, ({one}) => ({
+	ticket: one(ticket, {
+		fields: [ticketReply.ticketId],
+		references: [ticket.id]
+	}),
+	user: one(user, {
+		fields: [ticketReply.userId],
+		references: [user.id]
+	}),
+}));
+
+export const ticketRelations = relations(ticket, ({one, many}) => ({
+	ticketReplies: many(ticketReply),
+	user_userId: one(user, {
+		fields: [ticket.userId],
+		references: [user.id],
+		relationName: "ticket_userId_user_id"
+	}),
+	user_assignedTo: one(user, {
+		fields: [ticket.assignedTo],
+		references: [user.id],
+		relationName: "ticket_assignedTo_user_id"
 	}),
 }));
 

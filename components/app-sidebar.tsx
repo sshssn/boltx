@@ -38,6 +38,8 @@ function getGravatarUrl(email: string) {
 
 // Compact usage display for sidebar
 function CompactUsageDisplay() {
+  const { data: session } = useSession();
+  const isAdmin = session?.user?.type === 'admin';
   const messageLimitData = useMessageLimit();
 
   // Check if the hook is available
@@ -53,6 +55,41 @@ function CompactUsageDisplay() {
 
   // For guests, show after first message or if they have used messages
   if (isGuest && messagesUsed === 0) return null;
+
+  // Admin users get infinity display
+  if (isAdmin) {
+    return (
+      <div className="w-full p-1.5 bg-zinc-50/60 dark:bg-zinc-900/60 backdrop-blur-sm border border-zinc-200/40 dark:border-zinc-700/40 rounded-md">
+        <div className="flex items-center justify-between mb-1">
+          <div className="flex items-center gap-1">
+            <MessageSquare className="size-2.5 text-zinc-500 dark:text-zinc-400" />
+            <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400">
+              Admin
+            </span>
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400">
+              {messagesUsed}
+            </span>
+            <span className="text-xs text-zinc-400 dark:text-zinc-500">∞</span>
+          </div>
+        </div>
+
+        <div className="space-y-0.5">
+          <div className="relative h-1 w-full overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-700">
+            <div className="h-full bg-purple-500 transition-all" style={{ width: '100%' }} />
+          </div>
+          <div className="flex items-center justify-between text-xs text-zinc-400 dark:text-zinc-500">
+            <span className="text-purple-600 dark:text-purple-400 font-medium">Unlimited</span>
+            <div className="flex items-center gap-0.5">
+              <Zap className="size-2" />
+              <span className="text-xs">Admin</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Calculate usage percentage
   const usagePercent = Math.min((messagesUsed / messagesLimit) * 100, 100);

@@ -127,7 +127,7 @@ export function Chat({
 }: ChatProps) {
   const isMobile = useIsMobile();
   const router = useRouter();
-  const { open: sidebarOpen } = useSidebar();
+  const { state } = useSidebar(); // Get sidebar state
 
   // Detect OAuth login success
   useEffect(() => {
@@ -674,16 +674,15 @@ export function Chat({
             </>
           )}
 
-          {/* Enhanced Input Section - Mobile Optimized */}
+          {/* FIXED: Input Section - Absolute positioning for seamless sidebar integration */}
           <div
             className={`
-            fixed inset-x-0 bottom-0 z-30
-            bg-gradient-to-t from-white via-white to-transparent 
-            dark:from-zinc-950 dark:via-zinc-950 dark:to-transparent
-            ${isMobile ? 'pb-safe' : ''}
-            safe-area-inset-bottom
-            transition-all duration-300
-          `}
+              absolute bottom-0 left-0 right-0 z-30
+              bg-gradient-to-t from-white via-white to-transparent 
+              dark:from-zinc-950 dark:via-zinc-950 dark:to-transparent
+              ${isMobile ? 'pb-safe' : ''}
+              safe-area-inset-bottom
+            `}
           >
             {/* Error Display */}
             {lastError && (
@@ -730,21 +729,15 @@ export function Chat({
             {/* Rate Limit Message */}
             <RateLimitMessage isVisible={showRateLimitMessage} />
 
-            {/* FIXED: Properly centered input container - aligned with greeting text */}
-            <div className="flex justify-center items-center w-full">
+            {/* Input container - now properly aligned */}
+            <div className="flex justify-center w-full">
               <div
                 className={`
-                  flex gap-2 w-full max-w-4xl
-                  px-4 sm:px-6
+                  flex gap-2 w-full max-w-4xl mx-auto
+                  ${isMobile ? 'px-3' : 'px-6'}
                   ${isMobile ? 'pb-4' : 'pb-4'}
                   transition-all duration-300
-                  flex-shrink-0
-                  mx-auto
                 `}
-                style={{
-                  margin: '0 auto',
-                  maxWidth: '64rem', // max-w-4xl equivalent - matches greeting text exactly
-                }}
               >
                 {!isReadonly && (
                   <div className="w-full">

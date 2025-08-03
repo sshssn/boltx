@@ -8,19 +8,32 @@ import { getChatsByUserId } from '@/lib/db/queries';
 
 // Validate environment variables
 const validateEnvironment = () => {
-  const requiredVars = [
-    'GROQ_API_KEY',
-    'OPENROUTER_API_KEY',
+  // Check for critical environment variables
+  const criticalVars = [
+    'DATABASE_URL',
     'NEXTAUTH_SECRET',
-    'NEXTAUTH_URL',
   ];
 
-  const missing = requiredVars.filter((varName) => !process.env[varName]);
-  if (missing.length > 0) {
-    console.error('Missing environment variables:', missing);
-    return false;
+  const missingCritical = criticalVars.filter((varName) => !process.env[varName]);
+  if (missingCritical.length > 0) {
+    console.error('Missing critical environment variables:', missingCritical);
+    return { valid: false, missing: missingCritical, type: 'critical' };
   }
-  return true;
+
+  // Check for AI provider environment variables (at least one should be available)
+  const aiProviderVars = [
+    'GROQ_API_KEY',
+    'OPENROUTER_API_KEY',
+    'GEMINI_API_KEY',
+  ];
+
+  const availableProviders = aiProviderVars.filter((varName) => process.env[varName]);
+  if (availableProviders.length === 0) {
+    console.error('No AI provider API keys configured');
+    return { valid: false, missing: aiProviderVars, type: 'ai_providers' };
+  }
+
+  return { valid: true, availableProviders };
 };
 
 // Rate limiting manager
@@ -120,11 +133,14 @@ const convertToOpenRouterFormat = (messages: any[]) => {
 export async function POST(request: Request) {
   try {
     // Validate environment
-    if (!validateEnvironment()) {
+    const validationResult = validateEnvironment();
+    if (!validationResult.valid) {
+      const missingCount = validationResult.missing?.length || 0;
+      const missingList = validationResult.missing?.join(', ') || 'unknown';
       return new Response(
         JSON.stringify({
           error: 'Server configuration error',
-          details: 'Missing or invalid environment variables',
+          details: `Missing ${missingCount > 1 ? 'environment variables' : 'environment variable'}: ${missingList}.`,
           retryable: false,
         }),
         {

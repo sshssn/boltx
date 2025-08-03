@@ -9,6 +9,7 @@ import { useState } from 'react';
 
 export function CompactUsageCounter() {
   const { data: session } = useSession();
+  const isAdmin = session?.user?.type === 'admin';
   const [isDismissed, setIsDismissed] = useState(false);
   const sidebarData = useSidebar();
   const sidebarOpen = sidebarData?.open || false;
@@ -35,8 +36,33 @@ export function CompactUsageCounter() {
   if (isLoading || sidebarOpen || isDismissed || (isGuest && messagesUsed === 0))
     return null;
 
-  // Don't show if user has unlimited messages
-  if (messagesLimit >= 1000) return null;
+  // Don't show if user has unlimited messages (except for admin)
+  if (messagesLimit >= 1000 && !isAdmin) return null;
+
+  // Admin users get infinity display
+  if (isAdmin) {
+    return (
+      <div className="flex items-center justify-center px-4 py-2 mb-2">
+        <div className="flex items-center gap-2 px-3 py-2 bg-purple-50/90 dark:bg-purple-950/90 backdrop-blur-xl border border-purple-200/60 dark:border-purple-700/60 rounded-lg shadow-sm relative">
+          <MessageSquare className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+          <span className="text-sm text-purple-700 dark:text-purple-300">
+            Admin: Unlimited messages
+          </span>
+          <span className="text-lg text-purple-600 dark:text-purple-400 font-bold">∞</span>
+          
+          {/* Close button */}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="absolute -top-1 -right-1 size-5 p-0 rounded-full bg-purple-200/80 dark:bg-purple-700/80 hover:bg-purple-300/80 dark:hover:bg-purple-600/80 text-purple-500 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-200"
+            onClick={() => setIsDismissed(true)}
+          >
+            <X className="size-3" />
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   const getContainerColor = () => {
     if (remaining === 0) {

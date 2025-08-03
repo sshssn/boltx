@@ -11,11 +11,6 @@ export function UsageCounter() {
   const isAdmin = session?.user?.type === 'admin';
   const messageLimitData = useMessageLimit();
 
-  // Don't show usage counter for admin users (unlimited)
-  if (isAdmin) {
-    return null;
-  }
-
   // Check if the hook is available
   if (!messageLimitData) {
     return null;
@@ -23,6 +18,47 @@ export function UsageCounter() {
 
   const { messagesUsed, messagesLimit, remaining, isGuest, isLoading } =
     messageLimitData;
+
+  // Don't show if loading
+  if (isLoading) return null;
+
+  // For guests, show after first message or if they have used messages
+  if (isGuest && messagesUsed === 0) return null;
+
+  // Admin users get infinity display
+  if (isAdmin) {
+    return (
+      <div className="w-full p-4 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl border-zinc-200/60 dark:border-zinc-700/60 rounded-xl shadow-sm">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <MessageSquare className="w-4 h-4 text-zinc-600 dark:text-zinc-400" />
+            <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+              Admin Usage
+            </span>
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+              {messagesUsed}
+            </span>
+            <span className="text-lg text-purple-600 dark:text-purple-400 font-bold">∞</span>
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <div className="relative h-2 w-full overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-700">
+            <div className="h-full bg-purple-500 transition-all" style={{ width: '100%' }} />
+          </div>
+          <div className="flex items-center justify-between text-xs text-zinc-600 dark:text-zinc-400">
+            <span className="text-purple-600 dark:text-purple-400 font-medium">Unlimited Messages</span>
+            <div className="flex items-center gap-1">
+              <Zap className="size-3" />
+              <span>Admin</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Don't show if loading
   if (isLoading) return null;

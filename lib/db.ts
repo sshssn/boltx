@@ -5,10 +5,6 @@ import { config } from 'dotenv';
 // Load environment variables
 config({ path: '.env.local' });
 
-if (!process.env.DATABASE_URL) {
-  throw new Error('DATABASE_URL is not defined');
-}
-
 // Create a singleton Neon SQL client with connection pooling
 let sqlClient: ReturnType<typeof neon> | null = null;
 let dbInstance: ReturnType<typeof drizzle> | null = null;
@@ -25,17 +21,43 @@ const getSqlClient = () => {
 
 const getDb = () => {
   if (!dbInstance) {
-    const sql = getSqlClient();
-    dbInstance = drizzle(sql, {
-      // Optimize for serverless environment
-      logger: process.env.NODE_ENV === 'development',
-    });
+    try {
+      const sql = getSqlClient();
+      dbInstance = drizzle(sql, {
+        // Optimize for serverless environment
+        logger: process.env.NODE_ENV === 'development',
+      });
+    } catch (error) {
+      console.error('Database connection error:', error);
+      throw error;
+    }
   }
   return dbInstance;
 };
 
-// Export singleton instances
-export const db = getDb();
+// Export singleton instances with error handling
+export const db = (() => {
+  try {
+    return getDb();
+  } catch (error) {
+    console.error('Failed to initialize database:', error);
+    // Return a mock db that throws on any operation
+    return {
+      select: () => {
+        throw new Error('Database not configured');
+      },
+      insert: () => {
+        throw new Error('Database not configured');
+      },
+      update: () => {
+        throw new Error('Database not configured');
+      },
+      delete: () => {
+        throw new Error('Database not configured');
+      },
+    } as any;
+  }
+})();
 
 // Cleanup function for graceful shutdown
 export const cleanupDb = async () => {
