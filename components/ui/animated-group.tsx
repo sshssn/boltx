@@ -1,6 +1,6 @@
 'use client';
-import type { ReactNode } from 'react';
-import { motion, type Variants } from 'motion/react';
+import { ReactNode } from 'react';
+import { motion, Variants } from 'motion/react';
 import React from 'react';
 
 export type PresetType =
@@ -117,36 +117,25 @@ function AnimatedGroup({
 
   const MotionComponent = React.useMemo(
     () => motion.create(as as keyof JSX.IntrinsicElements),
-    [as],
+    [as]
   );
   const MotionChild = React.useMemo(
     () => motion.create(asChild as keyof JSX.IntrinsicElements),
-    [asChild],
+    [asChild]
   );
 
   return (
     <MotionComponent
-      initial="hidden"
-      animate="visible"
+      initial='hidden'
+      animate='visible'
       variants={containerVariants}
       className={className}
     >
-      {React.Children.map(children, (child, index) => {
-        if (!child) return null;
-        // Ensure key is string or number, and only access .key if child is a valid React element
-        let key: string | number = String(index);
-        if (React.isValidElement(child) && child.key != null) {
-          key =
-            typeof child.key === 'string' || typeof child.key === 'number'
-              ? child.key
-              : String(child.key);
-        }
-        return (
-          <MotionChild key={key} variants={itemVariants}>
-            {child}
-          </MotionChild>
-        );
-      })}
+      {React.Children.map(children, (child, index) => (
+        <MotionChild key={index} variants={itemVariants}>
+          {child}
+        </MotionChild>
+      ))}
     </MotionComponent>
   );
 }

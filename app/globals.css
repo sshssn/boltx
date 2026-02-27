@@ -228,6 +228,14 @@ html, body {
   font-family: 'Lato', Arial, sans-serif;
 }
 
+html {
+    font-size: 15px;
+}
+
+body {
+    font-size: 1rem;
+}
+
 .skeleton {
     * {
         pointer-events: none !important;

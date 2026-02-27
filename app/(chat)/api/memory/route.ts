@@ -4,7 +4,6 @@ import { getMemoryByUserId, deleteMemoryById } from '@/lib/db/queries';
 
 export async function GET(req: NextRequest) {
   const session = await auth();
-  console.log('MEMORY API SESSION DEBUG:', session?.user);
   if (!session?.user || session.user.type !== 'regular') {
     return new Response('Unauthorized', { status: 401 });
   }

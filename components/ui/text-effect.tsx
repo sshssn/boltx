@@ -1,12 +1,15 @@
 'use client';
 import { cn } from '@/lib/utils';
-import { AnimatePresence, motion } from 'motion/react';
+import {
+  AnimatePresence,
+  motion
+} from 'motion/react';
 import type {
   TargetAndTransition,
   Transition,
   Variant,
   Variants,
-} from 'motion/react';
+} from 'motion/react'
 import React from 'react';
 
 export type PresetType = 'blur' | 'fade-in-blur' | 'scale' | 'fade' | 'slide';
@@ -116,25 +119,25 @@ const AnimationComponent: React.FC<{
 }> = React.memo(({ segment, variants, per, segmentWrapperClassName }) => {
   const content =
     per === 'line' ? (
-      <motion.span variants={variants} className="block">
+      <motion.span variants={variants} className='block'>
         {segment}
       </motion.span>
     ) : per === 'word' ? (
       <motion.span
-        aria-hidden="true"
+        aria-hidden='true'
         variants={variants}
-        className="inline-block whitespace-pre"
+        className='inline-block whitespace-pre'
       >
         {segment}
       </motion.span>
     ) : (
-      <motion.span className="inline-block whitespace-pre">
-        {segment.split('').map((char) => (
+      <motion.span className='inline-block whitespace-pre'>
+        {segment.split('').map((char, charIndex) => (
           <motion.span
-            key={char}
-            aria-hidden="true"
+            key={`char-${charIndex}`}
+            aria-hidden='true'
             variants={variants}
-            className="inline-block whitespace-pre"
+            className='inline-block whitespace-pre'
           >
             {char}
           </motion.span>
@@ -163,15 +166,17 @@ const splitText = (text: string, per: PerType) => {
 };
 
 const hasTransition = (
-  variant?: Variant,
+  variant?: Variant
 ): variant is TargetAndTransition & { transition?: Transition } => {
   if (!variant) return false;
-  return typeof variant === 'object' && 'transition' in variant;
+  return (
+    typeof variant === 'object' && 'transition' in variant
+  );
 };
 
 const createVariantsWithTransition = (
   baseVariants: Variants,
-  transition?: Transition & { exit?: Transition },
+  transition?: Transition & { exit?: Transition }
 ): Variants => {
   if (!transition) return baseVariants;
 
@@ -251,7 +256,7 @@ export function TextEffect({
           staggerChildren: customStagger ?? stagger,
           staggerDirection: -1,
         },
-      },
+      }
     ),
     item: createVariantsWithTransition(variants?.item || baseVariants.item, {
       duration: baseDuration,
@@ -260,22 +265,22 @@ export function TextEffect({
   };
 
   return (
-    <AnimatePresence mode="popLayout">
+    <AnimatePresence mode='popLayout'>
       {trigger && (
         <MotionTag
-          initial="hidden"
-          animate="visible"
-          exit="exit"
+          initial='hidden'
+          animate='visible'
+          exit='exit'
           variants={computedVariants.container}
           className={className}
           onAnimationComplete={onAnimationComplete}
           onAnimationStart={onAnimationStart}
           style={style}
         >
-          {per !== 'line' ? <span className="sr-only">{children}</span> : null}
+          {per !== 'line' ? <span className='sr-only'>{children}</span> : null}
           {segments.map((segment, index) => (
             <AnimationComponent
-              key={segment}
+              key={`${per}-${index}-${segment}`}
               segment={segment}
               variants={computedVariants.item}
               per={per}

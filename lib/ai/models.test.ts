@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import { simulateReadableStream } from 'ai';
 import { MockLanguageModelV2 } from 'ai/test';
 // Mock function since the test utils don't exist
@@ -13,84 +14,100 @@ const getResponseChunksByPrompt = (prompt: string, isReasoning = false) => {
     },
   ];
 };
+=======
+import { MockLanguageModelV3, simulateReadableStream } from 'ai/test';
+import { getResponseChunksByPrompt } from '@/tests/prompts/utils';
+import type { LanguageModelV3GenerateResult, LanguageModelV3StreamResult } from 'ai';
+>>>>>>> bolt-updates
 
-export const chatModel = new MockLanguageModelV2({
+export const chatModel = new MockLanguageModelV3({
   doGenerate: async () => ({
-    rawCall: { rawPrompt: null, rawSettings: {} },
     finishReason: 'stop',
-    usage: { inputTokens: 10, outputTokens: 20, totalTokens: 30 },
+    usage: { inputTokens: 10, outputTokens: 20 },
+    text: 'Hello, world!',
     content: [{ type: 'text', text: 'Hello, world!' }],
+    rawCall: { rawPrompt: null, rawSettings: {} },
     warnings: [],
-  }),
+  } as LanguageModelV3GenerateResult),
   doStream: async ({ prompt }) => ({
     stream: simulateReadableStream({
       chunkDelayInMs: 500,
       initialDelayInMs: 1000,
-      chunks: getResponseChunksByPrompt(prompt),
+      chunks: getResponseChunksByPrompt(prompt).map(chunk => ({
+        ...chunk,
+        id: '1',
+      } as any)),
     }),
     rawCall: { rawPrompt: null, rawSettings: {} },
-  }),
+  } as LanguageModelV3StreamResult),
 });
 
-export const reasoningModel = new MockLanguageModelV2({
+export const reasoningModel = new MockLanguageModelV3({
   doGenerate: async () => ({
-    rawCall: { rawPrompt: null, rawSettings: {} },
     finishReason: 'stop',
-    usage: { inputTokens: 10, outputTokens: 20, totalTokens: 30 },
+    usage: { inputTokens: 10, outputTokens: 20 },
+    text: 'Hello, world!',
     content: [{ type: 'text', text: 'Hello, world!' }],
+    rawCall: { rawPrompt: null, rawSettings: {} },
     warnings: [],
-  }),
+  } as LanguageModelV3GenerateResult),
   doStream: async ({ prompt }) => ({
     stream: simulateReadableStream({
       chunkDelayInMs: 500,
       initialDelayInMs: 1000,
-      chunks: getResponseChunksByPrompt(prompt, true),
+      chunks: getResponseChunksByPrompt(prompt, true).map(chunk => ({
+        ...chunk,
+        id: '1',
+      } as any)),
     }),
     rawCall: { rawPrompt: null, rawSettings: {} },
-  }),
+  } as LanguageModelV3StreamResult),
 });
 
-export const titleModel = new MockLanguageModelV2({
+export const titleModel = new MockLanguageModelV3({
   doGenerate: async () => ({
-    rawCall: { rawPrompt: null, rawSettings: {} },
     finishReason: 'stop',
-    usage: { inputTokens: 10, outputTokens: 20, totalTokens: 30 },
+    usage: { inputTokens: 3, outputTokens: 10 },
+    text: 'This is a test title',
     content: [{ type: 'text', text: 'This is a test title' }],
+    rawCall: { rawPrompt: null, rawSettings: {} },
     warnings: [],
-  }),
+  } as LanguageModelV3GenerateResult),
   doStream: async () => ({
     stream: simulateReadableStream({
       chunkDelayInMs: 500,
       initialDelayInMs: 1000,
       chunks: [
-        { id: '1', type: 'text-start' },
-        { id: '1', type: 'text-delta', delta: 'This is a test title' },
-        { id: '1', type: 'text-end' },
+        { type: 'text-delta', id: '1', delta: 'This is a test title' },
         {
           type: 'finish',
           finishReason: 'stop',
-          usage: { inputTokens: 3, outputTokens: 10, totalTokens: 13 },
+          usage: { inputTokens: 3, outputTokens: 10 },
         },
-      ],
+      ] as any,
     }),
     rawCall: { rawPrompt: null, rawSettings: {} },
-  }),
+  } as LanguageModelV3StreamResult),
 });
 
-export const artifactModel = new MockLanguageModelV2({
+export const artifactModel = new MockLanguageModelV3({
   doGenerate: async () => ({
-    rawCall: { rawPrompt: null, rawSettings: {} },
     finishReason: 'stop',
-    usage: { inputTokens: 10, outputTokens: 20, totalTokens: 30 },
+    usage: { inputTokens: 10, outputTokens: 20 },
+    text: 'Hello, world!',
     content: [{ type: 'text', text: 'Hello, world!' }],
+    rawCall: { rawPrompt: null, rawSettings: {} },
     warnings: [],
-  }),
+  } as LanguageModelV3GenerateResult),
   doStream: async ({ prompt }) => ({
     stream: simulateReadableStream({
       chunkDelayInMs: 50,
       initialDelayInMs: 100,
-      chunks: getResponseChunksByPrompt(prompt),
+      chunks: getResponseChunksByPrompt(prompt).map(chunk => ({
+        ...chunk,
+        id: '1',
+      } as any)),
     }),
     rawCall: { rawPrompt: null, rawSettings: {} },
-  }),
+  } as LanguageModelV3StreamResult),
 });

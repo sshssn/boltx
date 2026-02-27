@@ -3,40 +3,32 @@ import type { ChatModel } from './models';
 
 interface Entitlements {
   maxMessagesPerDay: number;
-  availableChatModelIds: Array<ChatModel['id']>;
+  availableChatModelIds: Array<string>;
 }
 
-export const entitlementsByUserType: Record<UserType, Entitlements> = {
+export const entitlementsByUserType: Record<string, Entitlements> = {
   guest: {
-    maxMessagesPerDay: 10,
-    availableChatModelIds: ['gemini-2.0-flash-exp'],
+    maxMessagesPerDay: 20,
+    availableChatModelIds: ['gpt-5.1'],
   },
   regular: {
-    maxMessagesPerDay: 25,
-    availableChatModelIds: [
-      'gemini-2.0-flash-exp',
-      'meta-llama/llama-3.1-8b-instruct:free',
-      'qwen/qwen2.5-7b-instruct:free',
-    ],
+    maxMessagesPerDay: 100,
+    availableChatModelIds: ['gpt-5.1', 'gpt-5.2'],
   },
   pro: {
     maxMessagesPerDay: 500,
     availableChatModelIds: [
-      'gemini-2.0-flash-exp',
-      'meta-llama/llama-3.1-8b-instruct:free',
-      'qwen/qwen2.5-7b-instruct:free',
+      'gpt-5.1',
+      'gpt-5.2',
       'deepseek/deepseek-r1-0528:free',
-      'google/gemma-3n-e2b-it:free',
     ],
   },
   admin: {
     maxMessagesPerDay: -1, // Unlimited
     availableChatModelIds: [
-      'gemini-2.0-flash-exp',
-      'meta-llama/llama-3.1-8b-instruct:free',
-      'qwen/qwen2.5-7b-instruct:free',
+      'gpt-5.1',
+      'gpt-5.2',
       'deepseek/deepseek-r1-0528:free',
-      'google/gemma-3n-e2b-it:free',
     ],
   },
 };
