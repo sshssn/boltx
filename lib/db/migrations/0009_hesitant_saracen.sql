@@ -31,7 +31,7 @@ CREATE TABLE IF NOT EXISTS "TicketReply" (
 	"createdAt" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-ALTER TABLE "User" ADD COLUMN "role" varchar(20) DEFAULT 'client';--> statement-breakpoint
+ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "role" varchar(20) DEFAULT 'client';--> statement-breakpoint
 DO $$ BEGIN
  ALTER TABLE "Ticket" ADD CONSTRAINT "Ticket_userId_User_id_fk" FOREIGN KEY ("userId") REFERENCES "public"."User"("id") ON DELETE no action ON UPDATE no action;
 EXCEPTION

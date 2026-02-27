@@ -1,1 +1,1 @@
-ALTER TABLE "Ticket" ADD COLUMN "attachments" json DEFAULT '[]';
+ALTER TABLE "Ticket" ADD COLUMN IF NOT EXISTS "attachments" json DEFAULT '[]';

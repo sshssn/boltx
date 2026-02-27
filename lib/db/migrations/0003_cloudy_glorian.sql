@@ -1,1 +1,1 @@
-ALTER TABLE "Chat" ADD COLUMN "visibility" varchar DEFAULT 'private' NOT NULL;
+ALTER TABLE "Chat" ADD COLUMN IF NOT EXISTS "visibility" varchar DEFAULT 'private' NOT NULL;

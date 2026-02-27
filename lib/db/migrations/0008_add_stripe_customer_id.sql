@@ -1,2 +1,2 @@
 -- Add stripeCustomerId column to User table
-ALTER TABLE "User" ADD COLUMN "stripeCustomerId" varchar(255); 
+ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "stripeCustomerId" varchar(255); 
