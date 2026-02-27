@@ -27,6 +27,8 @@ import {
   type DBMessage,
   type Chat,
   stream,
+  memory,
+  type Memory,
 } from './schema';
 import type { ArtifactKind } from '@/components/artifact';
 import { generateUUID } from '../utils';
@@ -534,5 +536,67 @@ export async function getStreamIdsByChatId({ chatId }: { chatId: string }) {
       'bad_request:database',
       'Failed to get stream ids by chat id',
     );
+  }
+}
+
+export async function getMemoryByUserId({
+  userId,
+  limit = 20,
+}: { userId: string; limit?: number }) {
+  try {
+    return await db
+      .select()
+      .from(memory)
+      .where(eq(memory.userId, userId))
+      .orderBy(desc(memory.createdAt))
+      .limit(limit);
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get memory by user id',
+    );
+  }
+}
+
+export async function getMemoryCountByUserId({ userId }: { userId: string }) {
+  try {
+    const result = await db
+      .select({ count: count() })
+      .from(memory)
+      .where(eq(memory.userId, userId));
+    return result[0]?.count || 0;
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get memory count by user id',
+    );
+  }
+}
+
+export async function addMemory({
+  userId,
+  content,
+}: { userId: string; content: string }) {
+  try {
+    return await db.insert(memory).values({
+      userId,
+      content,
+      createdAt: new Date(),
+    });
+  } catch (error) {
+    throw new ChatSDKError('bad_request:database', 'Failed to add memory');
+  }
+}
+
+export async function deleteMemoryById({
+  id,
+  userId,
+}: { id: string; userId: string }) {
+  try {
+    return await db
+      .delete(memory)
+      .where(and(eq(memory.id, id), eq(memory.userId, userId)));
+  } catch (error) {
+    throw new ChatSDKError('bad_request:database', 'Failed to delete memory');
   }
 }

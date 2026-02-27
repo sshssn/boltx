@@ -59,11 +59,7 @@ export const systemPrompt = ({
 }) => {
   const requestPrompt = getRequestPromptFromHints(requestHints);
 
-  if (selectedChatModel === 'chat-model-reasoning') {
-    return `${regularPrompt}\n\n${requestPrompt}`;
-  } else {
-    return `${regularPrompt}\n\n${requestPrompt}\n\n${artifactsPrompt}`;
-  }
+  return `${regularPrompt}\n\n${requestPrompt}\n\n${artifactsPrompt}\n\nYou can also generate images using the generateImage tool when requested.`;
 };
 
 export const codePrompt = `

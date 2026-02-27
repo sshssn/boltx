@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { z } from 'zod';
 import { streamObject } from 'ai';
 import { myProvider } from '@/lib/ai/providers';

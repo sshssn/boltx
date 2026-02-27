@@ -168,3 +168,14 @@ export const stream = pgTable(
 );
 
 export type Stream = InferSelectModel<typeof stream>;
+
+export const memory = pgTable('Memory', {
+  id: uuid('id').primaryKey().notNull().defaultRandom(),
+  userId: uuid('userId')
+    .notNull()
+    .references(() => user.id),
+  content: text('content').notNull(),
+  createdAt: timestamp('createdAt').notNull(),
+});
+
+export type Memory = InferSelectModel<typeof memory>;

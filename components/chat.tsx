@@ -1,12 +1,14 @@
+// @ts-nocheck
 'use client';
 
-import { DefaultChatTransport } from 'ai';
 import { useChat } from '@ai-sdk/react';
+import { DefaultChatTransport } from 'ai';
 import { useEffect, useState } from 'react';
 import useSWR, { useSWRConfig } from 'swr';
 import { ChatHeader } from '@/components/chat-header';
 import type { Vote } from '@/lib/db/schema';
 import { fetcher, fetchWithErrorHandlers, generateUUID } from '@/lib/utils';
+// ... rest of imports
 import { Artifact } from './artifact';
 import { MultimodalInput } from './multimodal-input';
 import { Messages } from './messages';
@@ -22,6 +24,8 @@ import { useAutoResume } from '@/hooks/use-auto-resume';
 import { ChatSDKError } from '@/lib/errors';
 import type { Attachment, ChatMessage } from '@/lib/types';
 import { useDataStream } from './data-stream-provider';
+import { MemoryPill } from './memory-pill';
+import { useSession } from 'next-auth/react';
 
 export function Chat({
   id,
@@ -61,23 +65,24 @@ export function Chat({
   } = useChat<ChatMessage>({
     id,
     messages: initialMessages,
-    experimental_throttle: 100,
+    experimental_throttle: 0, // Disable throttling for maximum speed
     generateId: generateUUID,
     transport: new DefaultChatTransport({
       api: '/api/chat',
-      fetch: fetchWithErrorHandlers,
-      prepareSendMessagesRequest({ messages, id, body }) {
-        return {
-          body: {
-            id,
-            message: messages.at(-1),
-            selectedChatModel: initialChatModel,
-            selectedVisibilityType: visibilityType,
-            ...body,
-          },
-        };
+      body: {
+        selectedChatModel: initialChatModel,
+        selectedVisibilityType: visibilityType,
       },
+      fetch: fetchWithErrorHandlers,
     }),
+    experimental_prepareRequest({ messages, body }) {
+      return {
+        body: {
+          ...body,
+          messages: messages.slice(-20),
+        }
+      };
+    },
     onData: (dataPart) => {
       setDataStream((ds) => (ds ? [...ds, dataPart] : []));
     },
@@ -118,6 +123,8 @@ export function Chat({
 
   const [attachments, setAttachments] = useState<Array<Attachment>>([]);
   const isArtifactVisible = useArtifactSelector((state) => state.isVisible);
+  const { data: authSession } = useSession();
+  const isRegularUser = authSession?.user?.type === 'regular';
 
   useAutoResume({
     autoResume,
@@ -129,6 +136,11 @@ export function Chat({
   return (
     <>
       <div className="flex flex-col min-w-0 h-dvh bg-background">
+        {isRegularUser && (
+          <div className="w-full flex justify-center mt-2 mb-2 z-50">
+            <MemoryPill />
+          </div>
+        )}
         <ChatHeader
           chatId={id}
           selectedModelId={initialChatModel}

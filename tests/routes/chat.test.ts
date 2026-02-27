@@ -46,7 +46,7 @@ test.describe
         data: {
           id: chatId,
           message: TEST_PROMPTS.SKY.MESSAGE,
-          selectedChatModel: 'chat-model',
+          selectedChatModel: 'gpt-4o',
           selectedVisibilityType: 'private',
         },
       });
@@ -75,7 +75,7 @@ test.describe
         data: {
           id: chatId,
           message: TEST_PROMPTS.GRASS.MESSAGE,
-          selectedChatModel: 'chat-model',
+          selectedChatModel: 'gpt-4o',
           selectedVisibilityType: 'private',
         },
       });
@@ -138,7 +138,7 @@ test.describe
             ],
             createdAt: new Date().toISOString(),
           },
-          selectedChatModel: 'chat-model',
+          selectedChatModel: 'gpt-4o',
           selectedVisibilityType: 'private',
         },
       });
@@ -192,7 +192,7 @@ test.describe
             ],
             createdAt: new Date().toISOString(),
           },
-          selectedChatModel: 'chat-model',
+          selectedChatModel: 'gpt-4o',
           selectedVisibilityType: 'private',
         },
       });

@@ -218,18 +218,19 @@ function PureMultimodalInput({
             transition={{ type: 'spring', stiffness: 300, damping: 20 }}
             className="absolute left-1/2 bottom-28 -translate-x-1/2 z-50"
           >
-            <Button
+            <button
+              type="button"
               data-testid="scroll-to-bottom-button"
-              className="rounded-full"
-              size="icon"
-              variant="outline"
+              className="flex items-center gap-2 px-3 py-1.5 rounded-xl backdrop-blur-md bg-white/60 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700 shadow-md text-xs font-medium text-zinc-700 dark:text-zinc-200 hover:bg-white/80 hover:dark:bg-zinc-800/80 transition-all"
+              style={{ minWidth: 0 }}
               onClick={(event) => {
                 event.preventDefault();
                 scrollToBottom();
               }}
             >
-              <ArrowDown />
-            </Button>
+              <ArrowDown className="w-4 h-4" />
+              <span className="whitespace-nowrap">Scroll to bottom</span>
+            </button>
           </motion.div>
         )}
       </AnimatePresence>

@@ -1,8 +1,10 @@
 import Link from 'next/link';
-import React, { memo } from 'react';
+import React, { memo, useEffect, useRef, useState } from 'react';
 import ReactMarkdown, { type Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { CodeBlock } from './code-block';
+import '@fontsource/jetbrains-mono';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const components: Partial<Components> = {
   // @ts-expect-error
@@ -107,3 +109,50 @@ export const Markdown = memo(
   NonMemoizedMarkdown,
   (prevProps, nextProps) => prevProps.children === nextProps.children,
 );
+
+// Typewriter effect for markdown (for AI responses)
+export function MarkdownTypewriter({
+  children,
+  speed = 120,
+  isStreaming,
+}: { children: string; speed?: number; isStreaming?: boolean }) {
+  const [displayedText, setDisplayedText] = useState('');
+  const [done, setDone] = useState(false);
+  const fullText = children || '';
+
+  useEffect(() => {
+    setDone(false);
+    setDisplayedText('');
+    if (!fullText) return;
+    let lastText = '';
+    let timeout: NodeJS.Timeout;
+    function update() {
+      if (lastText !== fullText) {
+        setDisplayedText(fullText);
+        lastText = fullText;
+        timeout = setTimeout(update, 50); // Debounce for smoothness
+      } else {
+        setDone(true);
+      }
+    }
+    update();
+    return () => clearTimeout(timeout);
+  }, [fullText]);
+
+  if (!done) {
+    return (
+      <span className="font-['JetBrains_Mono'] text-base">
+        {displayedText}
+        <span className="blinking-cursor">|</span>
+        <style>{`.blinking-cursor { animation: blink 1s step-start infinite; } @keyframes blink { 50% { opacity: 0; } }`}</style>
+      </span>
+    );
+  }
+  return (
+    <div className="font-['JetBrains_Mono'] text-base">
+      <ReactMarkdown remarkPlugins={remarkPlugins} components={components}>
+        {fullText}
+      </ReactMarkdown>
+    </div>
+  );
+}
