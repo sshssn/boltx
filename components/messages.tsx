@@ -173,7 +173,7 @@ function PureMessages({
         } catch (error) {
           console.error('Failed to fetch quota info:', error);
           // Fallback to counting messages if API fails
-          const userMessageCount = messages.filter(
+          const userMessageCount = safeMessages.filter(
             (msg) => msg.role === 'user',
           ).length;
           setMessagesUsed(userMessageCount);
