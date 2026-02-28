@@ -37,7 +37,7 @@ export default async function Page(props: { params: Promise<{ id: string }> }) {
     id,
   });
 
-  const uiMessages = convertToUIMessages(messagesFromDb);
+  const uiMessages = convertToUIMessages(messagesFromDb ?? []);
 
   const cookieStore = await cookies();
   const chatModelFromCookie = cookieStore.get('chat-model');

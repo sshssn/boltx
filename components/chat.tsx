@@ -132,6 +132,7 @@ export function Chat({
       mutate('/api/history');
     },
   });
+  const safeMessages = Array.isArray(messages) ? messages : [];
 
   useEffect(() => {
     if (session?.user && document.referrer.includes('/auth')) {
@@ -178,17 +179,17 @@ export function Chat({
         </div>
       )}
 
-      {messages.length > 0 && (
+      {safeMessages.length > 0 && (
         <ChatTitleManager
           chatId={id}
-          userMessage={messages.find((m) => m.role === 'user')?.content || ''}
-          aiResponse={messages.find((m) => m.role === 'assistant')?.content}
+          userMessage={safeMessages.find((m) => m.role === 'user')?.content || ''}
+          aiResponse={safeMessages.find((m) => m.role === 'assistant')?.content}
           isStreaming={status === 'streaming'}
         />
       )}
 
       <div className="flex-1 flex flex-col relative overflow-hidden">
-        {messages.length === 0 ? (
+        {safeMessages.length === 0 ? (
           <div className="flex-1 flex items-center justify-center p-4 pb-36">
             <div className="w-full max-w-2xl">
               <SuggestedActions
@@ -202,7 +203,7 @@ export function Chat({
             <Messages
               chatId={id}
               status={status}
-              messages={messages}
+              messages={safeMessages}
               setMessages={setMessages}
               reload={reload}
               isReadonly={isReadonly}
@@ -227,7 +228,7 @@ export function Chat({
                 handleSubmit={handleSubmit}
                 isLoading={status === 'streaming'}
                 stop={stop}
-                messages={messages}
+                messages={safeMessages}
                 setMessages={setMessages}
                 append={append}
               />
