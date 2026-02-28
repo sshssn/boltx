@@ -1,8 +1,7 @@
-<<<<<<< HEAD
-import { simulateReadableStream } from 'ai';
-import { MockLanguageModelV2 } from 'ai/test';
-// Mock function since the test utils don't exist
-const getResponseChunksByPrompt = (prompt: string, isReasoning = false) => {
+import { MockLanguageModelV3, simulateReadableStream } from 'ai/test';
+import type { LanguageModelV3GenerateResult, LanguageModelV3StreamResult } from 'ai';
+
+const getResponseChunksByPrompt = (prompt: any, isReasoning = false) => {
   return [
     { id: '1', type: 'text-start' },
     { id: '1', type: 'text-delta', delta: 'Hello, world!' },
@@ -14,11 +13,6 @@ const getResponseChunksByPrompt = (prompt: string, isReasoning = false) => {
     },
   ];
 };
-=======
-import { MockLanguageModelV3, simulateReadableStream } from 'ai/test';
-import { getResponseChunksByPrompt } from '@/tests/prompts/utils';
-import type { LanguageModelV3GenerateResult, LanguageModelV3StreamResult } from 'ai';
->>>>>>> bolt-updates
 
 export const chatModel = new MockLanguageModelV3({
   doGenerate: async () => ({
@@ -27,19 +21,7 @@ export const chatModel = new MockLanguageModelV3({
     text: 'Hello, world!',
     content: [{ type: 'text', text: 'Hello, world!' }],
     rawCall: { rawPrompt: null, rawSettings: {} },
-    warnings: [],
-  } as LanguageModelV3GenerateResult),
-  doStream: async ({ prompt }) => ({
-    stream: simulateReadableStream({
-      chunkDelayInMs: 500,
-      initialDelayInMs: 1000,
-      chunks: getResponseChunksByPrompt(prompt).map(chunk => ({
-        ...chunk,
-        id: '1',
-      } as any)),
-    }),
-    rawCall: { rawPrompt: null, rawSettings: {} },
-  } as LanguageModelV3StreamResult),
+  } as any),
 });
 
 export const reasoningModel = new MockLanguageModelV3({
@@ -58,7 +40,7 @@ export const reasoningModel = new MockLanguageModelV3({
       chunks: getResponseChunksByPrompt(prompt, true).map(chunk => ({
         ...chunk,
         id: '1',
-      } as any)),
+      }) as any),
     }),
     rawCall: { rawPrompt: null, rawSettings: {} },
   } as LanguageModelV3StreamResult),
@@ -106,7 +88,7 @@ export const artifactModel = new MockLanguageModelV3({
       chunks: getResponseChunksByPrompt(prompt).map(chunk => ({
         ...chunk,
         id: '1',
-      } as any)),
+      }) as any),
     }),
     rawCall: { rawPrompt: null, rawSettings: {} },
   } as LanguageModelV3StreamResult),

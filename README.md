@@ -1,47 +1,57 @@
 <div align="center">
-  <img src="public/images/dark.svg" alt="boltX logo" width="220" />
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="public/images/sss.svg" />
+    <source media="(prefers-color-scheme: light)" srcset="public/images/ss.svg" />
+    <img src="public/images/ss.svg" alt="BoltX logo" width="220" />
+  </picture>
   <h1 align="center">BoltX AI</h1>
 </div>
 
 <p align="center">
-    BoltX is an advanced, production-ready AI chatbot platform built with Next.js 15 and AI SDK 6.x. It features state-of-the-art model integration, multimodal capabilities, and robust persistent streaming.
+  BoltX is a modern AI chat platform built for teams that need reliable, secure, and extensible conversational experiences.
+  It pairs a polished end-user interface with a robust backend foundation for multi-provider AI, streaming, and persistent sessions.
 </p>
 
 <p align="center">
-  <a href="#features"><strong>Features</strong></a> ·
+  <a href="#overview"><strong>Overview</strong></a> ·
+  <a href="#business-value"><strong>Business Value</strong></a> ·
+  <a href="#technical-highlights"><strong>Technical Highlights</strong></a> ·
   <a href="#tech-stack"><strong>Tech Stack</strong></a> ·
-  <a href="#model-providers"><strong>Model Providers</strong></a> ·
   <a href="#getting-started"><strong>Getting Started</strong></a>
 </p>
 <br/>
 
-## Features
+## Overview
 
-### 🚀 Cutting-Edge AI
-- **Flagship Intelligence**: Powered by **GPT-5.1** as the default model for unparalleled reasoning and response quality.
-- **Advanced Support**: Native integration for **GPT-5.2** and deep reasoning models including **DeepSeek R1**.
-- **Multimodal Generation**: Integrated **DALL-E 3** support for high-fidelity image generation directly within the chat interface.
+BoltX provides a unified chat experience with fast streaming responses, rich artifacts (code, text, tables, images), and durable conversation state. It is designed to be provider-agnostic so teams can adopt the best model mix without rewriting product logic.
 
-### 🔄 Resumable Persistence
-- **Session Continuity**: Powered by `resumable-stream` and Redis, ensuring chat sessions are persistent and robust against network interruptions.
-- **Real-time Streaming**: Optimized AI SDK 6.x implementation for ultra-fast, smooth token delivery.
+## Business Value
 
-### 🎨 Premium Interface
-- **Dynamic Artifacts**: Specialized handlers for code, text, sheets, and images to provide a rich, interactive user experience.
-- **Modern Design**: A beautiful, responsive UI built with **Tailwind CSS v3** and **shadcn/ui** primitives.
+- **Customer support acceleration**: Deflect common tickets with fast, reliable answers and file-aware responses.
+- **Internal knowledge access**: Consolidate knowledge across tools and expose it through a consistent conversational interface.
+- **Productivity assistants**: Enable research, summarization, and content generation with strong UX and predictable session behavior.
+- **Operational control**: Centralize model routing, usage tracking, and cost management in one platform.
+
+## Technical Highlights
+
+- **Provider-agnostic AI layer**: Built on the AI SDK to support multiple model providers with a consistent API surface.
+- **Persistent, resumable streaming**: Sessions remain stable across network interruptions and long-running responses.
+- **Artifact-aware UI**: Rich outputs (code, text, sheets, images) rendered in context for better workflows.
+- **Scalable architecture**: App Router + Server Actions with clear separation between UI and inference logic.
+- **Authentication and data security**: Integrated auth flows and database-backed history.
 
 ## Tech Stack
 
-- **Framework**: [Next.js 15](https://nextjs.org) (App Router, Server Actions)
-- **AI Infrastructure**: [AI SDK 6.x](https://sdk.vercel.ai)
-- **Styling**: [Tailwind CSS v3](https://tailwindcss.com), [shadcn/ui](https://ui.shadcn.com)
-- **Database**: [Neon Postgres](https://neon.tech)
-- **Caching & Persistence**: [Redis](https://redis.io) (Upstash)
-- **Authentication**: [Auth.js](https://authjs.dev)
+- **Framework**: Next.js 15 (App Router, Server Actions)
+- **AI Infrastructure**: AI SDK 6.x
+- **Styling**: Tailwind CSS v3, shadcn/ui
+- **Database**: Neon Postgres
+- **Caching & Persistence**: Redis (Upstash)
+- **Authentication**: Auth.js
 
 ## Model Providers
 
-BoltX is designed for cross-provider flexibility. While it defaults to **OpenAI's GPT-5** series, it is fully compatible with deep reasoning models via DeepSeek and other providers supported by the AI SDK.
+BoltX supports OpenAI, DeepSeek, and any provider supported by the AI SDK. Model selection and routing are configurable through environment variables and server-side configuration.
 
 ## Getting Started
 
@@ -50,7 +60,7 @@ BoltX is designed for cross-provider flexibility. While it defaults to **OpenAI'
 - Node.js 18+
 - pnpm
 - Redis instance (local or Upstash)
-- OpenAI & DeepSeek API Keys
+- Provider API keys (OpenAI, DeepSeek, or others)
 
 ### Installation
 
@@ -82,7 +92,7 @@ BoltX is designed for cross-provider flexibility. While it defaults to **OpenAI'
    pnpm dev
    ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open `http://localhost:3000` to view the app.
 
 ## API Endpoints
 
@@ -93,4 +103,4 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 
 ## License
 
-MIT - Developed with ❤️ by [ssh](https://github.com/sshssn) @AffinityX
+MIT - Developed by ssh @AffinityX
