@@ -113,6 +113,7 @@ function PureMessages({
   limitReached = false,
   isWebSearchMode = false,
 }: MessagesProps) {
+  const safeMessages = Array.isArray(messages) ? messages : [];
   const {
     containerRef: messagesContainerRef,
     endRef: messagesEndRef,
@@ -182,14 +183,14 @@ function PureMessages({
       fetchQuotaInfo();
 
       // Also fetch when a new user message is added
-      const userMessages = messages.filter((msg) => msg.role === 'user');
+      const userMessages = safeMessages.filter((msg) => msg.role === 'user');
       if (userMessages.length > 0) {
         // Small delay to ensure the message is processed on the server
         const timeoutId = setTimeout(fetchQuotaInfo, 1000);
         return () => clearTimeout(timeoutId);
       }
     }
-  }, [isGuest, isRegular, session, messages.length, onGuestLimit]);
+  }, [isGuest, isRegular, session, safeMessages.length, onGuestLimit]);
 
   useDataStream();
 
@@ -211,15 +212,15 @@ function PureMessages({
         scrollPaddingTop: '16px',
       }}
     >
-      {messages.length === 0 && <Greeting />}
+      {safeMessages.length === 0 && <Greeting />}
 
       {/* Network error display removed - handled by chat component */}
 
       {/* Messages */}
-      {messages.map((message, index) => {
+      {safeMessages.map((message, index) => {
         // Show separator after every user message
         const shouldShowSeparator =
-          message.role === 'user' && index < messages.length - 1; // Don't show after the last message
+          message.role === 'user' && index < safeMessages.length - 1; // Don't show after the last message
 
         return (
           <div key={message.id}>
@@ -227,7 +228,7 @@ function PureMessages({
               chatId={chatId}
               message={message}
               isLoading={
-                status === 'streaming' && messages.length - 1 === index
+                status === 'streaming' && safeMessages.length - 1 === index
               }
               vote={
                 votes
@@ -238,10 +239,10 @@ function PureMessages({
               regenerate={regenerate}
               isReadonly={isReadonly}
               requiresScrollPadding={
-                hasSentMessage && index === messages.length - 1
+                hasSentMessage && index === safeMessages.length - 1
               }
               isStreaming={
-                status === 'streaming' && index === messages.length - 1
+                status === 'streaming' && index === safeMessages.length - 1
               }
               style={index === 0 ? { marginTop: '1.2rem' } : {}}
               limitReached={limitReached}
@@ -292,8 +293,14 @@ export const Messages = memo(PureMessages, (prevProps, nextProps) => {
   if (prevProps.isArtifactVisible && nextProps.isArtifactVisible) return true;
 
   if (prevProps.status !== nextProps.status) return false;
-  if (prevProps.messages.length !== nextProps.messages.length) return false;
-  if (!equal(prevProps.messages, nextProps.messages)) return false;
+  const prevMessages = Array.isArray(prevProps.messages)
+    ? prevProps.messages
+    : [];
+  const nextMessages = Array.isArray(nextProps.messages)
+    ? nextProps.messages
+    : [];
+  if (prevMessages.length !== nextMessages.length) return false;
+  if (!equal(prevMessages, nextMessages)) return false;
   if (!equal(prevProps.votes, nextProps.votes)) return false;
 
   return false;

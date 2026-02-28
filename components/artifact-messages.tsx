@@ -30,6 +30,7 @@ function PureArtifactMessages({
   isReadonly,
   limitReached = false,
 }: ArtifactMessagesProps) {
+  const safeMessages = Array.isArray(messages) ? messages : [];
   const {
     containerRef: messagesContainerRef,
     endRef: messagesEndRef,
@@ -46,12 +47,12 @@ function PureArtifactMessages({
       ref={messagesContainerRef}
       className="flex flex-col gap-4 h-full items-center overflow-y-scroll px-4 pt-20"
     >
-      {messages.map((message, index) => (
+      {safeMessages.map((message, index) => (
         <PreviewMessage
           chatId={chatId}
           key={message.id}
           message={message}
-          isLoading={status === 'streaming' && index === messages.length - 1}
+          isLoading={status === 'streaming' && index === safeMessages.length - 1}
           vote={
             votes
               ? votes.find((vote) => vote.messageId === message.id)
@@ -61,15 +62,17 @@ function PureArtifactMessages({
           regenerate={regenerate}
           isReadonly={isReadonly}
           requiresScrollPadding={
-            hasSentMessage && index === messages.length - 1
+            hasSentMessage && index === safeMessages.length - 1
           }
           limitReached={limitReached}
         />
       ))}
 
       {status === 'submitted' &&
-        messages.length > 0 &&
-        messages[messages.length - 1].role === 'user' && <ThinkingMessage />}
+        safeMessages.length > 0 &&
+        safeMessages[safeMessages.length - 1].role === 'user' && (
+          <ThinkingMessage />
+        )}
 
       <motion.div
         ref={messagesEndRef}
@@ -93,7 +96,13 @@ function areEqual(
 
   if (prevProps.status !== nextProps.status) return false;
   if (prevProps.status && nextProps.status) return false;
-  if (prevProps.messages.length !== nextProps.messages.length) return false;
+  const prevMessages = Array.isArray(prevProps.messages)
+    ? prevProps.messages
+    : [];
+  const nextMessages = Array.isArray(nextProps.messages)
+    ? nextProps.messages
+    : [];
+  if (prevMessages.length !== nextMessages.length) return false;
   if (!equal(prevProps.votes, nextProps.votes)) return false;
 
   return true;
