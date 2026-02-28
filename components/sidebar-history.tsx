@@ -117,13 +117,20 @@ export function getChatHistoryPaginationKey(
   pageIndex: number,
   previousPageData: ChatHistory,
 ) {
-  if (previousPageData && previousPageData.hasMore === false) {
+  if (pageIndex === 0) return `/api/history?limit=${PAGE_SIZE}`;
+
+  if (!previousPageData || !('chats' in previousPageData)) {
     return null;
   }
 
-  if (pageIndex === 0) return `/api/history?limit=${PAGE_SIZE}`;
+  if (previousPageData.hasMore === false) {
+    return null;
+  }
 
-  const firstChatFromPage = previousPageData.chats.at(-1);
+  const chats = Array.isArray(previousPageData.chats)
+    ? previousPageData.chats
+    : [];
+  const firstChatFromPage = chats.at(-1);
   if (!firstChatFromPage) return null;
 
   return `/api/history?ending_before=${firstChatFromPage.id}&limit=${PAGE_SIZE}`;
@@ -339,16 +346,18 @@ export function SidebarHistory({
   // Process chats
   const { hasReachedEnd, hasEmptyChatHistory, filteredChats } = useMemo(() => {
     const hasReachedEnd = paginatedChatHistories
-      ? paginatedChatHistories.some((page) => page.hasMore === false)
+      ? paginatedChatHistories.some((page) => page?.hasMore === false)
       : false;
 
     const hasEmptyChatHistory = paginatedChatHistories
-      ? paginatedChatHistories.every((page) => page.chats.length === 0)
+      ? paginatedChatHistories.every(
+          (page) => (page?.chats?.length ?? 0) === 0,
+        )
       : false;
 
     let chatsFromHistory =
       paginatedChatHistories?.flatMap(
-        (paginatedChatHistory) => paginatedChatHistory.chats,
+        (paginatedChatHistory) => paginatedChatHistory?.chats ?? [],
       ) || [];
 
     // Filter by search if provided
