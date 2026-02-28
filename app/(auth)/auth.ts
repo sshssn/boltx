@@ -92,7 +92,9 @@ export const {
     Credentials({
       credentials: {},
       async authorize({ email, password }: any) {
-        const users = await getUser(email);
+        if (!email || !password) return null;
+        const users = (await getUser(email)) ?? [];
+        if (!Array.isArray(users)) return null;
 
         if (users.length === 0) {
           await compare(password, DUMMY_PASSWORD);
@@ -122,7 +124,9 @@ export const {
       id: 'guest',
       credentials: {},
       async authorize() {
-        const [guestUser] = await createGuestUser();
+        const created = await createGuestUser();
+        const guestUser = Array.isArray(created) ? created[0] : undefined;
+        if (!guestUser) return null;
         return { ...guestUser, type: 'guest', role: 'guest' };
       },
     }),
@@ -137,7 +141,8 @@ export const {
 
         try {
           // Check if user already exists
-          const existingUsers = await getUser(user.email);
+          const existingUsers = (await getUser(user.email)) ?? [];
+          if (!Array.isArray(existingUsers)) return false;
 
           if (existingUsers.length > 0) {
             // User exists, update their information
@@ -157,7 +162,7 @@ export const {
               user.name || user.email.split('@')[0], // Use name or email prefix as username
             );
 
-            if (newUser && newUser.length > 0) {
+            if (Array.isArray(newUser) && newUser.length > 0) {
               // Update the user object with our database user info
               user.id = newUser[0].id;
               user.role = 'regular';
