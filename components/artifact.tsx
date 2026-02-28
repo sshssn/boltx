@@ -515,7 +515,14 @@ export const Artifact = memo(PureArtifact, (prevProps, nextProps) => {
   if (prevProps.status !== nextProps.status) return false;
   if (!equal(prevProps.votes, nextProps.votes)) return false;
   if (prevProps.input !== nextProps.input) return false;
-  if (!equal(prevProps.messages, nextProps.messages.length)) return false;
+  const prevMessages = Array.isArray(prevProps.messages)
+    ? prevProps.messages
+    : [];
+  const nextMessages = Array.isArray(nextProps.messages)
+    ? nextProps.messages
+    : [];
+  if (prevMessages.length !== nextMessages.length) return false;
+  if (!equal(prevMessages, nextMessages)) return false;
   if (prevProps.selectedVisibilityType !== nextProps.selectedVisibilityType)
     return false;
 
