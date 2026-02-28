@@ -8,6 +8,7 @@ import {
   getMemoryByUserId,
 } from '@/lib/db/queries';
 import { entitlementsByUserType } from '@/lib/ai/entitlements';
+import { authSecret } from '@/lib/constants';
 import { getClientIP, generateUUID } from '@/lib/utils';
 import { streamText, convertToModelMessages } from 'ai';
 import { myProvider } from '@/lib/ai/providers';
@@ -18,8 +19,9 @@ import { createResumableStreamContext } from 'resumable-stream/redis';
 
 // Validate environment variables
 const validateEnvironment = () => {
-  const criticalVars = ['DATABASE_URL', 'AUTH_SECRET'];
-  const missingCritical = criticalVars.filter((varName) => !process.env[varName]);
+  const missingCritical: string[] = [];
+  if (!process.env.DATABASE_URL) missingCritical.push('DATABASE_URL');
+  if (!authSecret) missingCritical.push('AUTH_SECRET');
   if (missingCritical.length > 0) {
     console.error('Missing critical environment variables:', missingCritical);
     return { valid: false, missing: missingCritical, type: 'critical' };

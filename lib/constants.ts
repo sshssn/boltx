@@ -9,5 +9,7 @@ export const isTestEnvironment = Boolean(
 );
 
 export const guestRegex = /^guest-\d+-\d+$/;
+export const authSecret =
+  process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET;
 
 export const DUMMY_PASSWORD = generateDummyPassword();

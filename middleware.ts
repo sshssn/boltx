@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { getToken } from 'next-auth/jwt';
-import { guestRegex, isDevelopmentEnvironment } from './lib/constants';
+import { authSecret, guestRegex, isDevelopmentEnvironment } from './lib/constants';
 
 // Simple in-memory rate limiter (IP-based, 60 req/min)
 const rateLimitMap = new Map();
@@ -69,7 +69,7 @@ export async function middleware(request: NextRequest) {
 
   const token = await getToken({
     req: request,
-    secret: process.env.AUTH_SECRET,
+    secret: authSecret,
     secureCookie: !isDevelopmentEnvironment,
   });
 

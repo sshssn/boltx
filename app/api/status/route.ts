@@ -1,4 +1,6 @@
 export async function GET() {
+  const authSecret =
+    process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET;
   const status: {
     status: string;
     timestamp: string;
@@ -33,7 +35,7 @@ export async function GET() {
         url: process.env.DATABASE_URL ? 'SET' : 'MISSING',
       },
       auth: {
-        secret: process.env.NEXTAUTH_SECRET ? 'SET' : 'MISSING',
+        secret: authSecret ? 'SET' : 'MISSING',
         url: process.env.NEXTAUTH_URL ? 'SET' : 'MISSING',
       },
       ai: {
@@ -74,8 +76,9 @@ export async function GET() {
   };
 
   // Check if critical environment variables are missing
-  const criticalVars = ['DATABASE_URL', 'NEXTAUTH_SECRET'];
-  const missingCritical = criticalVars.filter(varName => !process.env[varName]);
+  const missingCritical: string[] = [];
+  if (!process.env.DATABASE_URL) missingCritical.push('DATABASE_URL');
+  if (!authSecret) missingCritical.push('AUTH_SECRET');
   
   if (missingCritical.length > 0) {
     status.status = 'error';
