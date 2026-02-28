@@ -16,6 +16,11 @@ import type { DBMessage } from '@/lib/db/schema';
 import { waitUntil } from '@vercel/functions';
 import { redisClient } from '@/lib/redis';
 import { createResumableStreamContext } from 'resumable-stream/redis';
+import {
+  createResumableStreamContext as createGenericResumableStreamContext,
+  type Publisher,
+  type Subscriber,
+} from 'resumable-stream/generic';
 
 // Validate environment variables
 const validateEnvironment = () => {
@@ -158,12 +163,60 @@ export async function POST(request: Request) {
 }
 
 export function getStreamContext() {
-  return createResumableStreamContext({
-    publisher: redisClient as any,
-    subscriber: redisClient.duplicate() as any,
+  if (redisClient) {
+    return createResumableStreamContext({
+      publisher: redisClient as any,
+      subscriber: redisClient.duplicate() as any,
+      waitUntil,
+    });
+  }
+
+  console.warn(
+    'REDIS_URL not set. Using in-memory stream context; resumable streams will not work across instances.',
+  );
+
+  return createGenericResumableStreamContext({
+    publisher: inMemoryPublisher,
+    subscriber: inMemorySubscriber,
     waitUntil,
   });
 }
+
+const inMemoryKeyValue = new Map<string, string>();
+const inMemoryChannels = new Map<string, Set<(message: string) => void>>();
+
+const inMemoryPublisher: Publisher = {
+  connect: async () => {},
+  publish: async (channel, message) => {
+    const subscribers = inMemoryChannels.get(channel);
+    if (!subscribers) return;
+    for (const handler of subscribers) handler(message);
+  },
+  set: async (key, value) => {
+    inMemoryKeyValue.set(key, value);
+  },
+  get: async (key) => inMemoryKeyValue.get(key) ?? null,
+  incr: async (key) => {
+    const next = Number(inMemoryKeyValue.get(key) || 0) + 1;
+    inMemoryKeyValue.set(key, String(next));
+    return next;
+  },
+};
+
+const inMemorySubscriber: Subscriber = {
+  connect: async () => {},
+  subscribe: async (channel, callback) => {
+    const existing = inMemoryChannels.get(channel);
+    if (existing) {
+      existing.add(callback);
+      return;
+    }
+    inMemoryChannels.set(channel, new Set([callback]));
+  },
+  unsubscribe: async (channel) => {
+    inMemoryChannels.delete(channel);
+  },
+};
 
 export async function DELETE(request: Request) {
   const { searchParams } = new URL(request.url);

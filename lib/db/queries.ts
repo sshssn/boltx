@@ -42,6 +42,11 @@ export async function getUser(email: string): Promise<Array<User>> {
   });
 }
 
+export async function getUserById(id: string): Promise<User | undefined> {
+  const [record] = await db.select().from(user).where(eq(user.id, id));
+  return record;
+}
+
 export async function createUser(email: string, password: string, username?: string) {
   const hashedPassword = generateHashedPassword(password);
   return await db.insert(user).values({
@@ -130,6 +135,23 @@ export async function getMessagesByChatId({ id }: { id: string }) {
   return await db.select().from(message).where(eq(message.chatId, id)).orderBy(asc(message.createdAt));
 }
 
+export async function getMessageById({ id }: { id: string }) {
+  return await db.select().from(message).where(eq(message.id, id)).orderBy(asc(message.createdAt));
+}
+
+export async function deleteMessagesByChatIdAfterTimestamp({
+  chatId,
+  timestamp,
+}: {
+  chatId: string;
+  timestamp: Date;
+}) {
+  return await db
+    .delete(message)
+    .where(and(eq(message.chatId, chatId), gte(message.createdAt, timestamp)))
+    .returning();
+}
+
 export async function voteMessage({ chatId, messageId, type }: { chatId: string; messageId: string; type: 'up' | 'down' }) {
   const isUpvoted = type === 'up';
   return await db.insert(vote).values({ chatId, messageId, isUpvoted }).onConflictDoUpdate({ target: [vote.chatId, vote.messageId], set: { isUpvoted } });
@@ -146,6 +168,29 @@ export async function saveDocument({ id, title, kind, content, userId }: { id: s
 export async function getDocumentById({ id }: { id: string }) {
   const [doc] = await db.select().from(document).where(eq(document.id, id)).orderBy(desc(document.createdAt)).limit(1);
   return doc;
+}
+
+export async function getDocumentsById({ id }: { id: string }) {
+  return await db
+    .select()
+    .from(document)
+    .where(eq(document.id, id))
+    .orderBy(desc(document.createdAt));
+}
+
+export async function getDocumentsByUserId({
+  userId,
+  limit = 50,
+}: {
+  userId: string;
+  limit?: number;
+}) {
+  return await db
+    .select()
+    .from(document)
+    .where(eq(document.userId, userId))
+    .orderBy(desc(document.createdAt))
+    .limit(limit);
 }
 
 export async function deleteDocumentsByIdAfterTimestamp({ id, timestamp }: { id: string; timestamp: Date }) {
@@ -174,6 +219,19 @@ export async function getMemoryByUserId({ userId, limit = 20 }: { userId: string
 
 export async function addMemory({ userId, content }: { userId: string; content: string }) {
   return await db.insert(memory).values({ userId, content, createdAt: new Date() });
+}
+
+export async function deleteMemoryById({
+  id,
+  userId,
+}: {
+  id: string;
+  userId: string;
+}) {
+  return await db
+    .delete(memory)
+    .where(and(eq(memory.id, id), eq(memory.userId, userId)))
+    .returning();
 }
 
 export async function getMessageUsageCount({ userId, ipAddress, date }: { userId?: string; ipAddress?: string; date: string }): Promise<number> {

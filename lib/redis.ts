@@ -1,19 +1,23 @@
 // @ts-nocheck
 import { createClient } from 'redis';
 
-const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+const redisUrl = process.env.REDIS_URL || process.env.KV_URL;
 
 const globalForRedis = global as unknown as {
-  redisClient: ReturnType<typeof createClient> | undefined;
+  redisClient: ReturnType<typeof createClient> | null | undefined;
 };
 
 export const redisClient =
-  globalForRedis.redisClient ?? createClient({ url: redisUrl });
+  typeof redisUrl === 'string'
+    ? globalForRedis.redisClient ?? createClient({ url: redisUrl })
+    : null;
 
-if (process.env.NODE_ENV !== 'production') {
+if (process.env.NODE_ENV !== 'production' && redisClient) {
   globalForRedis.redisClient = redisClient;
 }
 
-if (!redisClient.isOpen) {
-  redisClient.connect().catch(console.error);
+if (redisClient && !redisClient.isOpen) {
+  redisClient.connect().catch((error) => {
+    console.error('Redis connection failed:', error);
+  });
 }
