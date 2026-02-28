@@ -74,8 +74,47 @@ export async function deleteChatById({ id }: { id: string }) {
   return await db.delete(chat).where(eq(chat.id, id)).returning();
 }
 
-export async function getChatsByUserId({ id, limit }: { id: string; limit: number }) {
-  return await db.select().from(chat).where(eq(chat.userId, id)).orderBy(desc(chat.createdAt)).limit(limit);
+export async function getChatsByUserId({
+  id,
+  limit,
+  startingAfter,
+  endingBefore,
+}: {
+  id: string;
+  limit: number;
+  startingAfter?: string | null;
+  endingBefore?: string | null;
+}) {
+  const whereConditions = [eq(chat.userId, id)];
+
+  const cursorId = endingBefore || startingAfter;
+  if (cursorId) {
+    const [cursorChat] = await db
+      .select({ id: chat.id, createdAt: chat.createdAt, userId: chat.userId })
+      .from(chat)
+      .where(and(eq(chat.id, cursorId), eq(chat.userId, id)))
+      .limit(1);
+
+    if (cursorChat?.createdAt) {
+      if (endingBefore) {
+        whereConditions.push(lt(chat.createdAt, cursorChat.createdAt));
+      } else if (startingAfter) {
+        whereConditions.push(gt(chat.createdAt, cursorChat.createdAt));
+      }
+    }
+  }
+
+  const rows = await db
+    .select()
+    .from(chat)
+    .where(and(...whereConditions))
+    .orderBy(desc(chat.createdAt))
+    .limit(limit + 1);
+
+  const hasMore = rows.length > limit;
+  const chats = hasMore ? rows.slice(0, limit) : rows;
+
+  return { chats, hasMore };
 }
 
 export async function getChatById({ id }: { id: string }) {
